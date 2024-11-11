@@ -4,8 +4,8 @@ import (
 	"flag"
 	"os"
 
-	"github.com/zzsen/github.com/zzsen/gin_core/constant"
-	"github.com/zzsen/github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/constant"
+	"github.com/zzsen/gin_core/logging"
 )
 
 type CmdArgs struct {

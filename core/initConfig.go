@@ -16,11 +16,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 
-	"github.com/zzsen/github.com/zzsen/gin_core/constant"
-	"github.com/zzsen/github.com/zzsen/gin_core/global"
-	"github.com/zzsen/github.com/zzsen/gin_core/logging"
-	"github.com/zzsen/github.com/zzsen/gin_core/model/config"
-	fileUtil "github.com/zzsen/github.com/zzsen/gin_core/utils/file"
+	"github.com/zzsen/gin_core/constant"
+	"github.com/zzsen/gin_core/global"
+	"github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/model/config"
+	fileUtil "github.com/zzsen/gin_core/utils/file"
 )
 
 var baseConfig = &config.BaseConfig{

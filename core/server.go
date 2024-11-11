@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zzsen/github.com/zzsen/gin_core/global"
-	"github.com/zzsen/github.com/zzsen/gin_core/initialize"
-	"github.com/zzsen/github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/global"
+	"github.com/zzsen/gin_core/initialize"
+	"github.com/zzsen/gin_core/logging"
 
 	"github.com/gin-gonic/gin"
 )

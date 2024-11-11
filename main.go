@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/zzsen/github.com/zzsen/gin_core/core"
-	_ "github.com/zzsen/github.com/zzsen/gin_core/middleware"
-	"github.com/zzsen/github.com/zzsen/gin_core/model/config"
+	"github.com/zzsen/gin_core/core"
+	_ "github.com/zzsen/gin_core/middleware"
+	"github.com/zzsen/gin_core/model/config"
 
 	"github.com/gin-gonic/gin"
 )
