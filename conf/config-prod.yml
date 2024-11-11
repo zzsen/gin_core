@@ -1,0 +1,14 @@
+config:
+  service:
+    port: {{PORT}}
+  db:
+    host: "{{DB_HOST}}"
+    dbName: "{{DB_NAME}}"
+    username: "{{DB_USER}}"
+    password: "{{DB_PASSWORD}}"
+    migrate: "{{DB_MIGRATE}}"
+  redis:
+    host: "{{REDIS_HOST}}"
+    port: {{REDIS_PORT}}
+    db: {{REDIS_DB}}
+    password: "{{REDIS_PASSWORD}}"

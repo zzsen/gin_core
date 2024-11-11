@@ -1,0 +1,57 @@
+system: # 系统配置
+    gcTime: 60 # gc时间, 预留, 暂时没用上
+service: # http服务配置
+  ip: '0.0.0.0' # 服务ip
+  port: 8055 # 服务端口
+  routePrefix: '/11111111' # 路由前缀
+  sessionExpire: 3600 # 缓存的有效时长
+  sessionPrefix: "gin_" # redis中缓存前缀
+  cookieKey: "cookieKey" # session对应的cookie，目前用cookieKey
+  readTimeOut: 60 # 读超时
+  writeTimeOut: 60 # 写超时
+  middlewares: # 中间件，注意以下顺序对应中间件调用顺序
+    - "logHandler" # 日志中间件
+    - "exceptionHandler" # 异常处理中间件
+    - "redisSessionHandler" # redisSession中间件
+log: #日志配置
+  loggers: #日志处理类列表
+    - type: "stdLogger" #控制台日志
+      level: "info" #日志级别
+    - type: "fileLogger" # 文件日志
+      level: "info"
+      filePath: "./log/gin_core.log"
+      maxSize: 100
+      maxAge: 1
+      maxBackups: 60
+      compress: false
+    - type: "fileLogger"
+      level: "error"
+      filePath: "./log/gin_core_error.log"
+      maxSize: 100
+      maxAge: 1
+      maxBackups: 60
+      compress: false
+db:
+    host: "127.0.0.1" # 数据库地址
+    port: 3306 # 数据库端口
+    dbName: "dbName" # 数据库名
+    username: "root" # 数据库账号
+    password: "" # 数据库密码
+    maxIdleConns: 10 # 空闲中的最大连接数
+    maxOpenConns: 100 # 打开到数据库的最大连接数
+    migrate: "update" # 每次启动时更新数据库表的方式 update:增量更新表，create:删除所有表再重新建表, 其他则不执行任何动作
+    enableLog: false # 是否开启日志
+    slowThreshold: 100 # 慢查询阈值
+    tablePrefix: "" # 表名前缀
+redis:
+    addr: "localhost:6379"
+    db: 0
+    password: "redis_password"
+smtp:
+    host: "xxxx"
+    username: "xxxx"
+    password: "xxxx"
+    sender: "xxxx"
+
+test: 132
+id: 123
