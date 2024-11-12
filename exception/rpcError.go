@@ -4,7 +4,7 @@ import (
 	"runtime/debug"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/response"
 )
 
@@ -21,7 +21,7 @@ func NewRpcError(msg string) RpcError {
 }
 
 func (e RpcError) OnException(*gin.Context) (msg string, code int) {
-	logging.Error("%v", e)
-	logging.Error(string(debug.Stack()))
+	logger.Error("%v", e)
+	logger.Error(string(debug.Stack()))
 	return e.Error(), response.ResponseExceptionRpc.GetCode()
 }

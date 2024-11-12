@@ -2,7 +2,7 @@ package schedule
 
 import (
 	"github.com/robfig/cron/v3"
-	"github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/logger"
 )
 
 func StartCron() {
@@ -14,5 +14,5 @@ func StartCron() {
 }
 
 func Print() {
-	logging.Info("schedule run")
+	logger.Info("schedule run")
 }

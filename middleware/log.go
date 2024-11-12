@@ -5,13 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/zzsen/gin_core/core"
-	"github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/logger"
 )
 
 func init() {
 	err := core.RegisterMiddleware("logHandler", LogHandler)
 	if err != nil {
-		logging.Error(err.Error())
+		logger.Error(err.Error())
 	}
 }
 
@@ -30,11 +30,11 @@ func LogHandler() gin.HandlerFunc {
 			path = path + "?" + raw
 		}
 		//使用高效logger进行打印
-		logging.HInfo("["+c.Request.Method+"] "+path, logging.FieldTime("TimeStamp", endTime),
-			logging.FieldDuration("Latency", endTime.Sub(start)),
-			logging.FieldString("ClientIP", c.ClientIP()),
-			logging.FieldInt("StatusCode", c.Writer.Status()),
-			logging.FieldString("ErrorMessage", c.Errors.ByType(gin.ErrorTypePrivate).String()),
-			logging.FieldInt("BodySize", c.Writer.Size()))
+		logger.HInfo("["+c.Request.Method+"] "+path, logger.FieldTime("TimeStamp", endTime),
+			logger.FieldDuration("Latency", endTime.Sub(start)),
+			logger.FieldString("ClientIP", c.ClientIP()),
+			logger.FieldInt("StatusCode", c.Writer.Status()),
+			logger.FieldString("ErrorMessage", c.Errors.ByType(gin.ErrorTypePrivate).String()),
+			logger.FieldInt("BodySize", c.Writer.Size()))
 	}
 }

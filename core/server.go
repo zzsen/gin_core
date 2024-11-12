@@ -13,7 +13,7 @@ import (
 
 	"github.com/zzsen/gin_core/global"
 	"github.com/zzsen/gin_core/initialize"
-	"github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/logger"
 
 	"github.com/gin-gonic/gin"
 )
@@ -53,7 +53,7 @@ func new(opts ...gin.OptionFunc) *gin.Engine {
 	if len(useMiddlewares) > 0 {
 		for _, useMiddleware := range useMiddlewares {
 			if _, ok := middleWareMap[useMiddleware]; !ok {
-				logging.Error("can not find %s middleware,please register first", useMiddleware)
+				logger.Error("can not find %s middleware,please register first", useMiddleware)
 				os.Exit(1)
 			}
 			engine.Use(middleWareMap[useMiddleware]())
@@ -82,7 +82,7 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 	}()
 
 	serverAddr := fmt.Sprintf("%s:%d", global.BaseConfig.Service.Ip, global.BaseConfig.Service.Port)
-	logging.Info("Service start by %s:%d", global.BaseConfig.Service.Ip, global.BaseConfig.Service.Port)
+	logger.Info("Service start by %s:%d", global.BaseConfig.Service.Ip, global.BaseConfig.Service.Port)
 
 	server := &http.Server{
 		Addr:         serverAddr,
@@ -108,21 +108,21 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 	}()
 
 	if err := server.ListenAndServe(); err != nil {
-		logging.Error("服务启动异常：%v", err)
+		logger.Error("服务启动异常：%v", err)
 	}
 }
 
 // NotFound 页面不存在
 func NotFound(ctx *gin.Context) {
 	ctx.String(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-	logging.Error("Status: %d, Times(ms): %d, Ip: %s, Method: %s, Uri: %s, StatusText: %s",
+	logger.Error("Status: %d, Times(ms): %d, Ip: %s, Method: %s, Uri: %s, StatusText: %s",
 		ctx.Writer.Status(), 0, ctx.ClientIP(), ctx.Request.Method, ctx.Request.RequestURI, http.StatusText(http.StatusNotFound))
 }
 
 // MethodNotAllowed 方法不允许
 func MethodNotAllowed(ctx *gin.Context) {
 	ctx.String(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
-	logging.Error("Status: %d, Times(ms): %d, Ip: %s, Method: %s, Uri: %s, StatusText: %s",
+	logger.Error("Status: %d, Times(ms): %d, Ip: %s, Method: %s, Uri: %s, StatusText: %s",
 		ctx.Writer.Status(), 0, ctx.ClientIP(), ctx.Request.Method, ctx.Request.RequestURI, http.StatusText(http.StatusMethodNotAllowed))
 }
 

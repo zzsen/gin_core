@@ -18,20 +18,19 @@ import (
 
 	"github.com/zzsen/gin_core/constant"
 	"github.com/zzsen/gin_core/global"
-	"github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
 	fileUtil "github.com/zzsen/gin_core/utils/file"
 )
 
 var baseConfig = &config.BaseConfig{
-	Log: logging.DefaultLoggers,
+	Log: logger.DefaultLoggers,
 	Service: config.ServiceInfo{
 		Ip:            "0.0.0.0",
 		Port:          8055,
 		RoutePrefix:   "/",
 		SessionExpire: 1800,
 		SessionPrefix: "gin_",
-		CookieKey:     "cookieKey",
 		Middlewares:   []string{"logHandler", "exceptionHandler"},
 	},
 }
@@ -39,7 +38,7 @@ var baseConfig = &config.BaseConfig{
 func LoadConfig(conf interface{}) {
 	defer func() {
 		if err := recover(); err != nil {
-			logging.Error("%v", err)
+			logger.Error("%v", err)
 			os.Exit(1)
 		}
 	}()
@@ -51,7 +50,7 @@ func LoadConfig(conf interface{}) {
 	}
 
 	if err != nil {
-		logging.Error("parse cmd args error, %s, %s", getDateTime(), err.Error())
+		logger.Error("parse cmd args error, %s, %s", getDateTime(), err.Error())
 		os.Exit(1)
 	}
 
@@ -60,7 +59,7 @@ func LoadConfig(conf interface{}) {
 		//如果有默认文件，则先加载默认配置文件
 		err = loadYamlConfig(defaultConfigFilePath, conf)
 		if err != nil {
-			logging.Error("加载默认配置失败: %s", err.Error())
+			logger.Error("加载默认配置失败: %s", err.Error())
 			os.Exit(1)
 		}
 	}
@@ -71,13 +70,13 @@ func LoadConfig(conf interface{}) {
 
 		if !fileUtil.PathExists(customConfigFileName) {
 			// 如果没有自定义配置文件，则直接返回
-			logging.Error("加载自定义配置失败, 配置文件目录%s下, 不存在自定义配置文件%s", cmdArgs.Config, customConfigFileName)
+			logger.Error("加载自定义配置失败, 配置文件目录%s下, 不存在自定义配置文件%s", cmdArgs.Config, customConfigFileName)
 			os.Exit(1)
 		}
 
 		err = loadYamlConfig(customConfigFileName, conf)
 		if err != nil {
-			logging.Error("加载自定义配置%s失败: %s", customConfigFileName, err.Error())
+			logger.Error("加载自定义配置%s失败: %s", customConfigFileName, err.Error())
 			os.Exit(1)
 		}
 		return
@@ -115,7 +114,7 @@ func loadYamlConfig(path string, conf interface{}) error {
 
 	err = yaml.Unmarshal(fileData, &global.BaseConfig)
 	if err != nil {
-		logging.Error("加载基础配置%s失败: %s", path, err.Error())
+		logger.Error("加载基础配置%s失败: %s", path, err.Error())
 		return err
 	}
 
