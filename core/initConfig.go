@@ -80,7 +80,6 @@ func LoadConfig(conf interface{}) {
 			logger.Error("加载自定义配置%s失败: %s", customConfigFileName, err.Error())
 			os.Exit(1)
 		}
-		return
 	}
 	global.Config = conf
 }
