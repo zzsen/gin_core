@@ -7,7 +7,7 @@ import (
 	"github.com/zzsen/gin_core/model/config"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/logger"
 	"go.uber.org/zap"
 )
 
@@ -29,11 +29,11 @@ func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 	}
 	pong, err := client.Ping(context.Background()).Result()
 	if err != nil {
-		logging.Error("redis connect ping failed, err:", zap.String("name", redisCfg.Name), zap.Error(err))
+		logger.Error("redis connect ping failed, err:", zap.String("name", redisCfg.Name), zap.Error(err))
 		return nil, err
 	}
 
-	logging.Info("redis connect ping response:", zap.String("name", redisCfg.Name), zap.String("pong", pong))
+	logger.Info("redis connect ping response:", zap.String("name", redisCfg.Name), zap.String("pong", pong))
 	return client, nil
 }
 

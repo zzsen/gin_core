@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/zzsen/gin_core/constant"
-	"github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/logger"
 )
 
 type CmdArgs struct {
@@ -22,6 +22,6 @@ func ParseCmdArgs() (*CmdArgs, error) {
 		_ = argv.Parse(os.Args[1:])
 	}
 
-	logging.Info("解析参数完成, 运行环境:%s, 配置文件路径: %s", info.Env, info.Config)
+	logger.Info("解析参数完成, 运行环境:%s, 配置文件路径: %s", info.Env, info.Config)
 	return &info, nil
 }

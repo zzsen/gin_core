@@ -7,7 +7,7 @@ import (
 
 	"github.com/zzsen/gin_core/core"
 	"github.com/zzsen/gin_core/exception"
-	"github.com/zzsen/gin_core/logging"
+	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/response"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +16,7 @@ import (
 func init() {
 	err := core.RegisterMiddleware("exceptionHandler", ExceptionHandler)
 	if err != nil {
-		logging.Error(err.Error())
+		logger.Error(err.Error())
 	}
 }
 
@@ -29,8 +29,8 @@ func ExceptionHandler() gin.HandlerFunc {
 				if handler, ok := err.(exception.Handler); ok {
 					message, code = handler.OnException(ctx)
 				} else {
-					logging.Error("%v", err)
-					logging.Error(string(debug.Stack()))
+					logger.Error("%v", err)
+					logger.Error(string(debug.Stack()))
 				}
 				_ = ctx.Error(fmt.Errorf("%d : %s", code, message))
 				ctx.JSON(http.StatusOK, gin.H{
