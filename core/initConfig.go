@@ -68,13 +68,14 @@ func LoadConfig(conf interface{}) {
 	if cmdArgs.Env != constant.DefaultEnv {
 		customConfigFileName := fmt.Sprintf("%s%s%s", constant.CustomConfigFileNamePrefix, cmdArgs.Env, constant.CustomConfigFileNameSuffix)
 
-		if !fileUtil.PathExists(customConfigFileName) {
+		customConfigFilePath := path.Join(cmdArgs.Config, customConfigFileName)
+		if !fileUtil.PathExists(customConfigFilePath) {
 			// 如果没有自定义配置文件，则直接返回
-			logger.Error("加载自定义配置失败, 配置文件目录%s下, 不存在自定义配置文件%s", cmdArgs.Config, customConfigFileName)
+			logger.Error("加载自定义配置失败, 配置文件目录%s下, 不存在自定义配置文件%s", cmdArgs.Config, customConfigFilePath)
 			os.Exit(1)
 		}
 
-		err = loadYamlConfig(customConfigFileName, conf)
+		err = loadYamlConfig(customConfigFilePath, conf)
 		if err != nil {
 			logger.Error("加载自定义配置%s失败: %s", customConfigFileName, err.Error())
 			os.Exit(1)
