@@ -77,18 +77,10 @@ gin_core
    `go mod init [projectName]`
 
    > `projectName`替换为项目工程的名称
+ 
+3. 拉取`gin_core`依赖包
 
-3. 修改要加载仓库的拉取方式
-
-   `git config --global url."git@github.com:".insteadof "https://github.com/"`
-
-4. 修改 go 环境变量
-
-   `go env -w GOPRIVATE=github.com`
-
-5. 拉取`gin_core`依赖包
-
-   `go get -u https://github.com/zzsen/gin_core`
+   `go get -u github.com/zzsen/gin_core`
 
 ### 程序主入口
 
