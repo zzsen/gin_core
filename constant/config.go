@@ -10,10 +10,10 @@ const ProdEnv = "prod"
 const DefaultConfigDirPath = "./conf"
 
 // 默认配置文件名称
-const DefaultConfigFileName = "config-default.yml"
+const DefaultConfigFileName = "config.default.yml"
 
 // 自定义配置文件名称前缀
-const CustomConfigFileNamePrefix = "config-"
+const CustomConfigFileNamePrefix = "config."
 
 // 自定义配置文件名称后缀
 const CustomConfigFileNameSuffix = ".yml"
