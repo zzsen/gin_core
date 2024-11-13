@@ -153,7 +153,7 @@ func main() {
 ### 运行
 
 `go run main.go` 或
-`go run main.go --env={env} --conf={conf}`
+`go run main.go --env {env} --conf {conf}`
 
 |参数|说明| 默认值     |
 |---|---|---------|
@@ -162,7 +162,7 @@ func main() {
 
 ### 配置文件
 
-框架会根据启动程序时的命令行参数决定加载不同的配置文件, 默认情况下, 加载`./conf/config-default.yml`
+框架会根据启动程序时的命令行参数决定加载不同的配置文件, 配置文件名格式：`config.{env}.yml`, 默认情况下, 加载`./conf/config-default.yml`
 
 > 配置说明详见[运行](###运行)
 
