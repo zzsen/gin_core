@@ -40,7 +40,7 @@ func initService() {
 
 // new 新建对象
 func new(opts ...gin.OptionFunc) *gin.Engine {
-	engine := gin.New(opts...)
+	engine := gin.New()
 	if global.BaseConfig.Service.RoutePrefix != "" {
 		engine.RouterGroup = *engine.RouterGroup.Group(formatRoute(global.BaseConfig.Service.RoutePrefix))
 	}
