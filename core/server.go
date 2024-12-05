@@ -40,12 +40,10 @@ func initService() {
 
 // new 新建对象
 func new(opts ...gin.OptionFunc) *gin.Engine {
-	// opts := []gin.OptionFunc{}
-	opts = append(opts, func(e *gin.Engine) {
-		e.Group(formatRoute(global.BaseConfig.Service.RoutePrefix))
-	})
-
 	engine := gin.New(opts...)
+	if global.BaseConfig.Service.RoutePrefix != "" {
+		engine.RouterGroup = *engine.RouterGroup.Group(formatRoute(global.BaseConfig.Service.RoutePrefix))
+	}
 	engine.Use(gin.Recovery())
 
 	// 注册中间件
@@ -63,6 +61,7 @@ func new(opts ...gin.OptionFunc) *gin.Engine {
 	engine.HandleMethodNotAllowed = true
 	engine.NoMethod(MethodNotAllowed)
 	engine.NoRoute(NotFound)
+	engine.With(opts...)
 
 	return engine
 }
