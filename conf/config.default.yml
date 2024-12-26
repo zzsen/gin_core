@@ -30,26 +30,25 @@ log: #日志配置
       maxBackups: 60
       compress: false
 db:
-    host: "127.0.0.1" # 数据库地址
-    port: 3306 # 数据库端口
-    dbName: "dbName" # 数据库名
-    username: "root" # 数据库账号
-    password: "" # 数据库密码
-    maxIdleConns: 10 # 空闲中的最大连接数
-    maxOpenConns: 100 # 打开到数据库的最大连接数
-    migrate: "update" # 每次启动时更新数据库表的方式 update:增量更新表，create:删除所有表再重新建表, 其他则不执行任何动作
-    enableLog: false # 是否开启日志
-    slowThreshold: 100 # 慢查询阈值
-    tablePrefix: "" # 表名前缀
+  host: "127.0.0.1" # 数据库地址
+  port: 3306 # 数据库端口
+  dbName: "dbName" # 数据库名
+  username: "root" # 数据库账号
+  password: "" # 数据库密码
+  maxIdleConns: 10 # 空闲中的最大连接数
+  maxOpenConns: 100 # 打开到数据库的最大连接数
+  migrate: "update" # 每次启动时更新数据库表的方式 update:增量更新表，create:删除所有表再重新建表, 其他则不执行任何动作
+  enableLog: false # 是否开启日志
+  slowThreshold: 100 # 慢查询阈值
+  tablePrefix: "" # 表名前缀
 redis:
-    addr: "localhost:6379"
-    db: 0
-    password: "redis_password"
+  addr: "localhost:6379"
+  db: 0
+  password: "redis_password"
 smtp:
-    host: "xxxx"
-    username: "xxxx"
-    password: "xxxx"
-    sender: "xxxx"
+  host: "xxxx"
+  username: "xxxx"
+  password: "xxxx"
+  sender: "xxxx"
 
-test: 132
-id: 123
+secret: CIPHER(/t8wxJyz5nLKYDa7w8W3oQ==)

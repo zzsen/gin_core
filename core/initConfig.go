@@ -1,8 +1,6 @@
 package core
 
 import (
-	"bytes"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	aesUtil "github.com/zzsen/gin_core/utils/encrpt/aes"
 	"gopkg.in/yaml.v3"
 
 	"github.com/zzsen/gin_core/constant"
@@ -57,7 +56,7 @@ func LoadConfig(conf interface{}) {
 	defaultConfigFilePath := path.Join(cmdArgs.Config, constant.DefaultConfigFileName)
 	if fileUtil.PathExists(defaultConfigFilePath) {
 		//如果有默认文件，则先加载默认配置文件
-		err = loadYamlConfig(defaultConfigFilePath, conf)
+		err = loadYamlConfig(defaultConfigFilePath, conf, cmdArgs.CipherKey)
 		if err != nil {
 			logger.Error("加载默认配置失败: %s", err.Error())
 			os.Exit(1)
@@ -67,7 +66,6 @@ func LoadConfig(conf interface{}) {
 	// 如果有自定义配置文件，则加载自定义配置文件
 	if cmdArgs.Env != constant.DefaultEnv {
 		customConfigFileName := fmt.Sprintf("%s%s%s", constant.CustomConfigFileNamePrefix, cmdArgs.Env, constant.CustomConfigFileNameSuffix)
-
 		customConfigFilePath := path.Join(cmdArgs.Config, customConfigFileName)
 		if !fileUtil.PathExists(customConfigFilePath) {
 			// 如果没有自定义配置文件，则直接返回
@@ -75,7 +73,7 @@ func LoadConfig(conf interface{}) {
 			os.Exit(1)
 		}
 
-		err = loadYamlConfig(customConfigFilePath, conf)
+		err = loadYamlConfig(customConfigFilePath, conf, cmdArgs.CipherKey)
 		if err != nil {
 			logger.Error("加载自定义配置%s失败: %s", customConfigFileName, err.Error())
 			os.Exit(1)
@@ -84,19 +82,11 @@ func LoadConfig(conf interface{}) {
 	global.Config = conf
 }
 
-func deepCopy(dst, src interface{}) error {
-	var buf bytes.Buffer
-	if err := gob.NewEncoder(&buf).Encode(src); err != nil {
-		return err
-	}
-	return gob.NewDecoder(bytes.NewBuffer(buf.Bytes())).Decode(dst)
-}
-
 func getDateTime() string {
 	return time.Unix(0, time.Now().UnixNano()).Format("2006-01-02 15:04:05")
 }
 
-func loadYamlConfig(path string, conf interface{}) error {
+func loadYamlConfig(path string, conf interface{}, CipherKey string) error {
 	err := checkConfType(conf)
 	if err != nil {
 		return err
@@ -108,6 +98,11 @@ func loadYamlConfig(path string, conf interface{}) error {
 	}
 
 	fileData, err = replaceWithEvn(fileData)
+	if err != nil {
+		return err
+	}
+
+	fileData, err = decryptConfig(fileData, CipherKey)
 	if err != nil {
 		return err
 	}
@@ -184,6 +179,41 @@ func loadEvnValue(keys []string) (map[string]string, error) {
 		valueMap[key] = data
 	}
 	return valueMap, nil
+}
+
+// 使用环境变量的值替换yaml文件中的占位符
+func decryptConfig(yamlData []byte, CipherKey string) ([]byte, error) {
+	yamlStr := string(yamlData)
+	placeholderExpr := `CIPHER\((.*?)\)`
+	regexpObj := regexp.MustCompile(placeholderExpr)
+	placeholderList := regexpObj.FindAllStringSubmatch(yamlStr, -1)
+	if len(placeholderList) == 0 {
+		return yamlData, nil
+	}
+
+	if CipherKey == "" {
+		// 仅输出log, 不中断服务, 避免该加密内容确实不需要解密
+		logger.Error("配置中含加密内容, 但服务启动指令中不含解密key, 请检查配置或启动指令")
+		return yamlData, nil
+	}
+
+	aesEcb := aesUtil.Ecb{Key: CipherKey}
+
+	for _, placeholder := range placeholderList {
+		if len(placeholder) != 2 {
+			return nil, errors.New("无效占位符:" + placeholder[0])
+		}
+		data, err := aesEcb.Decrypt(placeholder[1])
+		fmt.Println(data)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println(placeholder[0], data)
+
+		yamlStr = strings.Replace(yamlStr, placeholder[0], data, -1)
+	}
+
+	return []byte(yamlStr), nil
 }
 
 func Config(conf config.BaseConfig) {
