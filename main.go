@@ -30,7 +30,7 @@ func getCustomRouter1() func(e *gin.Engine) {
 }
 func getCustomRouter2() func(e *gin.Engine) {
 	return func(e *gin.Engine) {
-		r := e.Group("customRouter1")
+		r := e.Group("customRouter2")
 		r.GET("test", func(c *gin.Context) {
 			c.JSON(200, gin.H{
 				"message": "success",
