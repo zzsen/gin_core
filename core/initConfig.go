@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	aesUtil "github.com/zzsen/gin_core/utils/encrpt/aes"
+	aesUtil "github.com/zzsen/gin_core/utils/encrypt/aes"
 	"gopkg.in/yaml.v3"
 
 	"github.com/zzsen/gin_core/constant"
