@@ -15,6 +15,7 @@ import (
 
 var (
 	DB         *gorm.DB
+	DBResolver *gorm.DB
 	DBList     map[string]*gorm.DB
 	Redis      redis.UniversalClient
 	RedisList  map[string]redis.UniversalClient
@@ -26,15 +27,8 @@ var (
 	lock    sync.RWMutex
 )
 
-// GetGlobalDBByDBName 通过名称获取db list中的db
-func GetGlobalDBByDBName(dbname string) *gorm.DB {
-	lock.RLock()
-	defer lock.RUnlock()
-	return DBList[dbname]
-}
-
-// MustGetGlobalDBByDBName 通过名称获取db 如果不存在则panic
-func MustGetGlobalDBByDBName(dbname string) *gorm.DB {
+// GetDbByName 通过名称获取db 如果不存在则panic
+func GetDbByName(dbname string) *gorm.DB {
 	lock.RLock()
 	defer lock.RUnlock()
 	db, ok := DBList[dbname]
@@ -44,7 +38,7 @@ func MustGetGlobalDBByDBName(dbname string) *gorm.DB {
 	return db
 }
 
-func GetRedis(name string) redis.UniversalClient {
+func GetRedisByName(name string) redis.UniversalClient {
 	redis, ok := RedisList[name]
 	if !ok || redis == nil {
 		panic(fmt.Sprintf("redis `%s` no init", name))
