@@ -29,11 +29,11 @@ func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 	}
 	pong, err := client.Ping(context.Background()).Result()
 	if err != nil {
-		logger.Error("redis connect ping failed, err:", zap.String("name", redisCfg.Name), zap.Error(err))
+		logger.Error("redis connect ping failed, err:", zap.String("name", redisCfg.AliasName), zap.Error(err))
 		return nil, err
 	}
 
-	logger.Info("redis connect ping response:", zap.String("name", redisCfg.Name), zap.String("pong", pong))
+	logger.Info("redis connect ping response:", zap.String("name", redisCfg.AliasName), zap.String("pong", pong))
 	return client, nil
 }
 
@@ -53,7 +53,7 @@ func InitRedisList() {
 		if err != nil {
 			panic(err)
 		}
-		redisMap[redisCfg.Name] = client
+		redisMap[redisCfg.AliasName] = client
 	}
 
 	global.RedisList = redisMap

@@ -1,7 +1,7 @@
 package config
 
 type RedisInfo struct {
-	Name         string   `yaml:"name"`         // 代表当前实例的名字
+	AliasName    string   `yaml:"aliasName"`    // 代表当前实例的名字
 	Addr         string   `yaml:"addr"`         // 服务器地址:端口
 	ClusterAddrs []string `yaml:"clusterAddrs"` // 集群模式下的节点地址列表
 	UseCluster   bool     `yaml:"useCluster"`   // 是否使用集群模式
