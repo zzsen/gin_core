@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	aesUtil "github.com/zzsen/gin_core/utils/encrypt/aes"
+	"github.com/zzsen/gin_core/utils/encrypt"
 	"gopkg.in/yaml.v3"
 
 	"github.com/zzsen/gin_core/constant"
@@ -197,13 +197,11 @@ func decryptConfig(yamlData []byte, CipherKey string) ([]byte, error) {
 		return yamlData, nil
 	}
 
-	aesEcb := aesUtil.Ecb{Key: CipherKey}
-
 	for _, placeholder := range placeholderList {
 		if len(placeholder) != 2 {
 			return nil, errors.New("无效占位符:" + placeholder[0])
 		}
-		data, err := aesEcb.Decrypt(placeholder[1])
+		data, err := encrypt.AesEcbDecrypt(placeholder[1], CipherKey)
 		fmt.Println(data)
 		if err != nil {
 			return nil, err
