@@ -35,6 +35,8 @@ func initService() {
 	}
 	if global.BaseConfig.System.UseMysql {
 		initialize.InitDB()
+		initialize.InitDBList()
+		initialize.InitDBResolver()
 	}
 }
 
@@ -68,6 +70,8 @@ func new(opts ...gin.OptionFunc) *gin.Engine {
 
 // Start 启动服务
 func Start(opts []gin.OptionFunc, functions ...func()) {
+	// 初始化日志
+	logger.CustomLogger(global.BaseConfig.Log)
 	// 初始化服务
 	initService()
 
