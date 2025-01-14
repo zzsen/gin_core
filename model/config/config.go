@@ -9,7 +9,8 @@ type BaseConfig struct {
 	Service     ServiceInfo          `yaml:"service"`
 	Log         logger.LoggersConfig `yaml:"log"`
 	Db          DbInfo               `yaml:"db"`
-	DbResolvers []DbResolver         `yaml:"dbResolvers"`
+	DbList      []DbInfo             `yaml:"dbList"`
+	DbResolvers DbResolvers          `yaml:"dbResolvers"`
 	Redis       RedisInfo            `yaml:"redis"`
 	RedisList   []RedisInfo          `yaml:"redisList"`
 	Smtp        SmtpInfo             `yaml:"smtp"`
