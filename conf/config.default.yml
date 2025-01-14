@@ -41,6 +41,29 @@ db:
   enableLog: false # 是否开启日志
   slowThreshold: 100 # 慢查询阈值
   tablePrefix: "" # 表名前缀
+dbResolvers:
+  - sources:
+      - host: "127.0.0.1" # 数据库地址
+        port: 3306 # 数据库端口
+        dbName: "test" # 数据库名
+        username: "root" # 数据库账号
+        password: "" # 数据库密码
+        migrate: ""
+      - host: "127.0.0.1" # 数据库地址
+        port: 3306 # 数据库端口
+        dbName: "test1" # 数据库名
+        username: "root" # 数据库账号
+        password: "" # 数据库密码
+        migrate: ""
+    replicas:
+      - host: "127.0.0.1" # 数据库地址
+        port: 3306 # 数据库端口
+        dbName: "test2" # 数据库名
+        username: "root" # 数据库账号
+        password: "" # 数据库密码
+        migrate: ""
+    tables:
+      - "user"
 redis:
   addr: "localhost:6379"
   db: 0
