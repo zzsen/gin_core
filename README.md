@@ -153,18 +153,112 @@ func main() {
 ### 运行
 
 `go run main.go` 或
-`go run main.go --env {env} --conf {conf}`
+`go run main.go --env {env} --conf {conf} --cipherKey {cipherKey}`
 
 |参数|说明| 默认值     |
 |---|---|---------|
 | env |运行环境, 建议: dev 和 prod, 运行环境会影响加载的配置文件，详见[配置文件](###配置文件) | default |
 | conf |配置文件所在文件夹路径, 详见[配置文件](###配置文件)| ./conf |
+| cipherKey |解密key, 当配置文件中含加密内容时使用, 解密失败时不阻断服务启动| 空字符串 |
 
 ### 配置文件
 
 框架会根据启动程序时的命令行参数决定加载不同的配置文件, 配置文件名格式：`config.{env}.yml`, 默认情况下, 加载`./conf/config-default.yml`
 
 > 配置说明详见[运行](###运行)
+
+#### 数据库配置
+1. 单库使用
+``` yml
+system:
+  useMysql: true # 启用mysql
+db:
+  host: "" # 数据库地址
+  port: 3306 # 数据库端口
+  dbName: "" # 数据库名
+  username: "" # 数据库账号
+  password: "" # 数据库密码
+```
+
+操作数据库进行读写时，使用`global.DB`即可
+
+2. 多库使用
+``` yml
+system:
+  useMysql: true # 启用mysql
+dbList:
+  - aliasName: "db1" # 数据库别名
+    host: "" # 数据库地址
+    port: 3306 # 数据库端口
+    dbName: "" # 数据库名
+    username: "" # 数据库账号
+    password: "" # 数据库密码
+  - aliasName: "db2" # 数据库别名
+    host: "" # 数据库地址
+    port: 3306 # 数据库端口
+    dbName: "" # 数据库名
+    username: "" # 数据库账号
+    password: "" # 数据库密码
+```
+
+操作数据库进行读写时，使用`global.DBList[别名]`或`global.GetDbByName(别名)`即可
+
+3. 读写分离
+``` yml
+system:
+  useMysql: true # 启用mysql
+
+dbResolvers:
+  - sources:  # 支持多个
+      - host: "" # 数据库地址
+        port: 3306 # 数据库端口
+        dbName: "" # 数据库名
+        username: "" # 数据库账号
+        password: "" # 数据库密码
+        migrate: ""
+    replicas:  # 支持多个
+      - host: "" # 数据库地址
+        port: 3306 # 数据库端口
+        dbName: "" # 数据库名
+        username: "" # 数据库账号
+        password: "" # 数据库密码
+        migrate: ""
+    tables:  # 使用该库表
+      - "user"
+```
+
+操作数据库进行读写时，使用`global.DBResolver`即可
+> 更多内容可见 [DBResolver](https://gorm.io/zh_CN/docs/dbresolver.html)
+
+
+#### redis配置
+1. 单redis配置
+``` yml
+system:
+  useRedis: true # 启用redis
+redis:
+  addr: ""
+  db: 1
+  password: ""
+```
+操作redis进行读写时，使用`global.Redis`即可
+
+2. 多redis配置
+``` yml
+system:
+  useRedis: true # 启用redis
+redisList:
+  - aliasName: "redis1" # 别名
+    addr: ""
+    db: 1
+    password: ""
+  - aliasName: "redis2" # 别名
+    addr: ""
+    db: 1
+    password: ""
+```
+操作redis进行读写时，使用`global.RedisList[别名]`或`global.GetRedisByName(别名)`即可
+
 
 #### 示例
 
@@ -212,6 +306,21 @@ db:                                    # 数据库连接配置
   enableLog: false                       # 是否开启日志
   slowThreshold: 100                     # 慢查询阈值
   tablePrefix: ""                        # 表名前缀
+dbResolvers:                           # 多库连接配置
+  - sources:                             # 写库
+      - host: "127.0.0.1"                  # 数据库地址
+        port: 3306                         # 数据库端口
+        dbName: "test"                     # 数据库名
+        username: "root"                   # 数据库账号
+        password: ""                       # 数据库密码
+    replicas:                            # 读库
+      - host: "127.0.0.1"                  # 数据库地址
+        port: 3306                         # 数据库端口
+        dbName: "test1"                    # 数据库名
+        username: "root"                   # 数据库账号
+        password: ""                       # 数据库密码
+    tables:                              # 该库对应的表
+      - "user"
 redis:                                 # redis连接配置
   addr: "localhost:6379"                 # redis地址
   db: 0                                  # redis库
@@ -367,7 +476,8 @@ func RegisterHandler() {
 
 ### 数据库模型
 
-orm 使用的是`gorm`, 使用指南可见[gorm 官方文档](https://gorm.io/zh_CN/docs/)
+orm 使用的是`gorm`, 使用指南可见 [gorm 官方文档](https://gorm.io/zh_CN/docs/), 多数据库支持可见 [DBResolver](https://gorm.io/zh_CN/docs/dbresolver.html)
+
 <br>
 在根路径中新建文件夹`model/entity`, 存放数据库模型文件.
 
