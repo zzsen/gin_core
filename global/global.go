@@ -7,6 +7,7 @@ import (
 	"time"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v8"
+	"github.com/sirupsen/logrus"
 	"go.uber.org/zap"
 
 	"github.com/zzsen/gin_core/logger"
@@ -27,6 +28,7 @@ var (
 	RedisList  map[string]redis.UniversalClient
 	BaseConfig config.BaseConfig
 	Config     interface{}
+	Logger     *logrus.Logger
 	GVA_VP     *viper.Viper
 	// GVA_LOG    *oplogging.Logger
 	GVA_LOG *zap.Logger
