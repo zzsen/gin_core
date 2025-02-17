@@ -1,6 +1,10 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+	"runtime"
+)
 
 type RabbitMQInfo struct {
 	Host     string `yaml:"host"`
@@ -28,4 +32,21 @@ type MessageQueue struct {
 
 func (m *MessageQueue) GetInfo() string {
 	return fmt.Sprintf("%s_%s_%s_%s", m.QueueName, m.ExchangeName, m.ExchangeType, m.RoutingKey)
+}
+
+func (m *MessageQueue) GetFuncInfo() string {
+	// 使用 reflect.ValueOf 获取传入函数的反射值
+	value := reflect.ValueOf(m.Fun)
+	if value.Kind() != reflect.Func {
+		return ""
+	}
+	// 获取函数的指针
+	pc := value.Pointer()
+	// 根据函数指针获取函数的详细信息
+	funcInfo := runtime.FuncForPC(pc)
+	if funcInfo == nil {
+		return ""
+	}
+	// 返回函数名
+	return funcInfo.Name()
 }
