@@ -8,7 +8,6 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/zzsen/gin_core/logger"
-	"go.uber.org/zap"
 )
 
 func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
@@ -29,11 +28,11 @@ func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 	}
 	pong, err := client.Ping(context.Background()).Result()
 	if err != nil {
-		logger.Error("redis connect ping failed, err:", zap.String("name", redisCfg.AliasName), zap.Error(err))
+		logger.Error("[redis] redis aliasName: %s, connect ping failed, err: %v", redisCfg.AliasName, err)
 		return nil, err
 	}
 
-	logger.Info("redis connect ping response:", zap.String("name", redisCfg.AliasName), zap.String("pong", pong))
+	logger.Info("[redis] redis aliasName: %s, connect ping response: %s", redisCfg.AliasName, pong)
 	return client, nil
 }
 
