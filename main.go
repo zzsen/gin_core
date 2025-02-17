@@ -46,6 +46,16 @@ func main() {
 
 	customConfig := &CustomConfig{}
 	core.LoadConfig(customConfig)
+	core.AddMessageQueue(config.MessageQueue{
+		QueueName:    "QueueName",
+		ExchangeName: "ExchangeName",
+		ExchangeType: "fanout",
+		RoutingKey:   "RoutingKey",
+		Fun: func(message string) error {
+			fmt.Println("message", message)
+			return nil
+		},
+	})
 	//启动服务
 	core.Start(opts, execFunc)
 }
