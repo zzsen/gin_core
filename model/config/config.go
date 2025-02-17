@@ -13,5 +13,7 @@ type BaseConfig struct {
 	DbResolvers DbResolvers          `yaml:"dbResolvers"`
 	Redis       RedisInfo            `yaml:"redis"`
 	RedisList   []RedisInfo          `yaml:"redisList"`
+	RabbitMQ    RabbitMQInfo         `yaml:"rabbitMQ"`
+	Es          EsInfo               `yaml:"es"`
 	Smtp        SmtpInfo             `yaml:"smtp"`
 }
