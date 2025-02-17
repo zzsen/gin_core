@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/zzsen/gin_core/core"
+	"github.com/zzsen/gin_core/global"
+	"github.com/zzsen/gin_core/logger"
 	_ "github.com/zzsen/gin_core/middleware"
 	"github.com/zzsen/gin_core/model/config"
 	"github.com/zzsen/gin_core/model/response"
@@ -32,11 +34,22 @@ func getCustomRouter2() func(e *gin.Engine) {
 	return func(e *gin.Engine) {
 		r := e.Group("customRouter2")
 		r.GET("test", func(c *gin.Context) {
+
+			global.SendRabbitMqMsg("QueueName", "ExchangeName", "fanout", "RoutingKey", "message")
+
 			c.JSON(200, gin.H{
 				"message": "success",
 			})
 		})
 	}
+}
+
+func mqFunc(message string) error {
+	fmt.Println("message", message)
+	return nil
+}
+func Print() {
+	logger.Info("schedule run")
 }
 
 func main() {
@@ -51,10 +64,11 @@ func main() {
 		ExchangeName: "ExchangeName",
 		ExchangeType: "fanout",
 		RoutingKey:   "RoutingKey",
-		Fun: func(message string) error {
-			fmt.Println("message", message)
-			return nil
-		},
+		Fun:          mqFunc,
+	})
+	core.AddSchedule(config.ScheduleInfo{
+		Cron: "@every 10s",
+		Cmd:  Print,
 	})
 	//启动服务
 	core.Start(opts, execFunc)
