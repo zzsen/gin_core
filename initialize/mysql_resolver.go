@@ -20,8 +20,8 @@ import (
 
 func InitDBResolver() {
 	if len(global.BaseConfig.DbResolvers) > 0 {
-		logger.Info("initialize db resolver")
 		global.DBResolver = initMultiDB(global.BaseConfig.DbResolvers)
+		logger.Info("[db] db resolver已初始化")
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/zzsen/gin_core/global"
 	"github.com/zzsen/gin_core/initialize"
 	"github.com/zzsen/gin_core/logger"
+	"github.com/zzsen/gin_core/model/config"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,6 +29,11 @@ func RegisterMiddleware(name string, handlerFunc func() gin.HandlerFunc) error {
 	return nil
 }
 
+var messageQueueList []config.MessageQueue = make([]config.MessageQueue, 0)
+var AddMessageQueue = func(messageQueue config.MessageQueue) {
+	messageQueueList = append(messageQueueList, messageQueue)
+}
+
 func initService() {
 	if global.BaseConfig.System.UseRedis {
 		initialize.InitRedis()
@@ -38,6 +44,12 @@ func initService() {
 		initialize.InitDBList()
 		initialize.InitDBResolver()
 	}
+	if global.BaseConfig.System.UseEs {
+		initialize.InitElasticsearch()
+	}
+	if global.BaseConfig.System.UseRabbitMQ && len(messageQueueList) > 0 {
+		go initialize.InitialRabbitMq(messageQueueList...)
+	}
 }
 
 // new 新建对象
@@ -45,6 +57,8 @@ func new(opts ...gin.OptionFunc) *gin.Engine {
 	engine := gin.New()
 	if global.BaseConfig.Service.RoutePrefix != "" {
 		engine.RouterGroup = *engine.RouterGroup.Group(formatRoute(global.BaseConfig.Service.RoutePrefix))
+		logger.Info("[server] 统一路由前缀设置成功: %s",
+			global.BaseConfig.Service.RoutePrefix)
 	}
 	engine.Use(gin.Recovery())
 
@@ -53,7 +67,7 @@ func new(opts ...gin.OptionFunc) *gin.Engine {
 	if len(useMiddlewares) > 0 {
 		for _, useMiddleware := range useMiddlewares {
 			if _, ok := middleWareMap[useMiddleware]; !ok {
-				logger.Error("can not find %s middleware,please register first", useMiddleware)
+				logger.Error("[server] can not find %s middleware, please register first", useMiddleware)
 				os.Exit(1)
 			}
 			engine.Use(middleWareMap[useMiddleware]())
@@ -85,7 +99,7 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 	}()
 
 	serverAddr := fmt.Sprintf("%s:%d", global.BaseConfig.Service.Ip, global.BaseConfig.Service.Port)
-	logger.Info("Service start by %s:%d", global.BaseConfig.Service.Ip, global.BaseConfig.Service.Port)
+	logger.Info("[server] Service start by %s:%d", global.BaseConfig.Service.Ip, global.BaseConfig.Service.Port)
 
 	server := &http.Server{
 		Addr:         serverAddr,
@@ -111,21 +125,21 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 	}()
 
 	if err := server.ListenAndServe(); err != nil {
-		logger.Error("服务启动异常：%v", err)
+		logger.Error("[server] [server] 服务启动异常：%v", err)
 	}
 }
 
 // NotFound 页面不存在
 func NotFound(ctx *gin.Context) {
 	ctx.String(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-	logger.Error("Status: %d, Times(ms): %d, Ip: %s, Method: %s, Uri: %s, StatusText: %s",
+	logger.Error("[server] Status: %d, Times(ms): %d, Ip: %s, Method: %s, Uri: %s, StatusText: %s",
 		ctx.Writer.Status(), 0, ctx.ClientIP(), ctx.Request.Method, ctx.Request.RequestURI, http.StatusText(http.StatusNotFound))
 }
 
 // MethodNotAllowed 方法不允许
 func MethodNotAllowed(ctx *gin.Context) {
 	ctx.String(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
-	logger.Error("Status: %d, Times(ms): %d, Ip: %s, Method: %s, Uri: %s, StatusText: %s",
+	logger.Error("[server] Status: %d, Times(ms): %d, Ip: %s, Method: %s, Uri: %s, StatusText: %s",
 		ctx.Writer.Status(), 0, ctx.ClientIP(), ctx.Request.Method, ctx.Request.RequestURI, http.StatusText(http.StatusMethodNotAllowed))
 }
 

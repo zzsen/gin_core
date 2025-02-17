@@ -21,6 +21,7 @@ var tableEntity []interface{}
 
 func InitDB() {
 	global.DB = initSingleDB(global.BaseConfig.Db)
+	logger.Info("[db] db已初始化")
 }
 
 func InitDBList() {
@@ -58,7 +59,7 @@ func initSingleDB(dbConfig config.DbInfo) *gorm.DB {
 		DSN: dbConfig.Dsn(),
 	}), gormConfig)
 	if err != nil {
-		logger.Error("error occurs while initializing db, error: %v", err)
+		logger.Error("[db] error occurs while initializing db, error: %v", err)
 		return nil
 	}
 
@@ -90,7 +91,7 @@ func initSingleDB(dbConfig config.DbInfo) *gorm.DB {
 
 	SqlDB, err := DB.DB()
 	if err != nil {
-		logger.Error("get sqlDB err: %v", err)
+		logger.Error("[db] get sqlDB err: %v", err)
 		return nil
 	}
 	SqlDB.SetMaxIdleConns(dbConfig.MaxIdleConns)
