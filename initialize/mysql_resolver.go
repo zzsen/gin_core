@@ -1,7 +1,6 @@
 package initialize
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -92,7 +91,6 @@ func initMultiDB(dbResolvers config.DbResolvers) *gorm.DB {
 					}
 				case reflect.Struct:
 					if _, isZero := timeField.ValueOf(db.Statement.Context, db.Statement.ReflectValue); isZero {
-						fmt.Println(isZero)
 						timeField.Set(db.Statement.Context, db.Statement.ReflectValue, time.Now())
 					}
 				}
