@@ -8,7 +8,6 @@ import (
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v8"
 	"github.com/sirupsen/logrus"
-	"go.uber.org/zap"
 
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
@@ -30,9 +29,7 @@ var (
 	Config     interface{}
 	Logger     *logrus.Logger
 	GVA_VP     *viper.Viper
-	// GVA_LOG    *oplogging.Logger
-	GVA_LOG *zap.Logger
-	lock    sync.RWMutex
+	lock       sync.RWMutex
 )
 
 // GetDbByName 通过名称获取db 如果不存在则panic
