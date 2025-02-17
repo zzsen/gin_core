@@ -18,21 +18,8 @@ import (
 	"github.com/zzsen/gin_core/constant"
 	"github.com/zzsen/gin_core/global"
 	"github.com/zzsen/gin_core/logger"
-	"github.com/zzsen/gin_core/model/config"
 	fileUtil "github.com/zzsen/gin_core/utils/file"
 )
-
-var baseConfig = &config.BaseConfig{
-	Log: logger.DefaultLoggers,
-	Service: config.ServiceInfo{
-		Ip:            "0.0.0.0",
-		Port:          8055,
-		RoutePrefix:   "/",
-		SessionExpire: 1800,
-		SessionPrefix: "gin_",
-		Middlewares:   []string{"logHandler", "exceptionHandler"},
-	},
-}
 
 func LoadConfig(conf interface{}) {
 	defer func() {
@@ -42,7 +29,7 @@ func LoadConfig(conf interface{}) {
 		}
 	}()
 
-	cmdArgs, err := ParseCmdArgs()
+	cmdArgs, err := parseCmdArgs()
 
 	if cmdArgs.Env == constant.ProdEnv {
 		gin.SetMode(gin.ReleaseMode)
@@ -202,18 +189,12 @@ func decryptConfig(yamlData []byte, CipherKey string) ([]byte, error) {
 			return nil, errors.New("无效占位符:" + placeholder[0])
 		}
 		data, err := encrypt.AesEcbDecrypt(placeholder[1], CipherKey)
-		fmt.Println(data)
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println(placeholder[0], data)
 
 		yamlStr = strings.Replace(yamlStr, placeholder[0], data, -1)
 	}
 
 	return []byte(yamlStr), nil
-}
-
-func Config(conf config.BaseConfig) {
-	baseConfig = &conf
 }
