@@ -12,9 +12,7 @@ import (
 	"time"
 
 	"github.com/zzsen/gin_core/global"
-	"github.com/zzsen/gin_core/initialize"
 	"github.com/zzsen/gin_core/logger"
-	"github.com/zzsen/gin_core/model/config"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,29 +25,6 @@ func RegisterMiddleware(name string, handlerFunc func() gin.HandlerFunc) error {
 	}
 	middleWareMap[name] = handlerFunc
 	return nil
-}
-
-var messageQueueList []config.MessageQueue = make([]config.MessageQueue, 0)
-var AddMessageQueue = func(messageQueue config.MessageQueue) {
-	messageQueueList = append(messageQueueList, messageQueue)
-}
-
-func initService() {
-	if global.BaseConfig.System.UseRedis {
-		initialize.InitRedis()
-		initialize.InitRedisList()
-	}
-	if global.BaseConfig.System.UseMysql {
-		initialize.InitDB()
-		initialize.InitDBList()
-		initialize.InitDBResolver()
-	}
-	if global.BaseConfig.System.UseEs {
-		initialize.InitElasticsearch()
-	}
-	if global.BaseConfig.System.UseRabbitMQ && len(messageQueueList) > 0 {
-		go initialize.InitialRabbitMq(messageQueueList...)
-	}
 }
 
 // new 新建对象
@@ -84,8 +59,6 @@ func new(opts ...gin.OptionFunc) *gin.Engine {
 
 // Start 启动服务
 func Start(opts []gin.OptionFunc, functions ...func()) {
-	// 初始化日志
-	logger.CustomLogger(global.BaseConfig.Log)
 	// 初始化服务
 	initService()
 
@@ -109,7 +82,6 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 	}
 
 	go func() {
-
 		<-ctx.Done()
 		fmt.Println("Shutdown HTTP Server ...")
 		for _, function := range functions {
