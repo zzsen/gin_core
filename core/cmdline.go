@@ -14,7 +14,7 @@ type CmdArgs struct {
 	CipherKey string
 }
 
-func ParseCmdArgs() (*CmdArgs, error) {
+func parseCmdArgs() (*CmdArgs, error) {
 	info := CmdArgs{}
 	argv := flag.NewFlagSet(os.Args[0], 2)
 	argv.StringVar(&info.Env, "env", constant.DefaultEnv, "运行环境，dev, test, prod等， 默认dev")
