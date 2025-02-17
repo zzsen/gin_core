@@ -49,7 +49,7 @@ func LoadConfig(conf interface{}) {
 	}
 
 	if err != nil {
-		logger.Error("parse cmd args error, %s, %s", getDateTime(), err.Error())
+		logger.Error("[配置解析] 解析启动参数失败, %s, %s", getDateTime(), err.Error())
 		os.Exit(1)
 	}
 
@@ -58,7 +58,7 @@ func LoadConfig(conf interface{}) {
 		//如果有默认文件，则先加载默认配置文件
 		err = loadYamlConfig(defaultConfigFilePath, conf, cmdArgs.CipherKey)
 		if err != nil {
-			logger.Error("加载默认配置失败: %s", err.Error())
+			logger.Error("[配置解析] 加载默认配置失败: %s", err.Error())
 			os.Exit(1)
 		}
 	}
@@ -69,13 +69,13 @@ func LoadConfig(conf interface{}) {
 		customConfigFilePath := path.Join(cmdArgs.Config, customConfigFileName)
 		if !fileUtil.PathExists(customConfigFilePath) {
 			// 如果没有自定义配置文件，则直接返回
-			logger.Error("加载自定义配置失败, 配置文件目录%s下, 不存在自定义配置文件%s", cmdArgs.Config, customConfigFilePath)
+			logger.Error("[配置解析] 加载自定义配置失败, 配置文件目录%s下, 不存在自定义配置文件%s", cmdArgs.Config, customConfigFilePath)
 			os.Exit(1)
 		}
 
 		err = loadYamlConfig(customConfigFilePath, conf, cmdArgs.CipherKey)
 		if err != nil {
-			logger.Error("加载自定义配置%s失败: %s", customConfigFileName, err.Error())
+			logger.Error("[配置解析] 加载自定义配置%s失败: %s", customConfigFileName, err.Error())
 			os.Exit(1)
 		}
 	}
@@ -109,7 +109,7 @@ func loadYamlConfig(path string, conf interface{}, CipherKey string) error {
 
 	err = yaml.Unmarshal(fileData, &global.BaseConfig)
 	if err != nil {
-		logger.Error("加载基础配置%s失败: %s", path, err.Error())
+		logger.Error("[配置解析] 加载基础配置%s失败: %s", path, err.Error())
 		return err
 	}
 
@@ -193,7 +193,7 @@ func decryptConfig(yamlData []byte, CipherKey string) ([]byte, error) {
 
 	if CipherKey == "" {
 		// 仅输出log, 不中断服务, 避免该加密内容确实不需要解密
-		logger.Error("配置中含加密内容, 但服务启动指令中不含解密key, 请检查配置或启动指令")
+		logger.Error("[配置解析] 配置中含加密内容, 但服务启动指令中不含解密key, 请检查配置或启动指令")
 		return yamlData, nil
 	}
 
