@@ -1,5 +1,5 @@
 # gin_core
-基于 gin 封装的核心库，包含 redis、logger、gorm，mysql 等基础库
+基于 gin 封装的核心库，包含 redis、logger、gorm，mysql, es, rabbitmq 等基础库
 
 ## 文件目录
 ```bash
@@ -13,31 +13,39 @@ gin_core
 │   └── config.go                     #   └ 配置类常量
 ├── core                              # 核心文件
 │   ├── cmdline.go                    #   ├ 命令行参数解析
-│   ├── initConfig.go                 #   ├ 配置文件初始化
+│   ├── init_config.go                #   ├ 配置文件初始化
+│   ├── init_service.go               #   ├ 服务初始化（mysql，es，消息队列，定时任务等）
 │   └── server.go                     #   └ 服务启动主方法
 ├── exception                         # 异常
-│   ├── authFailed.go                 #   ├ 授权失败
-│   ├── commonError.go                #   ├ 常规错误
+│   ├── auth_failed.go                #   ├ 授权失败
+│   ├── common_error.go               #   ├ 常规错误
 │   ├── index.go                      #   ├ 普通失败
-│   ├── invalidParam.go               #   ├ 参数校验不通过
-│   └── rpcError.go                   #   └ rpc错误
+│   ├── invalid_param.go              #   ├ 参数校验不通过
+│   └── rpc_error.go                  #   └ rpc错误
 ├── global                            # 全局变量
 │   └── global.go                     #   └ 全局变量，redisClient，mysqlClient等
 ├── initialize                        # 初始化
+│   ├── elasticsearch.go              #   ├ 初始化es
+│   ├── mysql_resolver_test.go        #   ├ (测试用例)初始化db读写分离
+│   ├── mysql_resolver.go             #   ├ 初始化db读写分离
 │   ├── mysql.go                      #   ├ 初始化mysql
+│   ├── rabbitmq.go                   #   ├ 初始化消息队列
 │   └── redis.go                      #   └ 初始化redis
 ├── logger                            # 日志
 ├── main.go                           # （供参考）程序主入口
 ├── middleware                        # 中间件
-│   ├── exceptionHandler.go           #   ├ 异常处理
-│   ├── log.go                        #   ├ 日志
-│   └── redisSession.go               #   └ session缓存
+│   ├── exception_handler.go          #   ├ 异常处理
+│   └── log.go                        #   ├ 日志
 ├── model                             # 模型
 │   ├── config                        #   ├ 配置模型
 │   │   ├── config.go                 #   │ ├ 配置模型
+│   │   ├── elasticsearch.go          #   │ ├ es配置模型
+│   │   ├── logger.go                 #   │ ├ 日志配置模型
 │   │   ├── mysql.go                  #   │ ├ 数据库配置模型
-│   │   ├── mysqlResolver.go          #   │ ├ 数据库配置模型（读写分离，多库）
+│   │   ├── mysql_resolver.go         #   │ ├ 数据库配置模型（读写分离，多库）
+│   │   ├── rabbitmq.go               #   │ ├ 消息队列配置模型
 │   │   ├── redis.go                  #   │ ├ redis配置模型
+│   │   ├── schedule.go               #   │ ├ 定时任务配置模型
 │   │   ├── service.go                #   │ ├ 服务配置模型
 │   │   ├── smtp.go                   #   │ ├ smtp配置模型
 │   │   └── system.go                 #   │ └ 系统配置模型
@@ -259,6 +267,59 @@ redisList:
 ```
 操作redis进行读写时，使用`global.RedisList[别名]`或`global.GetRedisByName(别名)`即可
 
+#### 日志
+能力：
+1. 日志切割 (根据大小/时间)
+2. 设置日志最大保留时间
+3. 设置不同级别的日志路径
+```go
+  // 相关依赖库
+	"github.com/lestrrat-go/file-rotatelogs"
+	"github.com/rifflock/lfshook"
+	"github.com/sirupsen/logrus"
+```
+
+日志配置示例:
+```yml
+log: # 全局配置
+  filePath: "./log" # 日志文件路径
+  maxAge: 30 # 日志文件保存天数, 默认 30 天
+  rotationTime: 1 # 日志文件切割时间, 单位: 分钟, 默认60分钟
+  rotationSize: 1 # 日志文件切割大小, 单位: KB, 默认 1024KB, 即1MB
+  loggers: # 具体level的log的配置
+    - level: "info"
+      fileName: "info"
+      rotationSize: 2
+      RotationTime: 4
+      maxAge: 2
+    - level: "error"
+      fileName: "error"
+      FilePath: "./log/error"
+      maxSize: 100
+      maxAge: 3
+      rotationSize: 3
+      RotationTime: 6
+```
+|配置|说明|默认值|
+|--|--|--|
+|level|日志级别|-|
+|filePath|日志文件存放路径|./log|
+|fileName|日志文件名, 无需“.log”文件后缀|app|
+|maxAge|日志文件最大保留时间, 单位: 天|30天|
+|rotationTime|日志文件切割时间, 单位: 分钟|60分钟|
+|rotationSize|日志文件切割大小, 单位: KB|1024KB, 即1MB|
+
+配置默认填充默认值，当具体配置值不为空且合法时，则填充对应自定义值
+```go
+	// 设置日志文件路径
+	filePath := defaultFilePath
+	if globalConfig.FilePath != "" {
+		filePath = globalConfig.FilePath
+	}
+	if loggerConfig.FilePath != "" {
+		filePath = loggerConfig.FilePath
+	}
+```
 
 #### 示例
 
