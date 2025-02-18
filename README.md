@@ -50,7 +50,7 @@ gin_core
 │   │   ├── smtp.go                   #   │ ├ smtp配置模型
 │   │   └── system.go                 #   │ └ 系统配置模型
 │   ├── entity                        #   ├ 数据库模型
-│   │   └── baseModel.go              #   │ └ 数据库基类模型
+│   │   └── base_model.go             #   │ └ 数据库基类模型
 │   ├── request                       #   ├ 请求模型
 │   │   ├── common.go                 #   │ ├ 常用请求模型（getById等）
 │   │   └── page.go                   #   │ └ 分页请求模型
@@ -60,14 +60,12 @@ gin_core
 ├── README.md                         # readme
 ├── request                           # 请求工具
 │   └── index.go                      #   └ 参数检验
-├── schedule                          # （供参考）定时器
-├── sessionStore                      # session存储
 └── utils                             # 工具类
     ├── email                         #   ├ 邮件工具类
     ├── encrpt                        #   ├ 加解密工具类（aes，rsa）
     ├── file                          #   ├ 文件工具类
-    ├── ginContext                    #   ├ gin上下文工具类
-    └── httpClient                    #   └ http请求工具类
+    ├── gin_context                   #   ├ gin上下文工具类
+    └── http_client                   #   └ http请求工具类
 ```
 
 ## 框架使用
@@ -338,23 +336,24 @@ service:                               # http服务配置项
     - "logHandler"
     - "exceptionHandler"
 log:                                   # 日志配置项
-  loggers:                             # logger数组，可以添加stdLogger(控制台打印)、fileLogger(文件打印)
-    - type: "stdLogger"                  # 定义一个控制台打印logger，打印info以上级别日志
-      level: "info"
-    - type: "fileLogger"                 # 定义一个文件打印logger
-      level: "info"                      # 打印info以上级别日志
-      filePath: "./log/gin_core_demo.log" # 文件日志存储路径
-      maxSize: 100                       # 单个文件最大值，单位mb
-      maxAge: 1                          # 单个文件最大天数，超过该值，文件将被滚动存储
-      maxBackups: 60                     # 最多保留多少个日志文件
-      compress: false                    # 是否开启压缩
-    - type: "fileLogger"
-      level: "error"                     # 打印error以上级别日志
-      filePath: "./log/gin_core_error.log"
+  filePath: "./log"                      # 日志文件路径, 默认 ./log
+  maxAge: 30                             # 日志文件保存天数, 默认 30 天
+  rotationTime: 1                        # 日志文件切割时间, 单位: 分钟, 默认60分钟
+  rotationSize: 1                        # 日志文件切割大小, 单位: KB, 默认 1024KB, 即1MB
+  loggers:                               # 具体不同级别的日志配置
+    - level: "info"
+      fileName: "info"
+      FilePath: "./log/info"      
+      maxAge: 2
+      rotationSize: 2
+      RotationTime: 4
+    - level: "error"
+      fileName: "error"
+      FilePath: "./log/error"
       maxSize: 100
-      maxAge: 1
-      maxBackups: 60
-      compress: false
+      maxAge: 3
+      rotationSize: 3
+      RotationTime: 6
 db:                                    # 数据库连接配置
   host: "127.0.0.1"                      # 数据库ip
   port: 3306                             # 数据库端口
@@ -563,20 +562,16 @@ type User struct {
 package schedule
 
 import (
-	"github.com/robfig/cron/v3"
+	"github.com/zzsen/gin_core/core"
 	"github.com/zzsen/gin_core/logger"
+	"github.com/zzsen/gin_core/model/config"
 )
 
 func init() {
-    StartCron()
-}
-
-func StartCron() {
-	c := cron.New()
-	//c.AddFunc("* * * * *", Print)
-	c.AddFunc("@every 10s", Print)
-	// 暂不启动定时任务
-	c.Start()
+	core.AddSchedule(config.ScheduleInfo{
+		Cron: "@every 10s",
+		Cmd:  Print,
+	})
 }
 
 func Print() {
