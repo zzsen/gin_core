@@ -15,7 +15,7 @@ service: # http服务配置
     - "logHandler" # 日志中间件
     - "exceptionHandler" # 异常处理中间件
 log:
-  filePath: "./log" # 日志文件路径
+  filePath: "./log" # 日志文件路径, 默认 ./log
   maxAge: 30 # 日志文件保存天数, 默认 30 天
   rotationTime: 1 # 日志文件切割时间, 单位: 分钟, 默认60分钟
   rotationSize: 1 # 日志文件切割大小, 单位: KB, 默认 1024KB, 即1MB
