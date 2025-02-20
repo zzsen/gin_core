@@ -568,12 +568,14 @@ import (
 )
 
 func init() {
+  // 将方法添加到定时任务中
 	core.AddSchedule(config.ScheduleInfo{
 		Cron: "@every 10s",
 		Cmd:  Print,
 	})
 }
 
+// 需要定时执行的方法
 func Print() {
 	logger.Info("schedule run")
 }
@@ -582,3 +584,40 @@ func Print() {
 在`main.go`中, 引入`schedule`, 即可启动定时任务
 
 > `import _ "ginDemo/schedule"`
+
+### 消息队列
+在根路径中新建文件夹`mq`, 存放消息队列方法的文件
+```go
+// mq/test.go
+package mq
+
+import (
+	"fmt"
+	"github.com/zzsen/gin_core/core"
+)
+
+func init() {
+  // 添加消息队列方法
+	core.AddMessageQueue(config.MessageQueue{
+		QueueName:    "QueueName",
+		ExchangeName: "ExchangeName",
+		ExchangeType: "fanout",
+		RoutingKey:   "RoutingKey",
+		Fun:          mqFunc,
+	})
+}
+
+// 处理消息的方法
+func mqFunc(message string) error {
+	fmt.Println("message", message)
+	return nil
+}
+```
+
+在`main.go`中, 引入`mq`, 即可启动定时任务
+> `import _ "ginDemo/mq"`
+
+发送消息只需要调用global中封装的方法即可
+```go
+global.SendRabbitMqMsg("QueueName", "ExchangeName", "fanout", "RoutingKey", "message")
+```
