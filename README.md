@@ -586,6 +586,29 @@ func Print() {
 > `import _ "ginDemo/schedule"`
 
 ### 消息队列
+1. 配置
+```yml
+# 单mq使用
+rabbitMQ:
+  host: "rabbitMqHost"
+  port: 5672
+  username: "username"
+  password: "password"
+# 多mq使用
+rabbitMQList:
+  - aliasName: "rabbitMQ1" # 别名
+    host: "rabbitMqHost"
+    port: 5672
+    username: "username"
+    password: "password"
+  - aliasName: "rabbitMQ2" # 别名
+    host: "rabbitMqHost"
+    port: 5672
+    username: "username"
+    password: "password"
+```
+
+2. 消费者定义
 在根路径中新建文件夹`mq`, 存放消息队列方法的文件
 ```go
 // mq/test.go
@@ -598,13 +621,23 @@ import (
 
 func init() {
   // 添加消息队列方法
-	core.AddMessageQueue(config.MessageQueue{
+	core.AddMessageQueueConsumer(config.MessageQueue{
 		QueueName:    "QueueName",
 		ExchangeName: "ExchangeName",
 		ExchangeType: "fanout",
 		RoutingKey:   "RoutingKey",
 		Fun:          mqFunc,
 	})
+
+  // 上述示例为单mq使用，当有多个mq时，可添加MQName参数，设置为对应的aliasName，如：
+	// core.AddMessageQueueConsumer(config.MessageQueue{
+	// 	QueueName:    "QueueName",
+	// 	ExchangeName: "ExchangeName",
+	// 	ExchangeType: "fanout",
+	// 	RoutingKey:   "RoutingKey",
+  //  MQName:       "rabbitMQ1", // 对应rabbitMQList中的aliasName字段，会根据aliasName在配置中获取连接串
+	// 	Fun:          mqFunc,
+	// })
 }
 
 // 处理消息的方法
@@ -619,5 +652,8 @@ func mqFunc(message string) error {
 
 发送消息只需要调用global中封装的方法即可
 ```go
+// 单mq使用
 global.SendRabbitMqMsg("QueueName", "ExchangeName", "fanout", "RoutingKey", "message")
+// 多mq使用, 可同时往多个mq发送消息
+global.SendRabbitMqMsg("QueueName", "ExchangeName", "fanout", "RoutingKey", "message", "mq1", "mq2")
 ```
