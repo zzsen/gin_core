@@ -71,7 +71,11 @@ func initMultiDB(dbResolvers config.DbResolvers) *gorm.DB {
 	}
 	resolverPlugin.SetMaxIdleConns(defaultDBConfig.MaxIdleConns)
 	resolverPlugin.SetMaxOpenConns(defaultDBConfig.MaxOpenConns)
-	DB.Use(resolverPlugin)
+
+	if err := DB.Use(resolverPlugin); err != nil {
+		logger.Error("error occurs while db trying to use db resolver, error: %v", err)
+		return nil
+	}
 
 	//创建前把createTime和updateTime字段填充好默认值
 	DB.Callback().Create().Before("gorm:create").Register("update_create_time", func(db *gorm.DB) {
