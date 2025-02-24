@@ -84,6 +84,7 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 	go func() {
 		<-ctx.Done()
 		fmt.Println("Shutdown HTTP Server ...")
+		closeService()
 		for _, function := range functions {
 			function()
 		}
@@ -91,6 +92,7 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 
 		defer cancel()
 		err := server.Shutdown(timeout)
+
 		if err != nil {
 			fmt.Printf("Failed to Shutdown HTTP Server: %v", err)
 		}
@@ -98,6 +100,22 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 
 	if err := server.ListenAndServe(); err != nil {
 		logger.Error("[server] [server] 服务启动异常：%v", err)
+	}
+}
+
+func closeService() {
+	// 初始化日志
+	global.Logger = logger.InitLogger(global.BaseConfig.Log)
+	// 初始化redis
+	if global.BaseConfig.System.UseRedis {
+		global.Redis.Close()
+	}
+	// 初始化消息队列
+	if global.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
+		for _, rabbitMqProducer := range global.RabbitMQProducerList {
+			rabbitMqProducer.Close()
+			logger.Error("[server] [消息队列] 已关闭消息队列生产者：%s", rabbitMqProducer.GetInfo())
+		}
 	}
 }
 
