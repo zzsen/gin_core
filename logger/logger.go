@@ -1,7 +1,9 @@
 package logger
 
 import (
+	"fmt"
 	"path"
+	"runtime"
 	"time"
 
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
@@ -47,6 +49,24 @@ func init() {
 	}))
 }
 
+// CustomFormatter 自定义日志格式化器
+type CustomFormatter struct {
+	logrus.TextFormatter
+}
+
+// Format 实现 logrus.Formatter 接口的 Format 方法
+func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	// 获取调用者信息
+	if pc, file, line, ok := runtime.Caller(10); ok {
+		funcName := runtime.FuncForPC(pc).Name()
+		// 将文件和行号信息添加到日志条目的数据中
+		entry.Data["file"] = fmt.Sprintf("%s:%d", file, line)
+		entry.Data["func"] = funcName
+	}
+	// 调用默认的 TextFormatter 进行格式化
+	return f.TextFormatter.Format(entry)
+}
+
 func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
 	// 初始化日志记录器
 	Logger = logrus.New()
@@ -75,8 +95,10 @@ func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
 	}
 
 	// 添加 lfshook 到 Logger
-	Logger.AddHook(lfshook.NewHook(writeMap, &logrus.TextFormatter{
-		TimestampFormat: "2006-01-02 15:04:05",
+	Logger.AddHook(lfshook.NewHook(writeMap, &CustomFormatter{
+		TextFormatter: logrus.TextFormatter{
+			TimestampFormat: "2006-01-02 15:04:05",
+		},
 	}))
 	return Logger
 }
