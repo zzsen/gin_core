@@ -1,10 +1,8 @@
 package global
 
 import (
-	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v8"
 	"github.com/sirupsen/logrus"
@@ -12,24 +10,24 @@ import (
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
 
-	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"gorm.io/gorm"
 )
 
 var (
-	DB         *gorm.DB
-	DBResolver *gorm.DB
-	ES         *elasticsearch.TypedClient
-	DBList     map[string]*gorm.DB
-	Redis      redis.UniversalClient
-	RedisList  map[string]redis.UniversalClient
-	BaseConfig config.BaseConfig
-	Config     interface{}
-	Logger     *logrus.Logger
-	GVA_VP     *viper.Viper
-	lock       sync.RWMutex
+	DB                   *gorm.DB
+	DBResolver           *gorm.DB
+	ES                   *elasticsearch.TypedClient
+	DBList               map[string]*gorm.DB
+	Redis                redis.UniversalClient
+	RedisList            map[string]redis.UniversalClient
+	BaseConfig           config.BaseConfig
+	RabbitMQProducerList map[string]*config.MessageQueue = make(map[string]*config.MessageQueue)
+	Config               interface{}
+	Logger               *logrus.Logger
+	GVA_VP               *viper.Viper
+	lock                 sync.RWMutex
 )
 
 // GetDbByName 通过名称获取db 如果不存在则panic
@@ -52,52 +50,55 @@ func GetRedisByName(name string) redis.UniversalClient {
 }
 
 func SendRabbitMqMsg(queueName string, exchangeName string,
-	exchangeType string, routingKey string, message string) {
-	conn, err := amqp.Dial(BaseConfig.RabbitMQ.Url())
-	if err != nil {
-		logger.Error("[消息队列] 连接rabbitMQ失败, error: %v", err)
+	exchangeType string, routingKey string, message string, mqConfigNames ...string) {
+	if len(mqConfigNames) == 0 {
+		mqConfigNames = []string{""}
+	}
+	for _, mqConfigName := range mqConfigNames {
+		messageQueue := config.MessageQueue{
+			MQName:       mqConfigName,
+			QueueName:    queueName,
+			ExchangeName: exchangeName,
+			ExchangeType: exchangeType,
+			RoutingKey:   routingKey,
+		}
+		// 获取消息队列连接字符串
+		mqConnStr := BaseConfig.RabbitMQ.Url()
+		// 如果配置了消息队列名称, 则使用对应的消息队列
+		if messageQueue.MQName != "" {
+			mqConnStr = BaseConfig.RabbitMQList.Url(messageQueue.MQName)
+		}
+		if mqConnStr == "" {
+			logger.Error("[消息队列] 未找到对应的消息队列配置, MQName: %s", messageQueue.MQName)
+			return
+		}
+		messageQueue.MqConnStr = mqConnStr
+		sendRabbitMqMsg(messageQueue, message)
+	}
+}
+
+func sendRabbitMqMsg(messageQueue config.MessageQueue, message string) {
+	if _, ok := RabbitMQProducerList[messageQueue.GetInfo()]; !ok {
+		RabbitMQProducerList[messageQueue.GetInfo()] = &messageQueue
+	}
+
+	// 获取消息队列连接字符串
+	mqConnStr := BaseConfig.RabbitMQ.Url()
+	// 如果配置了消息队列名称, 则使用对应的消息队列
+	if messageQueue.MQName != "" {
+		mqConnStr = BaseConfig.RabbitMQList.Url(messageQueue.MQName)
+	}
+	if mqConnStr == "" {
+		logger.Error("[消息队列] 未找到对应的消息队列配置, MQName: %s", messageQueue.MQName)
 		return
 	}
-	defer conn.Close()
 
-	ch, err := conn.Channel()
-	if err != nil {
-		logger.Error("[消息队列] 连接rabbitMQ通道失败, error: %v", err)
-		return
-	}
-	defer ch.Close()
+	err := RabbitMQProducerList[messageQueue.GetInfo()].Publish(message)
 
-	err = ch.ExchangeDeclare(
-		queueName,    // name
-		exchangeType, // type
-		true,         // durable
-		false,        // auto-deleted
-		false,        // internal
-		false,        // no-wait
-		nil,          // arguments
-	)
-	if err != nil {
-		logger.Error("[消息队列] 定义exchange失败, error: %v", err)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = ch.PublishWithContext(ctx,
-		exchangeName, // exchange
-		routingKey,   // routing key
-		false,        // mandatory
-		false,        // immediate
-		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(message),
-		})
 	if err != nil {
 		logger.Error("[消息队列] 消息发布失败, error: %v", err)
 		return
 	}
 
-	logger.Info("[消息队列] 消息发布成功, queueName: %s, exchangeName: %s, exchangeType: %s, routingKey: %s, message: %s",
-		queueName, exchangeName, exchangeType, routingKey, message)
+	logger.Info("[消息队列] 消息发布成功, queueInfo: %s, message: %s", messageQueue.GetInfo(), message)
 }
