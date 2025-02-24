@@ -44,6 +44,12 @@ rabbitMQ:
   port: 5672
   username: "username"
   password: "password"
+rabbitMQList:
+  - aliasName: "rabbitMQ1" # 别名
+    host: "rabbitMqHost"
+    port: 5672
+    username: "username"
+    password: "password"
 es:
   addresses:
     - "http://esHost:9200"
@@ -72,10 +78,21 @@ dbResolvers:
         migrate: ""
     tables:
       - "user"
+# 单redis配置
 redis:
   addr: "localhost:6379"
   db: 0
   password: "redis_password"
+# 多redis配置
+redisList:
+  - aliasName: "redis1" # 别名
+    addr: ""
+    db: 1
+    password: ""
+  - aliasName: "redis2" # 别名
+    addr: ""
+    db: 1
+    password: ""
 smtp:
   host: "xxxx"
   username: "xxxx"
