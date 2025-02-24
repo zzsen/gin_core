@@ -34,8 +34,7 @@ func getCustomRouter2() func(e *gin.Engine) {
 	return func(e *gin.Engine) {
 		r := e.Group("customRouter2")
 		r.GET("test", func(c *gin.Context) {
-
-			global.SendRabbitMqMsg("QueueName", "ExchangeName", "fanout", "RoutingKey", "message")
+			global.SendRabbitMqMsg("QueueName", "ExchangeName", "fanout", "RoutingKey", "message", "rabbitMQ1")
 
 			c.JSON(200, gin.H{
 				"message": "success",
@@ -59,7 +58,7 @@ func main() {
 
 	customConfig := &CustomConfig{}
 	core.LoadConfig(customConfig)
-	core.AddMessageQueue(config.MessageQueue{
+	core.AddMessageQueueConsumer(config.MessageQueue{
 		QueueName:    "QueueName",
 		ExchangeName: "ExchangeName",
 		ExchangeType: "fanout",
