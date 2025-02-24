@@ -8,10 +8,10 @@ import (
 	"github.com/zzsen/gin_core/model/config"
 )
 
-var messageQueueList []config.MessageQueue = make([]config.MessageQueue, 0)
+var messageQueueConsumerList []config.MessageQueue = make([]config.MessageQueue, 0)
 
-func AddMessageQueue(messageQueue config.MessageQueue) {
-	messageQueueList = append(messageQueueList, messageQueue)
+func AddMessageQueueConsumer(messageQueue config.MessageQueue) {
+	messageQueueConsumerList = append(messageQueueConsumerList, messageQueue)
 	logger.Info("[消息队列] 添加消息队列成功, 队列信息: %s, 方法: %s",
 		messageQueue.GetInfo(), messageQueue.GetFuncInfo())
 }
@@ -43,8 +43,8 @@ func initService() {
 		initialize.InitElasticsearch()
 	}
 	// 初始化消息队列
-	if global.BaseConfig.System.UseRabbitMQ && len(messageQueueList) > 0 {
-		go initialize.InitialRabbitMq(messageQueueList...)
+	if global.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
+		go initialize.InitialRabbitMq(messageQueueConsumerList...)
 	}
 	// 初始化定时任务
 	if len(scheduleList) > 0 {
