@@ -82,17 +82,6 @@ func sendRabbitMqMsg(messageQueue config.MessageQueue, message string) {
 		RabbitMQProducerList[messageQueue.GetInfo()] = &messageQueue
 	}
 
-	// 获取消息队列连接字符串
-	mqConnStr := BaseConfig.RabbitMQ.Url()
-	// 如果配置了消息队列名称, 则使用对应的消息队列
-	if messageQueue.MQName != "" {
-		mqConnStr = BaseConfig.RabbitMQList.Url(messageQueue.MQName)
-	}
-	if mqConnStr == "" {
-		logger.Error("[消息队列] 未找到对应的消息队列配置, MQName: %s", messageQueue.MQName)
-		return
-	}
-
 	err := RabbitMQProducerList[messageQueue.GetInfo()].Publish(message)
 
 	if err != nil {
