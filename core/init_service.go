@@ -47,7 +47,7 @@ func initService() {
 		go initialize.InitialRabbitMq(messageQueueConsumerList...)
 	}
 	// 初始化定时任务
-	if len(scheduleList) > 0 {
+	if global.BaseConfig.System.UseSchedule && len(scheduleList) > 0 {
 		c := cron.New()
 		for _, schedule := range scheduleList {
 			c.AddFunc(schedule.Cron, schedule.Cmd)
