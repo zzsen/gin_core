@@ -37,7 +37,11 @@ func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 }
 
 func InitRedis() {
-	redisClient, err := initRedisClient(global.BaseConfig.Redis)
+	if global.BaseConfig.Redis == nil {
+		logger.Error("[redis] single redis has no config, please check config")
+		return
+	}
+	redisClient, err := initRedisClient(*global.BaseConfig.Redis)
 	if err != nil {
 		panic(err)
 	}
