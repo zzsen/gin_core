@@ -19,7 +19,11 @@ import (
 var tableEntity []interface{}
 
 func InitDB() {
-	global.DB = initSingleDB(global.BaseConfig.Db)
+	if global.BaseConfig.Db == nil {
+		logger.Error("[db] single db has no config, please check config")
+		return
+	}
+	global.DB = initSingleDB(*global.BaseConfig.Db)
 	logger.Info("[db] db已初始化")
 }
 

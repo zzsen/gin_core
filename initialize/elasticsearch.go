@@ -10,6 +10,10 @@ import (
 )
 
 func InitElasticsearch() {
+	if global.BaseConfig.Es == nil {
+		logger.Error("[es] single es has no config, please check config")
+		return
+	}
 	esConfig := elasticsearch.Config{
 		Addresses: global.BaseConfig.Es.Addresses,
 		Password:  global.BaseConfig.Es.Password,
