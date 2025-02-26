@@ -29,18 +29,30 @@ func initService() {
 	global.Logger = logger.InitLogger(global.BaseConfig.Log)
 	// 初始化redis
 	if global.BaseConfig.System.UseRedis {
-		initialize.InitRedis()
-		initialize.InitRedisList()
+		if global.BaseConfig.Redis == nil && len(global.BaseConfig.RedisList) == 0 {
+			panic("[redis] not valid redis config, please check config")
+		} else {
+			initialize.InitRedis()
+			initialize.InitRedisList()
+		}
 	}
 	// 初始化数据库
 	if global.BaseConfig.System.UseMysql {
-		initialize.InitDB()
-		initialize.InitDBList()
-		initialize.InitDBResolver()
+		if global.BaseConfig.Db == nil && len(global.BaseConfig.DbList) == 0 && len(global.BaseConfig.DbResolvers) == 0 {
+			panic("[db] not valid db config, please check config")
+		} else {
+			initialize.InitDB()
+			initialize.InitDBList()
+			initialize.InitDBResolver()
+		}
 	}
 	// 初始化es
 	if global.BaseConfig.System.UseEs {
-		initialize.InitElasticsearch()
+		if global.BaseConfig.Es == nil {
+			panic("[es] not valid es config, please check config")
+		} else {
+			initialize.InitElasticsearch()
+		}
 	}
 	// 初始化消息队列
 	if global.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
