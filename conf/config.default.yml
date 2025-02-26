@@ -3,6 +3,7 @@ system: # 系统配置
   useRedis: true
   useEs: true
   useRabbitMQ: true
+  useSchedule: true
 service: # http服务配置
   ip: '0.0.0.0' # 服务ip
   port: 8055 # 服务端口

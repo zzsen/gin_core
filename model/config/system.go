@@ -6,4 +6,5 @@ type SystemInfo struct {
 	UseMysql    bool `yaml:"useMysql"`    // 是否启用mysql
 	UseEs       bool `yaml:"useEs"`       // 是否启用elasticsearch
 	UseRabbitMQ bool `yaml:"useRabbitMQ"` // 是否启用rabbitmq
+	UseSchedule bool `yaml:"useSchedule"` // 是否启用定时任务
 }
