@@ -70,7 +70,8 @@ func PostJson(url string, body string, headers map[string]string, timeout int) R
 	return request(req, timeout)
 }
 
-func PostForm(httpUrl string, data map[string]string, filenames []string,
+func PostForm(httpUrl string, dataMap map[string]string,
+	filePathMap map[string]string, fileMap map[string]io.Reader,
 	headers map[string]string, timeout int) ResponseWrapper {
 	os.Setenv("GODEBUG", "tlsrsakex=1")
 	// 创建一个字节缓冲区用于存储表单数据
@@ -79,29 +80,43 @@ func PostForm(httpUrl string, data map[string]string, filenames []string,
 	writer := multipart.NewWriter(body)
 
 	// 遍历表单数据，将普通表单字段写入
-	for key, value := range data {
+	for key, value := range dataMap {
 		err := writer.WriteField(key, value)
 		if err != nil {
 			return ResponseWrapper{0, fmt.Sprintf("写入表单字段 %s 失败: %s", key, err.Error()), make(http.Header)}
 		}
 	}
 
-	for _, filename := range filenames {
+	for fileName, filePath := range filePathMap {
 		// 打开要上传的文件
-		file, err := os.Open(filename)
+		file, err := os.Open(filePath)
 		if err != nil {
-			return ResponseWrapper{0, fmt.Sprintf("打开文件 %s 失败: %s", filename, err.Error()), make(http.Header)}
+			return ResponseWrapper{0, fmt.Sprintf("打开文件 %s 失败: %s", filePath, err.Error()), make(http.Header)}
 		}
 		defer file.Close()
 
 		// 创建一个表单文件字段
-		part, err := writer.CreateFormFile("file", filename)
+		part, err := writer.CreateFormFile(fileName, filePath)
 		if err != nil {
 			return ResponseWrapper{0, fmt.Sprintf("创建表单文件字段失败: %s", err.Error()), make(http.Header)}
 		}
 
 		// 将文件内容复制到表单文件字段中
 		_, err = io.Copy(part, file)
+		if err != nil {
+			return ResponseWrapper{0, fmt.Sprintf("复制文件内容失败: %s", err.Error()), make(http.Header)}
+		}
+	}
+
+	for fileName, fileReader := range fileMap {
+		// 创建一个表单文件字段
+		part, err := writer.CreateFormFile(fileName, fileName)
+		if err != nil {
+			return ResponseWrapper{0, fmt.Sprintf("创建表单文件字段失败: %s", err.Error()), make(http.Header)}
+		}
+
+		// 将文件内容复制到表单文件字段中
+		_, err = io.Copy(part, fileReader)
 		if err != nil {
 			return ResponseWrapper{0, fmt.Sprintf("复制文件内容失败: %s", err.Error()), make(http.Header)}
 		}
