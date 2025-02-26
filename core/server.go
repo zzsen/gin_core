@@ -84,10 +84,10 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 	go func() {
 		<-ctx.Done()
 		fmt.Println("Shutdown HTTP Server ...")
-		closeService()
 		for _, function := range functions {
 			function()
 		}
+		closeService()
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 		defer cancel()
