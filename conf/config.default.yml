@@ -19,6 +19,8 @@ log:
   maxAge: 30 # 日志文件保存天数, 默认 30 天
   rotationTime: 1 # 日志文件切割时间, 单位: 分钟, 默认60分钟
   rotationSize: 1 # 日志文件切割大小, 单位: KB, 默认 1024KB, 即1MB
+  printFile: 0 # 是否打印文件名, 0: 不打印, 1: 打印相对路径, 2: 打印绝对路径, 默认0不打印
+  printFunc: true # 是否打印函数名
   loggers:
     - level: "info"
       fileName: "info"
