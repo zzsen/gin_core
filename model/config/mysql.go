@@ -9,6 +9,7 @@ type DbInfo struct {
 	DBName        string   `yaml:"dbName"`        // 数据库名
 	Username      string   `yaml:"username"`      // 数据库账号
 	Password      string   `yaml:"password"`      // 数据库密码
+	Charset       string   `yaml:"charset"`       // 数据库编码
 	Loc           string   `yaml:"loc"`           // 时区
 	MaxIdleConns  int      `yaml:"maxIdleConns"`  // 空闲中的最大连接数
 	MaxOpenConns  int      `yaml:"maxOpenConns"`  // 打开到数据库的最大连接数
@@ -23,11 +24,15 @@ func (dbInfo *DbInfo) Dsn() string {
 	if dbInfo.Loc == "" {
 		dbInfo.Loc = "Local"
 	}
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=%s",
+	if dbInfo.Charset == "" {
+		dbInfo.Charset = "utf8mb4"
+	}
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=%s",
 		dbInfo.Username,
 		dbInfo.Password,
 		dbInfo.Host,
 		dbInfo.Port,
 		dbInfo.DBName,
+		dbInfo.Charset,
 		dbInfo.Loc)
 }
