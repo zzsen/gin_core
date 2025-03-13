@@ -1,8 +1,6 @@
 package initialize
 
 import (
-	"log"
-	"os"
 	"reflect"
 	"time"
 
@@ -45,18 +43,28 @@ func initSingleDB(dbConfig config.DbInfo) *gorm.DB {
 			//NameReplacer:  strings.NewReplacer("CID", "Cid"), // 在转为数据库名称之前，使用NameReplacer更改结构/字段名称。
 		},
 	}
-	if dbConfig.EnableLog {
-		newLogger := gormLogger.New(
-			log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer（日志输出的目标，前缀和日志包含的内容——译者注）
-			gormLogger.Config{
-				SlowThreshold:             time.Duration(dbConfig.SlowThreshold) * time.Millisecond, // 慢查询阈值
-				LogLevel:                  gormLogger.Info,                                          // 日志级别
-				IgnoreRecordNotFoundError: true,                                                     // 忽略ErrRecordNotFound（记录未找到）错误
-				Colorful:                  true,                                                     // 彩色打印
-			},
-		)
-		gormConfig.Logger = newLogger
+
+	// 初始化日志记录器
+	loggerConfig := global.BaseConfig.Log.ToDbLoggerConfig()
+	dbLogger := logger.InitLogger(loggerConfig)
+	// 是否忽略记录未找到错误
+	ignoreRecordNotFoundError := true
+	if dbConfig.IgnoreRecordNotFoundError != nil {
+		ignoreRecordNotFoundError = *dbConfig.IgnoreRecordNotFoundError
 	}
+	logLevel := gormLogger.Warn
+	if dbConfig.LogLevel != nil {
+		logLevel = gormLogger.LogLevel(*dbConfig.LogLevel)
+	}
+	gormConfig.Logger = gormLogger.New(
+		dbLogger,
+		gormLogger.Config{
+			SlowThreshold:             time.Duration(dbConfig.SlowThreshold) * time.Millisecond, // 慢查询阈值, 单位: 毫秒
+			LogLevel:                  logLevel,                                                 // 日志级别
+			IgnoreRecordNotFoundError: ignoreRecordNotFoundError,                                // 忽略ErrRecordNotFound（记录未找到）错误
+			Colorful:                  true,                                                     // 彩色打印
+		},
+	)
 
 	DB, err := gorm.Open(mysql.New(mysql.Config{
 		DSN: dbConfig.Dsn(),
