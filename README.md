@@ -284,6 +284,7 @@ log: # 全局配置
   maxAge: 30 # 日志文件保存天数, 默认 30 天
   rotationTime: 1 # 日志文件切割时间, 单位: 分钟, 默认60分钟
   rotationSize: 1 # 日志文件切割大小, 单位: KB, 默认 1024KB, 即1MB
+  printCaller: true # 是否打印函数名和文件信息
   loggers: # 具体level的log的配置
     - level: "info"
       fileName: "info"
@@ -306,6 +307,7 @@ log: # 全局配置
 |maxAge|日志文件最大保留时间, 单位: 天|30天|
 |rotationTime|日志文件切割时间, 单位: 分钟|60分钟|
 |rotationSize|日志文件切割大小, 单位: KB|1024KB, 即1MB|
+|printCaller|是否打印函数名和文件信息|false|
 
 配置默认填充默认值，当具体配置值不为空且合法时，则填充对应自定义值
 ```go
@@ -340,6 +342,7 @@ log:                                   # 日志配置项
   maxAge: 30                             # 日志文件保存天数, 默认 30 天
   rotationTime: 1                        # 日志文件切割时间, 单位: 分钟, 默认60分钟
   rotationSize: 1                        # 日志文件切割大小, 单位: KB, 默认 1024KB, 即1MB
+  printCaller: true                      # 是否打印函数名和文件信息
   loggers:                               # 具体不同级别的日志配置
     - level: "info"
       fileName: "info"
@@ -362,10 +365,12 @@ db:                                    # 数据库连接配置
   password: ""                           # 连接密码(不要写在配置文件中提交到git)
   maxIdleConns: 10                       # 连接最长空闲时间
   maxOpenConns: 10                       # 最大并发连接数
-  migrate: "update"                      #每次启动时更新数据库表的方式 update:增量更新表，create:删除所有表再重新建表 off:关闭自动更新
-  enableLog: false                       # 是否开启日志
-  slowThreshold: 100                     # 慢查询阈值
+  logLevel: 3                            # 日志级别（1-关闭所有日志，2-仅输出错误日志，3-输出错误日志和慢查询，4-输出错误日志和慢查询日志和所有sql）, 默认3
+  slowThreshold: 100                     # 慢查询阈值, 单位: 毫秒,默认200
+  charset: "utf8mb4"                     # 数据库编码, 默认: utf8mb4
+  loc: "Local"                           # 时区, 默认: Local
   tablePrefix: ""                        # 表名前缀
+  migrate: "update"                      #每次启动时更新数据库表的方式 update:增量更新表，create:删除所有表再重新建表 off:关闭自动更新
 dbResolvers:                           # 多库连接配置
   - sources:                             # 写库
       - host: "127.0.0.1"                  # 数据库地址
