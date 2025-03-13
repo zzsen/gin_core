@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/zzsen/gin_core/constant"
 	"github.com/zzsen/gin_core/global"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
@@ -34,20 +35,34 @@ func initMultiDB(dbResolvers config.DbResolvers) *gorm.DB {
 			//NameReplacer:  strings.NewReplacer("CID", "Cid"), // 在转为数据库名称之前，使用NameReplacer更改结构/字段名称。
 		},
 	}
+
+	// 初始化日志记录器
 	loggerConfig := global.BaseConfig.Log.ToDbLoggerConfig()
 	dbLogger := logger.InitLogger(loggerConfig)
+
+	// 是否忽略记录未找到错误
 	ignoreRecordNotFoundError := true
 	if defaultDBConfig.IgnoreRecordNotFoundError != nil {
 		ignoreRecordNotFoundError = *defaultDBConfig.IgnoreRecordNotFoundError
+	}
+	// 日志级别
+	logLevel := gormLogger.Warn
+	if defaultDBConfig.LogLevel != nil {
+		logLevel = gormLogger.LogLevel(*defaultDBConfig.LogLevel)
+	}
+	// 慢查询阈值
+	slowThreshold := constant.DefaultDBSlowThreshold
+	if defaultDBConfig.SlowThreshold != nil {
+		slowThreshold = *defaultDBConfig.SlowThreshold
 	}
 
 	gormConfig.Logger = gormLogger.New(
 		dbLogger,
 		gormLogger.Config{
-			SlowThreshold:             time.Duration(defaultDBConfig.SlowThreshold) * time.Millisecond, // 慢查询阈值
-			LogLevel:                  gormLogger.Info,                                                 // 日志级别
-			IgnoreRecordNotFoundError: ignoreRecordNotFoundError,                                       // 忽略ErrRecordNotFound（记录未找到）错误
-			Colorful:                  true,                                                            // 彩色打印
+			SlowThreshold:             time.Duration(slowThreshold) * time.Millisecond, // 慢查询阈值
+			LogLevel:                  logLevel,                                        // 日志级别
+			IgnoreRecordNotFoundError: ignoreRecordNotFoundError,                       // 忽略ErrRecordNotFound（记录未找到）错误
+			Colorful:                  true,                                            // 彩色打印
 		},
 	)
 
