@@ -1,17 +1,12 @@
 package logger
 
 import (
-	"fmt"
-	"os"
 	"path"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
-	"github.com/zzsen/gin_core/constant"
 	"github.com/zzsen/gin_core/model/config"
 )
 
@@ -52,40 +47,9 @@ func init() {
 	}))
 }
 
-// CustomFormatter 自定义日志格式化器
-type CustomFormatter struct {
-	logrus.TextFormatter
-	PrintFile constant.LogPrintFileEnum
-	PrintFunc bool
-}
-
-// Format 实现 logrus.Formatter 接口的 Format 方法
-func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	// 获取调用者信息
-	if pc, file, line, ok := runtime.Caller(10); ok {
-		funcName := runtime.FuncForPC(pc).Name()
-		// 将文件和行号信息添加到日志条目的数据中
-		if f.PrintFile == constant.PrintAbsoluteFile {
-			entry.Data["file"] = fmt.Sprintf("%s:%d", file, line)
-		} else if f.PrintFile == constant.PrintRelativeFile {
-			if pwd, err := os.Getwd(); err == nil {
-				if relPath, err := filepath.Rel(pwd, file); err == nil {
-					file = relPath
-				}
-			}
-			entry.Data["file"] = fmt.Sprintf("%s:%d", file, line)
-		}
-		if f.PrintFunc {
-			entry.Data["func"] = funcName
-		}
-	}
-	// 调用默认的 TextFormatter 进行格式化
-	return f.TextFormatter.Format(entry)
-}
-
 func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
 	// 初始化日志记录器
-	Logger = logrus.New()
+	Logger := logrus.New()
 
 	// 设置日志级别为 Debug
 	Logger.SetLevel(logrus.TraceLevel)
@@ -93,31 +57,10 @@ func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
 	for _, logLevel := range logrus.AllLevels {
 		// 配置 lfshook
 		writeMap := lfshook.WriterMap{}
-		printFile := constant.NoPrintFile
-		printFunc := false
-
-		defaultLogWriter, _ := initRotatelogs(config.LoggersConfig{}, config.LoggerConfig{}, logLevel.String())
-		writeMap[logLevel] = defaultLogWriter
 
 		for _, loggerConfig := range loggersConfig.Loggers {
 			level, err := logrus.ParseLevel(loggerConfig.Level)
 			if err == nil && level == logLevel {
-				// 设置是否打印文件信息
-				if loggersConfig.PrintFile != nil {
-					printFile = *loggersConfig.PrintFile
-				}
-				if loggerConfig.PrintFile != nil {
-					printFile = *loggerConfig.PrintFile
-				}
-
-				// 设置是否打印函数信息
-				if loggersConfig.PrintFunc != nil {
-					printFunc = *loggersConfig.PrintFunc
-				}
-				if loggerConfig.PrintFunc != nil {
-					printFunc = *loggerConfig.PrintFunc
-				}
-
 				if logWriter, err := initRotatelogs(loggersConfig, loggerConfig, level.String()); err == nil {
 					writeMap[level] = logWriter
 					break
@@ -125,17 +68,19 @@ func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
 			}
 		}
 
-		writeMap[logLevel] = defaultLogWriter
+		if writeMap[logLevel] == nil {
+			defaultLogWriter, _ := initRotatelogs(config.LoggersConfig{}, config.LoggerConfig{}, logLevel.String())
+			writeMap[logLevel] = defaultLogWriter
+		}
+
 		// 添加 lfshook 到 Logger
-		Logger.AddHook(lfshook.NewHook(writeMap, &CustomFormatter{
-			PrintFile: printFile,
-			PrintFunc: printFunc,
-			TextFormatter: logrus.TextFormatter{
-				TimestampFormat: "2006-01-02 15:04:05",
-			},
+		Logger.AddHook(lfshook.NewHook(writeMap, &logrus.TextFormatter{
+			FullTimestamp:          true,
+			TimestampFormat:        "2006-01-02 15:04:05",
+			DisableLevelTruncation: true,
 		}))
 	}
-
+	Logger.SetReportCaller(loggersConfig.PrintCaller)
 	return Logger
 }
 
