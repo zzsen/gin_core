@@ -20,8 +20,7 @@ log:
   maxAge: 30 # 日志文件保存天数, 默认 30 天
   rotationTime: 1 # 日志文件切割时间, 单位: 分钟, 默认60分钟
   rotationSize: 1 # 日志文件切割大小, 单位: KB, 默认 1024KB, 即1MB
-  printFile: 0 # 是否打印文件名, 0: 不打印, 1: 打印相对路径, 2: 打印绝对路径, 默认0不打印
-  printFunc: true # 是否打印函数名
+  printCaller: true # 是否打印函数名和文件信息
   loggers:
     - level: "info"
       fileName: "info"
@@ -41,6 +40,9 @@ db:
   dbName: "dbName" # 数据库名
   username: "username" # 数据库账号
   password: "password" # 数据库密码
+  logLevel: 3 # 日志级别（1-关闭所有日志，2-仅输出错误日志，3-输出错误日志和慢查询，4-输出错误日志和慢查询日志和所有sql）, 默认3
+  IgnoreRecordNotFoundError: true # 是否忽略记录未找到错误
+  slowThreshold: 500 # 慢查询阈值，单位毫秒，默认200毫秒
   migrate: ""
 rabbitMQ:
   host: "rabbitMqHost"
