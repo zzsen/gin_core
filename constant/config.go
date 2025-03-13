@@ -17,3 +17,5 @@ const CustomConfigFileNamePrefix = "config."
 
 // 自定义配置文件名称后缀
 const CustomConfigFileNameSuffix = ".yml"
+
+const DefaultDBSlowThreshold = 200

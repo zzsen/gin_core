@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/zzsen/gin_core/constant"
 	"github.com/zzsen/gin_core/global"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
@@ -52,17 +53,23 @@ func initSingleDB(dbConfig config.DbInfo) *gorm.DB {
 	if dbConfig.IgnoreRecordNotFoundError != nil {
 		ignoreRecordNotFoundError = *dbConfig.IgnoreRecordNotFoundError
 	}
+	// 日志级别
 	logLevel := gormLogger.Warn
 	if dbConfig.LogLevel != nil {
 		logLevel = gormLogger.LogLevel(*dbConfig.LogLevel)
 	}
+	// 慢查询阈值
+	slowThreshold := constant.DefaultDBSlowThreshold
+	if dbConfig.SlowThreshold != nil {
+		slowThreshold = *dbConfig.SlowThreshold
+	}
 	gormConfig.Logger = gormLogger.New(
 		dbLogger,
 		gormLogger.Config{
-			SlowThreshold:             time.Duration(dbConfig.SlowThreshold) * time.Millisecond, // 慢查询阈值, 单位: 毫秒
-			LogLevel:                  logLevel,                                                 // 日志级别
-			IgnoreRecordNotFoundError: ignoreRecordNotFoundError,                                // 忽略ErrRecordNotFound（记录未找到）错误
-			Colorful:                  true,                                                     // 彩色打印
+			SlowThreshold:             time.Duration(slowThreshold) * time.Millisecond, // 慢查询阈值, 单位: 毫秒
+			LogLevel:                  logLevel,                                        // 日志级别
+			IgnoreRecordNotFoundError: ignoreRecordNotFoundError,                       // 忽略ErrRecordNotFound（记录未找到）错误
+			Colorful:                  true,                                            // 彩色打印
 		},
 	)
 
