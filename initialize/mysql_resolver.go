@@ -1,8 +1,6 @@
 package initialize
 
 import (
-	"log"
-	"os"
 	"reflect"
 	"time"
 
@@ -36,18 +34,22 @@ func initMultiDB(dbResolvers config.DbResolvers) *gorm.DB {
 			//NameReplacer:  strings.NewReplacer("CID", "Cid"), // 在转为数据库名称之前，使用NameReplacer更改结构/字段名称。
 		},
 	}
-	if defaultDBConfig.EnableLog {
-		newLogger := gormLogger.New(
-			log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer（日志输出的目标，前缀和日志包含的内容——译者注）
-			gormLogger.Config{
-				SlowThreshold:             time.Duration(defaultDBConfig.SlowThreshold) * time.Millisecond, // 慢查询阈值
-				LogLevel:                  gormLogger.Info,                                                 // 日志级别
-				IgnoreRecordNotFoundError: true,                                                            // 忽略ErrRecordNotFound（记录未找到）错误
-				Colorful:                  true,                                                            // 彩色打印
-			},
-		)
-		gormConfig.Logger = newLogger
+	loggerConfig := global.BaseConfig.Log.ToDbLoggerConfig()
+	dbLogger := logger.InitLogger(loggerConfig)
+	ignoreRecordNotFoundError := true
+	if defaultDBConfig.IgnoreRecordNotFoundError != nil {
+		ignoreRecordNotFoundError = *defaultDBConfig.IgnoreRecordNotFoundError
 	}
+
+	gormConfig.Logger = gormLogger.New(
+		dbLogger,
+		gormLogger.Config{
+			SlowThreshold:             time.Duration(defaultDBConfig.SlowThreshold) * time.Millisecond, // 慢查询阈值
+			LogLevel:                  gormLogger.Info,                                                 // 日志级别
+			IgnoreRecordNotFoundError: ignoreRecordNotFoundError,                                       // 忽略ErrRecordNotFound（记录未找到）错误
+			Colorful:                  true,                                                            // 彩色打印
+		},
+	)
 
 	DB, err := gorm.Open(mysql.New(mysql.Config{
 		DSN: defaultDBConfig.Dsn(),
