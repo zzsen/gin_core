@@ -26,7 +26,8 @@ func AddSchedule(schedule config.ScheduleInfo) {
 
 func initService() {
 	// 初始化日志
-	global.Logger = logger.InitLogger(global.BaseConfig.Log)
+	logger.Logger = logger.InitLogger(global.BaseConfig.Log)
+	global.Logger = logger.Logger
 	// 初始化redis
 	if global.BaseConfig.System.UseRedis {
 		if global.BaseConfig.Redis == nil && len(global.BaseConfig.RedisList) == 0 {
