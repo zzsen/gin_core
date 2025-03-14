@@ -12,7 +12,7 @@ service: # http服务配置
   sessionPrefix: "gin_" # redis中缓存前缀
   readTimeOut: 60 # 读超时
   writeTimeOut: 60 # 写超时
-  middlewares: # 中间件，注意: 顺序对应中间件调用顺序
+  middlewares: # 中间件, 注意: 顺序对应中间件调用顺序
     - "logHandler" # 日志中间件
     - "exceptionHandler" # 异常处理中间件
 log:
@@ -40,9 +40,15 @@ db:
   dbName: "dbName" # 数据库名
   username: "username" # 数据库账号
   password: "password" # 数据库密码
-  logLevel: 3 # 日志级别（1-关闭所有日志，2-仅输出错误日志，3-输出错误日志和慢查询，4-输出错误日志和慢查询日志和所有sql）, 默认3
+  loc: "Local"   # 时区
+  charset: "utf8mb4" # 数据库编码, 默认: utf8mb4
+  maxIdleConns: 100 # 最大空闲连接数, 默认最小10
+  maxOpenConns: 100 # 最大连接数, 默认最小100
+  connMaxIdleTime: 60 # 最大空闲时间, 单位: 秒, 默认最小60
+  connMaxLifetime: 3600 # 最大连接存活时间, 单位: 秒, 默认最小60
+  logLevel: 3 # 日志级别（1-关闭所有日志, 2-仅输出错误日志, 3-输出错误日志和慢查询, 4-输出错误日志和慢查询日志和所有sql）, 默认3
   IgnoreRecordNotFoundError: true # 是否忽略记录未找到错误
-  slowThreshold: 500 # 慢查询阈值，单位毫秒，默认200毫秒
+  slowThreshold: 500 # 慢查询阈值, 单位毫秒, 默认200毫秒
   migrate: ""
 rabbitMQ:
   host: "rabbitMqHost"
