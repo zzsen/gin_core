@@ -1,5 +1,5 @@
 # gin_core
-基于 gin 封装的核心库，包含 redis、logger、gorm，mysql, es, rabbitmq 等基础库
+基于 gin 封装的核心库, 包含 redis、logger、gorm, mysql, es, rabbitmq 等基础库
 
 ## 文件目录
 ```bash
@@ -14,7 +14,7 @@ gin_core
 ├── core                              # 核心文件
 │   ├── cmdline.go                    #   ├ 命令行参数解析
 │   ├── init_config.go                #   ├ 配置文件初始化
-│   ├── init_service.go               #   ├ 服务初始化（mysql，es，消息队列，定时任务等）
+│   ├── init_service.go               #   ├ 服务初始化（mysql, es, 消息队列, 定时任务等）
 │   └── server.go                     #   └ 服务启动主方法
 ├── exception                         # 异常
 │   ├── auth_failed.go                #   ├ 授权失败
@@ -23,7 +23,7 @@ gin_core
 │   ├── invalid_param.go              #   ├ 参数校验不通过
 │   └── rpc_error.go                  #   └ rpc错误
 ├── global                            # 全局变量
-│   └── global.go                     #   └ 全局变量，redisClient，mysqlClient等
+│   └── global.go                     #   └ 全局变量, redisClient, mysqlClient等
 ├── initialize                        # 初始化
 │   ├── elasticsearch.go              #   ├ 初始化es
 │   ├── mysql_resolver_test.go        #   ├ (测试用例)初始化db读写分离
@@ -42,7 +42,7 @@ gin_core
 │   │   ├── elasticsearch.go          #   │ ├ es配置模型
 │   │   ├── logger.go                 #   │ ├ 日志配置模型
 │   │   ├── mysql.go                  #   │ ├ 数据库配置模型
-│   │   ├── mysql_resolver.go         #   │ ├ 数据库配置模型（读写分离，多库）
+│   │   ├── mysql_resolver.go         #   │ ├ 数据库配置模型（读写分离, 多库）
 │   │   ├── rabbitmq.go               #   │ ├ 消息队列配置模型
 │   │   ├── redis.go                  #   │ ├ redis配置模型
 │   │   ├── schedule.go               #   │ ├ 定时任务配置模型
@@ -62,7 +62,7 @@ gin_core
 │   └── index.go                      #   └ 参数检验
 └── utils                             # 工具类
     ├── email                         #   ├ 邮件工具类
-    ├── encrpt                        #   ├ 加解密工具类（aes，rsa）
+    ├── encrpt                        #   ├ 加解密工具类（aes, rsa）
     ├── file                          #   ├ 文件工具类
     ├── gin_context                   #   ├ gin上下文工具类
     └── http_client                   #   └ http请求工具类
@@ -106,7 +106,7 @@ import (
 	"github.com/zzsen/gin_core/model/config"
 )
 
-// 继承config.Config，拓展自定义配置项：Secret
+// 继承config.Config, 拓展自定义配置项：Secret
 type CustomConfig struct {
     // 配置基类
 	config.BaseConfig `yaml:",inline"`
@@ -115,7 +115,7 @@ type CustomConfig struct {
     Secret        string `yaml:"secret"`
 }
 
-// 退出服务前执行的方法，例如，异常上报等
+// 退出服务前执行的方法, 例如, 异常上报等
 func execFunc() {
 	fmt.Println("server stop")
 }
@@ -163,7 +163,7 @@ func main() {
 
 |参数|说明| 默认值     |
 |---|---|---------|
-| env |运行环境, 建议: dev 和 prod, 运行环境会影响加载的配置文件，详见[配置文件](###配置文件) | default |
+| env |运行环境, 建议: dev 和 prod, 运行环境会影响加载的配置文件, 详见[配置文件](###配置文件) | default |
 | conf |配置文件所在文件夹路径, 详见[配置文件](###配置文件)| ./conf |
 | cipherKey |解密key, 当配置文件中含加密内容时使用, 解密失败时不阻断服务启动| 空字符串 |
 
@@ -186,7 +186,7 @@ db:
   password: "" # 数据库密码
 ```
 
-操作数据库进行读写时，使用`global.DB`即可
+操作数据库进行读写时, 使用`global.DB`即可
 
 2. 多库使用
 ``` yml
@@ -207,7 +207,7 @@ dbList:
     password: "" # 数据库密码
 ```
 
-操作数据库进行读写时，使用`global.DBList[别名]`或`global.GetDbByName(别名)`即可
+操作数据库进行读写时, 使用`global.DBList[别名]`或`global.GetDbByName(别名)`即可
 
 3. 读写分离
 ``` yml
@@ -233,7 +233,7 @@ dbResolvers:
       - "user"
 ```
 
-操作数据库进行读写时，使用`global.DBResolver`即可
+操作数据库进行读写时, 使用`global.DBResolver`即可
 > 更多内容可见 [DBResolver](https://gorm.io/zh_CN/docs/dbresolver.html)
 
 
@@ -247,7 +247,7 @@ redis:
   db: 1
   password: ""
 ```
-操作redis进行读写时，使用`global.Redis`即可
+操作redis进行读写时, 使用`global.Redis`即可
 
 2. 多redis配置
 ``` yml
@@ -263,7 +263,7 @@ redisList:
     db: 1
     password: ""
 ```
-操作redis进行读写时，使用`global.RedisList[别名]`或`global.GetRedisByName(别名)`即可
+操作redis进行读写时, 使用`global.RedisList[别名]`或`global.GetRedisByName(别名)`即可
 
 #### 日志
 能力：
@@ -309,7 +309,7 @@ log: # 全局配置
 |rotationSize|日志文件切割大小, 单位: KB|1024KB, 即1MB|
 |printCaller|是否打印函数名和文件信息|false|
 
-配置默认填充默认值，当具体配置值不为空且合法时，则填充对应自定义值
+配置默认填充默认值, 当具体配置值不为空且合法时, 则填充对应自定义值
 ```go
 	// 设置日志文件路径
 	filePath := defaultFilePath
@@ -334,7 +334,7 @@ service:                               # http服务配置项
   routePrefix: "/demo"                   # 路由路径前缀
   sessionValid: 1800                     # session有效时长
   sessionPrefix: "gin_"                  # session key前缀
-  middlewares:                           # 中间件，注意: 顺序对应中间件调用顺序
+  middlewares:                           # 中间件, 注意: 顺序对应中间件调用顺序
     - "logHandler"
     - "exceptionHandler"
 log:                                   # 日志配置项
@@ -363,14 +363,16 @@ db:                                    # 数据库连接配置
   dbName: "test"                         # 数据库名
   username: "root"                       # 连接用户
   password: ""                           # 连接密码(不要写在配置文件中提交到git)
-  maxIdleConns: 10                       # 连接最长空闲时间
-  maxOpenConns: 10                       # 最大并发连接数
-  logLevel: 3                            # 日志级别（1-关闭所有日志，2-仅输出错误日志，3-输出错误日志和慢查询，4-输出错误日志和慢查询日志和所有sql）, 默认3
+  maxIdleConns: 100                      # 最大空闲连接数, 默认最小10
+  maxOpenConns: 100                      # 最大连接数, 默认最小100
+  connMaxIdleTime: 60                    # 最大空闲时间, 单位: 秒, 默认最小60
+  connMaxLifetime: 3600                  # 最大连接存活时间, 单位: 秒, 默认最小60
+  logLevel: 3                            # 日志级别（1-关闭所有日志, 2-仅输出错误日志, 3-输出错误日志和慢查询, 4-输出错误日志和慢查询日志和所有sql）, 默认3
   slowThreshold: 100                     # 慢查询阈值, 单位: 毫秒,默认200
   charset: "utf8mb4"                     # 数据库编码, 默认: utf8mb4
   loc: "Local"                           # 时区, 默认: Local
   tablePrefix: ""                        # 表名前缀
-  migrate: "update"                      #每次启动时更新数据库表的方式 update:增量更新表，create:删除所有表再重新建表 off:关闭自动更新
+  migrate: "update"                      #每次启动时更新数据库表的方式 update:增量更新表, create:删除所有表再重新建表 off:关闭自动更新
 dbResolvers:                           # 多库连接配置
   - sources:                             # 写库
       - host: "127.0.0.1"                  # 数据库地址
@@ -488,7 +490,7 @@ func RegisterHandler() {
     # ...
     service: # http服务配置
         # ...
-        middlewares: # 中间件，注意以下顺序对应中间件调用顺序
+        middlewares: # 中间件, 注意以下顺序对应中间件调用顺序
         - "middleware1"
         - "TraceLogHandler" # 上述例子的中间件
         - "middleware2"
@@ -634,13 +636,13 @@ func init() {
 		Fun:          mqFunc,
 	})
 
-  // 上述示例为单mq使用，当有多个mq时，可添加MQName参数，设置为对应的aliasName，如：
+  // 上述示例为单mq使用, 当有多个mq时, 可添加MQName参数, 设置为对应的aliasName, 如：
 	// core.AddMessageQueueConsumer(config.MessageQueue{
 	// 	QueueName:    "QueueName",
 	// 	ExchangeName: "ExchangeName",
 	// 	ExchangeType: "fanout",
 	// 	RoutingKey:   "RoutingKey",
-  //  MQName:       "rabbitMQ1", // 对应rabbitMQList中的aliasName字段，会根据aliasName在配置中获取连接串
+  //  MQName:       "rabbitMQ1", // 对应rabbitMQList中的aliasName字段, 会根据aliasName在配置中获取连接串
 	// 	Fun:          mqFunc,
 	// })
 }
