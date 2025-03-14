@@ -111,8 +111,10 @@ func initSingleDB(dbConfig config.DbInfo) *gorm.DB {
 		logger.Error("[db] get sqlDB err: %v", err)
 		return nil
 	}
-	SqlDB.SetMaxIdleConns(dbConfig.MaxIdleConns)
-	SqlDB.SetMaxOpenConns(dbConfig.MaxOpenConns)
+	SqlDB.SetMaxIdleConns(max(dbConfig.MaxIdleConns, 10))
+	SqlDB.SetMaxOpenConns(max(dbConfig.MaxOpenConns, 100))
+	SqlDB.SetConnMaxIdleTime(time.Duration(max(dbConfig.ConnMaxIdleTime, 60)) * time.Second)
+	SqlDB.SetConnMaxLifetime(time.Duration(max(dbConfig.ConnMaxLifetime, 60)) * time.Second)
 
 	Migrate(DB, dbConfig.Migrate)
 	return DB

@@ -86,8 +86,10 @@ func initMultiDB(dbResolvers config.DbResolvers) *gorm.DB {
 			TraceResolverMode: true,
 		}, resolver.Tables...)
 	}
-	resolverPlugin.SetMaxIdleConns(defaultDBConfig.MaxIdleConns)
-	resolverPlugin.SetMaxOpenConns(defaultDBConfig.MaxOpenConns)
+	resolverPlugin.SetMaxIdleConns(max(defaultDBConfig.MaxIdleConns, 10))
+	resolverPlugin.SetMaxOpenConns(max(defaultDBConfig.MaxOpenConns, 100))
+	resolverPlugin.SetConnMaxIdleTime(time.Duration(max(defaultDBConfig.ConnMaxIdleTime, 60)) * time.Second)
+	resolverPlugin.SetConnMaxLifetime(time.Duration(max(defaultDBConfig.ConnMaxLifetime, 60)) * time.Second)
 
 	if err := DB.Use(resolverPlugin); err != nil {
 		logger.Error("error occurs while db trying to use db resolver, error: %v", err)
