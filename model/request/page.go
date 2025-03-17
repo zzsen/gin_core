@@ -19,8 +19,8 @@ func (r *Page) Paginate() func(db *gorm.DB) *gorm.DB {
 			r.PageIndex = 1
 		}
 		switch {
-		case r.PageSize > 100:
-			r.PageSize = 100
+		case r.PageSize > 1000:
+			r.PageSize = 1000
 		case r.PageSize <= 0:
 			r.PageSize = 10
 		}
