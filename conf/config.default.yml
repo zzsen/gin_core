@@ -7,6 +7,7 @@ system: # 系统配置
 service: # http服务配置
   ip: '0.0.0.0' # 服务ip
   port: 8055 # 服务端口
+  pprofPort: 6060 # pprof端口
   routePrefix: '/routePrefix' # 路由前缀
   sessionExpire: 3600 # 缓存的有效时长
   sessionPrefix: "gin_" # redis中缓存前缀
