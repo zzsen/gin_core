@@ -16,6 +16,7 @@ import (
 )
 
 var (
+	Env                  string
 	DB                   *gorm.DB
 	DBResolver           *gorm.DB
 	ES                   *elasticsearch.TypedClient
