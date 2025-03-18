@@ -19,3 +19,5 @@ const CustomConfigFileNamePrefix = "config."
 const CustomConfigFileNameSuffix = ".yml"
 
 const DefaultDBSlowThreshold = 200
+
+const DefaultPprofPort = 6060
