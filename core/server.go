@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/zzsen/gin_core/constant"
 	"github.com/zzsen/gin_core/global"
 	"github.com/zzsen/gin_core/logger"
 
@@ -97,6 +99,21 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 			fmt.Printf("Failed to Shutdown HTTP Server: %v", err)
 		}
 	}()
+
+	if global.Env != constant.ProdEnv {
+		pprofPort := global.BaseConfig.Service.PprofPort
+		pprofAddr := fmt.Sprintf("%s:%d", global.BaseConfig.Service.Ip, constant.DefaultPprofPort)
+		if pprofPort != nil && *pprofPort == global.BaseConfig.Service.Port {
+			pprofAddr = fmt.Sprintf("%s:%d", global.BaseConfig.Service.Ip, *pprofPort)
+		}
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		go func() {
+			logger.Info("[pprof server] Service start, access %s/debug/pprof to analysis", pprofAddr)
+			http.ListenAndServe(pprofAddr, mux)
+		}()
+	}
 
 	if err := server.ListenAndServe(); err != nil {
 		logger.Error("[server] [server] 服务启动异常：%v", err)

@@ -9,4 +9,5 @@ type ServiceInfo struct {
 	Middlewares   []string `yaml:"middlewares"`   // 中间件，顺序对应中间件调用顺序
 	ReadTimeout   int      `yaml:"readTimeout"`   // 读取超时时间
 	WriteTimeout  int      `yaml:"writeTimeout"`  // 写入超时时间
+	PprofPort     *int     `yaml:"pprofPort"`     // pprof服务端口
 }
