@@ -331,6 +331,7 @@ secret: "I'm a secret"
 service:                               # http服务配置项
   ip: "0.0.0.0"                          # 监听网卡地址
   port: 8056                             # 监听端口
+  pprofPort: 6060                        # pprof端口
   routePrefix: "/demo"                   # 路由路径前缀
   sessionValid: 1800                     # session有效时长
   sessionPrefix: "gin_"                  # session key前缀
