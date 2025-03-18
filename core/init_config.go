@@ -66,6 +66,7 @@ func LoadConfig(conf interface{}) {
 			os.Exit(1)
 		}
 	}
+	global.Env = cmdArgs.Env
 	global.Config = conf
 }
 
