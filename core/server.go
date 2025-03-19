@@ -111,12 +111,14 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		go func() {
 			logger.Info("[pprof server] Service start, access %s/debug/pprof to analysis", pprofAddr)
-			http.ListenAndServe(pprofAddr, mux)
+			if err := http.ListenAndServe(pprofAddr, mux); err != nil {
+				logger.Error("[pprof server]pprof服务启动异常：%v", err)
+			}
 		}()
 	}
 
 	if err := server.ListenAndServe(); err != nil {
-		logger.Error("[server] [server] 服务启动异常：%v", err)
+		logger.Error("[server] 服务启动异常：%v", err)
 	}
 }
 
