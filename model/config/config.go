@@ -5,6 +5,7 @@ type BaseConfig struct {
 	Service      ServiceInfo      `yaml:"service"`
 	Log          LoggersConfig    `yaml:"log"`
 	Db           *DbInfo          `yaml:"db"`
+	Etcd         *EtcdInfo        `yaml:"etcd"`
 	DbList       []DbInfo         `yaml:"dbList"`
 	DbResolvers  DbResolvers      `yaml:"dbResolvers"`
 	Redis        *RedisInfo       `yaml:"redis"`
