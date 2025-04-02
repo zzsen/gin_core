@@ -1,14 +1,15 @@
 system: # 系统配置
+  language: "zh" # 语言
   useMysql: true
   useRedis: true
   useEs: true
   useRabbitMQ: true
   useSchedule: true
 service: # http服务配置
-  ip: '0.0.0.0' # 服务ip
+  ip: "0.0.0.0" # 服务ip
   port: 8055 # 服务端口
   pprofPort: 6060 # pprof端口
-  routePrefix: '/routePrefix' # 路由前缀
+  routePrefix: "/routePrefix" # 路由前缀
   sessionExpire: 3600 # 缓存的有效时长
   sessionPrefix: "gin_" # redis中缓存前缀
   readTimeOut: 60 # 读超时
@@ -41,7 +42,7 @@ db:
   dbName: "dbName" # 数据库名
   username: "username" # 数据库账号
   password: "password" # 数据库密码
-  loc: "Local"   # 时区
+  loc: "Local" # 时区
   charset: "utf8mb4" # 数据库编码, 默认: utf8mb4
   maxIdleConns: 100 # 最大空闲连接数, 默认最小10
   maxOpenConns: 100 # 最大连接数, 默认最小100
@@ -51,22 +52,6 @@ db:
   IgnoreRecordNotFoundError: true # 是否忽略记录未找到错误
   slowThreshold: 500 # 慢查询阈值, 单位毫秒, 默认200毫秒
   migrate: ""
-rabbitMQ:
-  host: "rabbitMqHost"
-  port: 5672
-  username: "username"
-  password: "password"
-rabbitMQList:
-  - aliasName: "rabbitMQ1" # 别名
-    host: "rabbitMqHost"
-    port: 5672
-    username: "username"
-    password: "password"
-es:
-  addresses:
-    - "http://esHost:9200"
-  username: "elastic"
-  password: "esPassword"
 dbResolvers:
   - sources:
       - host: "127.0.0.1" # 数据库地址
@@ -90,6 +75,28 @@ dbResolvers:
         migrate: ""
     tables:
       - "user"
+rabbitMQ:
+  host: "rabbitMqHost"
+  port: 5672
+  username: "username"
+  password: "password"
+rabbitMQList:
+  - aliasName: "rabbitMQ1" # 别名
+    host: "rabbitMqHost"
+    port: 5672
+    username: "username"
+    password: "password"
+es:
+  addresses:
+    - "http://esHost:9200"
+  username: "elastic"
+  password: "esPassword"
+etcd:
+  addresses:
+    - "http://esHost:9200"
+  username: "elastic"
+  password: "esPassword"
+  timeout: 5
 # 单redis配置
 redis:
   addr: "localhost:6379"
