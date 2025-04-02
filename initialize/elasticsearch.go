@@ -2,6 +2,7 @@ package initialize
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zzsen/gin_core/global"
 
@@ -23,15 +24,13 @@ func InitElasticsearch() {
 	es, err := elasticsearch.NewTypedClient(esConfig)
 
 	if err != nil {
-		logger.Error("[es] Error occurs while creating es client: %s", err)
-		return
+		panic(fmt.Errorf("[es] 初始化es client失败: %v", err))
 	} else {
 		global.ES = es
 	}
 
 	if err = info(); err != nil {
-		logger.Error("[es] Error occurs while getting es info: %s", err)
-		return
+		panic(fmt.Errorf("[es] 获取es信息失败: %v", err))
 	}
 }
 
