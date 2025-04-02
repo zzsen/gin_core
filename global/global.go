@@ -12,6 +12,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"gorm.io/gorm"
 )
 
@@ -20,6 +21,7 @@ var (
 	DB                   *gorm.DB
 	DBResolver           *gorm.DB
 	ES                   *elasticsearch.TypedClient
+	Etcd                 *clientv3.Client
 	DBList               map[string]*gorm.DB
 	Redis                redis.UniversalClient
 	RedisList            map[string]redis.UniversalClient

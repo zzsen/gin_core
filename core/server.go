@@ -123,18 +123,20 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 }
 
 func closeService() {
-	// 初始化日志
-	global.Logger = logger.InitLogger(global.BaseConfig.Log)
-	// 初始化redis
-	if global.BaseConfig.System.UseRedis {
+	// 关闭redis
+	if global.BaseConfig.System.UseRedis && global.Redis != nil {
 		global.Redis.Close()
 	}
-	// 初始化消息队列
+	// 关闭消息队列
 	if global.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
 		for _, rabbitMqProducer := range global.RabbitMQProducerList {
 			rabbitMqProducer.Close()
 			logger.Error("[server] [消息队列] 已关闭消息队列生产者：%s", rabbitMqProducer.GetInfo())
 		}
+	}
+	// 关闭etcd
+	if global.BaseConfig.System.UseEtcd && global.Etcd != nil {
+		global.Etcd.Close()
 	}
 }
 

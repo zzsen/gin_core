@@ -59,6 +59,13 @@ func initService() {
 	if global.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
 		go initialize.InitialRabbitMq(messageQueueConsumerList...)
 	}
+	if global.BaseConfig.System.UseEtcd {
+		if global.BaseConfig.Etcd == nil {
+			panic("[etcd] not valid etcd config, please check config")
+		} else {
+			initialize.InitEtcd()
+		}
+	}
 	// 初始化定时任务
 	if global.BaseConfig.System.UseSchedule && len(scheduleList) > 0 {
 		c := cron.New()
