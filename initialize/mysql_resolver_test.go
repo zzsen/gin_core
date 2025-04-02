@@ -53,12 +53,13 @@ type User struct {
 
 func TestInitDBResolver(t *testing.T) {
 	t.Run("rsa sign and valid", func(t *testing.T) {
-		db := initMultiDB(dbConfig)
+		db, err := initMultiDB(dbConfig)
+		assert.Nil(t, err)
 		assert.NotNil(t, db)
 
 		// read data, user replicas
 		user := User{}
-		err := db.Find(&user).Error
+		err = db.Find(&user).Error
 		fmt.Printf("\033[32muser: %+v\033[0m\n", user)
 		assert.Nil(t, err)
 
