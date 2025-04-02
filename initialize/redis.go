@@ -2,6 +2,7 @@ package initialize
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zzsen/gin_core/global"
 	"github.com/zzsen/gin_core/model/config"
@@ -28,8 +29,7 @@ func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 	}
 	pong, err := client.Ping(context.Background()).Result()
 	if err != nil {
-		logger.Error("[redis] redis aliasName: %s, connect ping failed, err: %v", redisCfg.AliasName, err)
-		return nil, err
+		return nil, fmt.Errorf("连接失败, ping failed, err: %v", err)
 	}
 
 	logger.Info("[redis] redis aliasName: %s, connect ping response: %s", redisCfg.AliasName, pong)
@@ -43,7 +43,7 @@ func InitRedis() {
 	}
 	redisClient, err := initRedisClient(*global.BaseConfig.Redis)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("[redis] 初始化redis失败, %s", err.Error()))
 	}
 	global.Redis = redisClient
 }
@@ -54,7 +54,7 @@ func InitRedisList() {
 	for _, redisCfg := range global.BaseConfig.RedisList {
 		client, err := initRedisClient(redisCfg)
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("[redis] 初始化redis [%s]失败, %s", redisCfg.AliasName, err.Error()))
 		}
 		redisMap[redisCfg.AliasName] = client
 	}
