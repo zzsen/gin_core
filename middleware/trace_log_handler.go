@@ -6,18 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"github.com/zzsen/gin_core/core"
 	"github.com/zzsen/gin_core/logger"
 )
 
-func init() {
-	err := core.RegisterMiddleware("logHandler", LogHandler)
-	if err != nil {
-		logger.Error(err.Error())
-	}
-}
-
-func LogHandler() gin.HandlerFunc {
+func TraceLogHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Start timer
 		startTime := time.Now()
