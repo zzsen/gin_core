@@ -12,11 +12,13 @@ service: # http服务配置
   routePrefix: "/routePrefix" # 路由前缀
   sessionExpire: 3600 # 缓存的有效时长
   sessionPrefix: "gin_" # redis中缓存前缀
-  readTimeOut: 60 # 读超时
-  writeTimeOut: 60 # 写超时
+  apiTimeout: 1 # api超时
+  readTimeout: 60 # 读超时
+  writeTimeout: 60 # 写超时
   middlewares: # 中间件, 注意: 顺序对应中间件调用顺序
-    - "logHandler" # 日志中间件
     - "exceptionHandler" # 异常处理中间件
+    - "traceLogHandler" # 请求日志中间件
+    - "timeoutHandler" # 超时中间件
 log:
   filePath: "./log" # 日志文件路径, 默认 ./log
   maxAge: 30 # 日志文件保存天数, 默认 30 天
