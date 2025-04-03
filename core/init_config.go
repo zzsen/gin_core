@@ -21,7 +21,11 @@ import (
 	fileUtil "github.com/zzsen/gin_core/utils/file"
 )
 
-func LoadConfig(conf interface{}) {
+func InitCustomConfig(conf interface{}) {
+	global.Config = conf
+}
+
+func loadConfig(conf interface{}) {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error("%v", err)
@@ -67,7 +71,6 @@ func LoadConfig(conf interface{}) {
 		}
 	}
 	global.Env = cmdArgs.Env
-	global.Config = conf
 }
 
 func getDateTime() string {
