@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
@@ -19,18 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var middleWareMap = make(map[string]func() gin.HandlerFunc)
-
-func RegisterMiddleware(name string, handlerFunc func() gin.HandlerFunc) error {
-	if _, ok := middleWareMap[name]; ok {
-		return errors.New("this name is already in use")
-	}
-	middleWareMap[name] = handlerFunc
-	return nil
-}
-
-// new 新建对象
-func new(opts ...gin.OptionFunc) *gin.Engine {
+func initEngine(opts ...gin.OptionFunc) *gin.Engine {
 	engine := gin.New()
 	if global.BaseConfig.Service.RoutePrefix != "" {
 		engine.RouterGroup = *engine.RouterGroup.Group(formatRoute(global.BaseConfig.Service.RoutePrefix))
@@ -61,6 +49,12 @@ func new(opts ...gin.OptionFunc) *gin.Engine {
 
 // Start 启动服务
 func Start(opts []gin.OptionFunc, functions ...func()) {
+	// 加载配置
+	loadConfig(global.Config)
+
+	// 初始化中间件
+	initMiddleware()
+
 	// 初始化服务
 	initService()
 
@@ -78,7 +72,7 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 
 	server := &http.Server{
 		Addr:         serverAddr,
-		Handler:      new(opts...),
+		Handler:      initEngine(opts...),
 		ReadTimeout:  time.Duration(global.BaseConfig.Service.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(global.BaseConfig.Service.WriteTimeout) * time.Second,
 	}

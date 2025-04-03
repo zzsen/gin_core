@@ -5,20 +5,12 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/zzsen/gin_core/core"
 	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/response"
 
 	"github.com/gin-gonic/gin"
 )
-
-func init() {
-	err := core.RegisterMiddleware("exceptionHandler", ExceptionHandler)
-	if err != nil {
-		logger.Error(err.Error())
-	}
-}
 
 func ExceptionHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
