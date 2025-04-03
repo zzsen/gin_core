@@ -185,3 +185,11 @@ func Error(msg string, arg ...interface{}) {
 		Logger.Error(msg)
 	}
 }
+
+func Warn(msg string, arg ...interface{}) {
+	if len(arg) > 0 {
+		Logger.Warnf(msg, arg...)
+	} else {
+		Logger.Warn(msg)
+	}
+}
