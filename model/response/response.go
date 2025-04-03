@@ -32,7 +32,7 @@ func OkWithData(c *gin.Context, data interface{}) {
 	Result(c, ResponseSuccess.code, data, ResponseSuccess.msg)
 }
 
-func OkWithDetailed(c *gin.Context, message string, data interface{}) {
+func OkWithDetail(c *gin.Context, message string, data interface{}) {
 	Result(c, ResponseSuccess.code, data, message)
 }
 
@@ -44,7 +44,7 @@ func FailWithMessage(c *gin.Context, message string) {
 	Result(c, ResponseFail.code, map[string]interface{}{}, message)
 }
 
-func FailWithDetailed(c *gin.Context, message string, data interface{}) {
+func FailWithDetail(c *gin.Context, message string, data interface{}) {
 	Result(c, ResponseFail.code, data, message)
 }
 
