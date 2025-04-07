@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
+	"github.com/sirupsen/logrus"
 	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/response"
@@ -21,8 +22,10 @@ func ExceptionHandler() gin.HandlerFunc {
 				if handler, ok := err.(exception.Handler); ok {
 					message, code = handler.OnException(ctx)
 				} else {
-					logger.Error("%v", err)
-					logger.Error(string(debug.Stack()))
+					logger.Logger.WithFields(logrus.Fields{
+						"error":     err,
+						"stackInfo": string(debug.Stack()),
+					}).Error()
 				}
 				_ = ctx.Error(fmt.Errorf("%d : %s", code, message))
 				ctx.JSON(http.StatusOK, gin.H{
