@@ -18,7 +18,7 @@ func Get(ctx *gin.Context, key string) (value string) {
 		b, _ := ctx.GetRawData()
 		// 关键点：将读取的数据重新写入到请求体中
 		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(b))
-		m := map[string]interface{}{}
+		m := map[string]any{}
 		json.Unmarshal(b, &m)
 		if str, declared := m[key]; declared {
 			value = fmt.Sprint(str)

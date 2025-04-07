@@ -41,7 +41,7 @@ var dbConfig = []config.DbResolver{
 				Password: "10.160.23.43",
 			},
 		},
-		Tables: []interface{}{"user"},
+		Tables: []any{"user"},
 	},
 }
 

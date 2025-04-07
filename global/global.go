@@ -27,7 +27,7 @@ var (
 	RedisList            map[string]redis.UniversalClient
 	BaseConfig           config.BaseConfig
 	RabbitMQProducerList map[string]*config.MessageQueue = make(map[string]*config.MessageQueue)
-	Config               interface{}                     = new(config.BaseConfig)
+	Config               any                             = new(config.BaseConfig)
 	Logger               *logrus.Logger
 	GVA_VP               *viper.Viper
 	lock                 sync.RWMutex

@@ -6,9 +6,9 @@ import (
 )
 
 type DbResolver struct {
-	Sources  []DbInfo      `yaml:"sources"`
-	Replicas []DbInfo      `yaml:"replicas"`
-	Tables   []interface{} `yaml:"tables"`
+	Sources  []DbInfo `yaml:"sources"`
+	Replicas []DbInfo `yaml:"replicas"`
+	Tables   []any    `yaml:"tables"`
 }
 
 func (dbResolver *DbResolver) IsValid() bool {
