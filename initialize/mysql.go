@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var tableEntity []interface{}
+var tableEntity []any
 
 func InitDB() {
 	if global.BaseConfig.Db == nil {
@@ -58,7 +58,7 @@ func initSingleDB(dbConfig config.DbInfo) (*gorm.DB, error) {
 	return DB, nil
 }
 
-func RegisterTable(table interface{}) {
+func RegisterTable(table any) {
 	tableEntity = append(tableEntity, table)
 }
 

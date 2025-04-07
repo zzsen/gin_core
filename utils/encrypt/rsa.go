@@ -23,7 +23,7 @@ func RsaGeneratePrivateKey(bits int) (*rsa.PrivateKey, error) {
 }
 
 // 保存RSA私钥或公钥到PEM格式的文件
-func savePem(key interface{}, filePath string, isPrivateKey bool) error {
+func savePem(key any, filePath string, isPrivateKey bool) error {
 	var keyBytes []byte
 	if isPrivateKey {
 		// 按照PKCS#1标准对私钥进行ASN.1 DER编码
