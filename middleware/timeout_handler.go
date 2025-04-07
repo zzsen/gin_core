@@ -19,10 +19,15 @@ func TimeoutHandler() gin.HandlerFunc {
 
 		// 创建一个通道用于接收处理结果
 		done := make(chan struct{}, 1)
+		errorChan := make(chan any, 1)
 
 		// 启动一个 goroutine 来处理请求
 		go func() {
 			defer func() {
+				if r := recover(); r != nil {
+					// 处理可能的 panic
+					errorChan <- r
+				}
 				// 处理完成后向通道发送信号
 				done <- struct{}{}
 			}()
@@ -40,6 +45,9 @@ func TimeoutHandler() gin.HandlerFunc {
 			if duration > timeout*8/10 {
 				logger.Warn("[timeout] Request to %s took %d ms, which is more than 80%% of the timeout (%d)", c.Request.URL.Path, duration.Milliseconds(), timeout)
 			}
+		case err := <-errorChan:
+			// 处理 panic, 抛给exception_handler
+			panic(err)
 		case <-time.After(timeout):
 			// 请求超时
 			// 终止当前请求的处理链
