@@ -20,15 +20,15 @@ func RegisterMiddleware(name string, handlerFunc func() gin.HandlerFunc) error {
 
 func initMiddleware() {
 	if err := RegisterMiddleware("exceptionHandler", middleware.ExceptionHandler); err != nil {
-		logger.Error(err.Error())
+		logger.Error("%s", err.Error())
 	}
 
 	if err := RegisterMiddleware("traceLogHandler", middleware.TraceLogHandler); err != nil {
-		logger.Error(err.Error())
+		logger.Error("%s", err.Error())
 	}
 
 	// timeout := time.Duration(global.BaseConfig.Service.ApiTimeout) * time.Second
 	if err := RegisterMiddleware("timeoutHandler", middleware.TimeoutHandler); err != nil {
-		logger.Error(err.Error())
+		logger.Error("%s", err.Error())
 	}
 }

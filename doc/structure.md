@@ -47,9 +47,10 @@ gin_core
 │   └── config.go                     #   └ 配置类常量
 ├── core                              # 核心文件
 │   ├── cmdline.go                    #   ├ 命令行参数解析
-│   ├── init_config.go                #   ├ 配置文件初始化
-│   ├── init_middleware.go            #   ├ 配置默认中间件(异常处理, 请求日志, 超时处理等)
-│   ├── init_service.go               #   ├ 服务初始化（mysql, es, 消息队列, 定时任务等）
+│   ├── config.go                     #   ├ 配置文件初始化
+│   ├── engine.go                     #   ├ 路由初始化
+│   ├── middleware.go                 #   ├ 配置默认中间件(异常处理, 请求日志, 超时处理等)
+│   ├── service.go                    #   ├ 服务初始化（mysql, es, 消息队列, 定时任务等）
 │   └── server.go                     #   └ 服务启动主方法
 ├── exception                         # 异常
 │   ├── auth_failed.go                #   ├ 授权失败
