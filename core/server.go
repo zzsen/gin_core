@@ -18,37 +18,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func initEngine(opts ...gin.OptionFunc) *gin.Engine {
-	engine := gin.New()
-	if global.BaseConfig.Service.RoutePrefix != "" {
-		engine.RouterGroup = *engine.RouterGroup.Group(formatRoute(global.BaseConfig.Service.RoutePrefix))
-		logger.Info("[server] 统一路由前缀设置成功: %s",
-			global.BaseConfig.Service.RoutePrefix)
-	}
-	engine.Use(gin.Recovery())
-
-	// 注册中间件
-	useMiddlewares := global.BaseConfig.Service.Middlewares
-	if len(useMiddlewares) > 0 {
-		for _, useMiddleware := range useMiddlewares {
-			if _, ok := middleWareMap[useMiddleware]; !ok {
-				logger.Error("[server] can not find %s middleware, please register first", useMiddleware)
-				os.Exit(1)
-			}
-			engine.Use(middleWareMap[useMiddleware]())
-		}
-	}
-
-	engine.HandleMethodNotAllowed = true
-	engine.NoMethod(MethodNotAllowed)
-	engine.NoRoute(NotFound)
-	engine.With(opts...)
-
-	return engine
-}
-
 // Start 启动服务
-func Start(opts []gin.OptionFunc, functions ...func()) {
+func Start(exitfunctions ...func()) {
 	// 加载配置
 	loadConfig(global.Config)
 
@@ -72,7 +43,7 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 
 	server := &http.Server{
 		Addr:         serverAddr,
-		Handler:      initEngine(opts...),
+		Handler:      initEngine(),
 		ReadTimeout:  time.Duration(global.BaseConfig.Service.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(global.BaseConfig.Service.WriteTimeout) * time.Second,
 	}
@@ -80,8 +51,8 @@ func Start(opts []gin.OptionFunc, functions ...func()) {
 	go func() {
 		<-ctx.Done()
 		fmt.Println("Shutdown HTTP Server ...")
-		for _, function := range functions {
-			function()
+		for _, exitfunction := range exitfunctions {
+			exitfunction()
 		}
 		closeService()
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)

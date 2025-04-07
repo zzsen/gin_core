@@ -21,11 +21,11 @@ import (
 	fileUtil "github.com/zzsen/gin_core/utils/file"
 )
 
-func InitCustomConfig(conf interface{}) {
+func InitCustomConfig(conf any) {
 	global.Config = conf
 }
 
-func loadConfig(conf interface{}) {
+func loadConfig(conf any) {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error("%v", err)
@@ -77,7 +77,7 @@ func getDateTime() string {
 	return time.Unix(0, time.Now().UnixNano()).Format("2006-01-02 15:04:05")
 }
 
-func loadYamlConfig(path string, conf interface{}, CipherKey string) error {
+func loadYamlConfig(path string, conf any, CipherKey string) error {
 	err := checkConfType(conf)
 	if err != nil {
 		return err
@@ -108,7 +108,7 @@ func loadYamlConfig(path string, conf interface{}, CipherKey string) error {
 	return err
 }
 
-func checkConfType(conf interface{}) error {
+func checkConfType(conf any) error {
 	if reflect.TypeOf(conf).Kind().String() != "ptr" {
 		return errors.New("conf type is not ptr")
 	}
