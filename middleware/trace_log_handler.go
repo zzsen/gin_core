@@ -20,7 +20,7 @@ func TraceLogHandler() gin.HandlerFunc {
 		endTime := time.Now()
 
 		// 计算请求执行时间
-		latencyTime := endTime.Sub(startTime)
+		responseTime := endTime.Sub(startTime)
 
 		// 获取请求相关信息
 		reqMethod := c.Request.Method                                     // 请求方式
@@ -48,15 +48,15 @@ func TraceLogHandler() gin.HandlerFunc {
 		}
 
 		logger.Logger.WithFields(logrus.Fields{
-			"request_id":   requestId,
-			"status_code":  statusCode,
-			"latency_time": latencyTime,
-			"client_ip":    clientIP,
-			"req_method":   reqMethod,
-			"ua_token":     header,
-			"req_uri":      reqUrl,
+			"requestId":    requestId,
+			"statusCode":   statusCode,
+			"responseTime": responseTime,
+			"clientIp":     clientIP,
+			"reqMethod":    reqMethod,
+			"uaToken":      header,
+			"reqUri":       reqUrl,
 			"body":         reqJsonStr,
-			"err_str":      errorsStr,
+			"errStr":       errorsStr,
 		}).Trace()
 	}
 }
