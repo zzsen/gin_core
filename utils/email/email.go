@@ -3,8 +3,9 @@ package email
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/jordan-wright/email"
 	"net/smtp"
+
+	"github.com/jordan-wright/email"
 )
 
 type SmtpConfig struct {

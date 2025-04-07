@@ -170,7 +170,7 @@ func Add(requestId, info string, err error) {
 	}
 }
 
-func Info(msg string, arg ...interface{}) {
+func Info(msg string, arg ...any) {
 	if len(arg) > 0 {
 		Logger.Infof(msg, arg...)
 	} else {
@@ -178,7 +178,7 @@ func Info(msg string, arg ...interface{}) {
 	}
 }
 
-func Error(msg string, arg ...interface{}) {
+func Error(msg string, arg ...any) {
 	if len(arg) > 0 {
 		Logger.Errorf(msg, arg...)
 	} else {
@@ -186,7 +186,7 @@ func Error(msg string, arg ...interface{}) {
 	}
 }
 
-func Warn(msg string, arg ...interface{}) {
+func Warn(msg string, arg ...any) {
 	if len(arg) > 0 {
 		Logger.Warnf(msg, arg...)
 	} else {

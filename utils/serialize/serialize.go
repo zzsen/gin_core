@@ -6,7 +6,7 @@ import (
 )
 
 // MapToStruct将map对象转换为结构体对象
-func MapToStruct(m map[string]interface{}, s interface{}) error {
+func MapToStruct(m map[string]any, s any) error {
 	data, err := json.Marshal(m)
 	if err != nil {
 		return err
@@ -20,8 +20,8 @@ func MapToStruct(m map[string]interface{}, s interface{}) error {
 }
 
 // StructToMap将结构体对象转换为map对象
-func StructToMap(s interface{}) map[string]interface{} {
-	m := make(map[string]interface{})
+func StructToMap(s any) map[string]any {
+	m := make(map[string]any)
 
 	// 获取结构体类型和值
 	t := reflect.TypeOf(s)

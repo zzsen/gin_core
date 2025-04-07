@@ -5,7 +5,7 @@ import (
 	"github.com/zzsen/gin_core/exception"
 )
 
-func Validate(s interface{}) {
+func Validate(s any) {
 	err := validator.New().Struct(s)
 	if err != nil {
 		panic(exception.NewInvalidParam(err.Error()))
