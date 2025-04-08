@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zzsen/gin_core/global"
+	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/response"
 )
 
 // TimeoutHandler 创建一个同时处理超时和记录请求响应时长的中间件
 func TimeoutHandler() gin.HandlerFunc {
-	timeout := time.Duration(global.BaseConfig.Service.ApiTimeout) * time.Second
+	timeout := time.Duration(app.BaseConfig.Service.ApiTimeout) * time.Second
 	return func(c *gin.Context) {
 		// 记录请求开始时间
 		startTime := time.Now()

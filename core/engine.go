@@ -3,7 +3,7 @@ package core
 import (
 	"os"
 
-	"github.com/zzsen/gin_core/global"
+	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/response"
 
@@ -32,15 +32,15 @@ var healthDetactEngine = func(e *gin.Engine) {
 
 func initEngine() *gin.Engine {
 	engine := gin.New()
-	if global.BaseConfig.Service.RoutePrefix != "" {
-		engine.RouterGroup = *engine.RouterGroup.Group(formatRoute(global.BaseConfig.Service.RoutePrefix))
+	if app.BaseConfig.Service.RoutePrefix != "" {
+		engine.RouterGroup = *engine.RouterGroup.Group(formatRoute(app.BaseConfig.Service.RoutePrefix))
 		logger.Info("[server] 统一路由前缀设置成功: %s",
-			global.BaseConfig.Service.RoutePrefix)
+			app.BaseConfig.Service.RoutePrefix)
 	}
 	engine.Use(gin.Recovery())
 
 	// 注册中间件
-	useMiddlewares := global.BaseConfig.Service.Middlewares
+	useMiddlewares := app.BaseConfig.Service.Middlewares
 	if len(useMiddlewares) > 0 {
 		for _, useMiddleware := range useMiddlewares {
 			if _, ok := middleWareMap[useMiddleware]; !ok {
