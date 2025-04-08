@@ -2,7 +2,7 @@ package core
 
 import (
 	"github.com/robfig/cron/v3"
-	"github.com/zzsen/gin_core/global"
+	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/initialize"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
@@ -26,11 +26,11 @@ func AddSchedule(schedule config.ScheduleInfo) {
 
 func initService() {
 	// 初始化日志
-	logger.Logger = logger.InitLogger(global.BaseConfig.Log)
-	global.Logger = logger.Logger
+	logger.Logger = logger.InitLogger(app.BaseConfig.Log)
+	app.Logger = logger.Logger
 	// 初始化redis
-	if global.BaseConfig.System.UseRedis {
-		if global.BaseConfig.Redis == nil && len(global.BaseConfig.RedisList) == 0 {
+	if app.BaseConfig.System.UseRedis {
+		if app.BaseConfig.Redis == nil && len(app.BaseConfig.RedisList) == 0 {
 			panic("[redis] not valid redis config, please check config")
 		} else {
 			initialize.InitRedis()
@@ -38,8 +38,8 @@ func initService() {
 		}
 	}
 	// 初始化数据库
-	if global.BaseConfig.System.UseMysql {
-		if global.BaseConfig.Db == nil && len(global.BaseConfig.DbList) == 0 && len(global.BaseConfig.DbResolvers) == 0 {
+	if app.BaseConfig.System.UseMysql {
+		if app.BaseConfig.Db == nil && len(app.BaseConfig.DbList) == 0 && len(app.BaseConfig.DbResolvers) == 0 {
 			panic("[db] not valid db config, please check config")
 		} else {
 			initialize.InitDB()
@@ -48,26 +48,26 @@ func initService() {
 		}
 	}
 	// 初始化es
-	if global.BaseConfig.System.UseEs {
-		if global.BaseConfig.Es == nil {
+	if app.BaseConfig.System.UseEs {
+		if app.BaseConfig.Es == nil {
 			panic("[es] not valid es config, please check config")
 		} else {
 			initialize.InitElasticsearch()
 		}
 	}
 	// 初始化消息队列
-	if global.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
+	if app.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
 		go initialize.InitialRabbitMq(messageQueueConsumerList...)
 	}
-	if global.BaseConfig.System.UseEtcd {
-		if global.BaseConfig.Etcd == nil {
+	if app.BaseConfig.System.UseEtcd {
+		if app.BaseConfig.Etcd == nil {
 			panic("[etcd] not valid etcd config, please check config")
 		} else {
 			initialize.InitEtcd()
 		}
 	}
 	// 初始化定时任务
-	if global.BaseConfig.System.UseSchedule && len(scheduleList) > 0 {
+	if app.BaseConfig.System.UseSchedule && len(scheduleList) > 0 {
 		c := cron.New()
 		for _, schedule := range scheduleList {
 			c.AddFunc(schedule.Cron, schedule.Cmd)
