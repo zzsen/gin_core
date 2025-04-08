@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zzsen/gin_core/global"
+	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/model/config"
 
 	"github.com/redis/go-redis/v9"
@@ -37,21 +37,21 @@ func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 }
 
 func InitRedis() {
-	if global.BaseConfig.Redis == nil {
+	if app.BaseConfig.Redis == nil {
 		logger.Error("[redis] single redis has no config, please check config")
 		return
 	}
-	redisClient, err := initRedisClient(*global.BaseConfig.Redis)
+	redisClient, err := initRedisClient(*app.BaseConfig.Redis)
 	if err != nil {
 		panic(fmt.Errorf("[redis] 初始化redis失败, %s", err.Error()))
 	}
-	global.Redis = redisClient
+	app.Redis = redisClient
 }
 
 func InitRedisList() {
 	redisMap := make(map[string]redis.UniversalClient)
 
-	for _, redisCfg := range global.BaseConfig.RedisList {
+	for _, redisCfg := range app.BaseConfig.RedisList {
 		client, err := initRedisClient(redisCfg)
 		if err != nil {
 			panic(fmt.Errorf("[redis] 初始化redis [%s]失败, %s", redisCfg.AliasName, err.Error()))
@@ -59,5 +59,5 @@ func InitRedisList() {
 		redisMap[redisCfg.AliasName] = client
 	}
 
-	global.RedisList = redisMap
+	app.RedisList = redisMap
 }

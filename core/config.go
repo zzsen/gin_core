@@ -15,14 +15,14 @@ import (
 	"github.com/zzsen/gin_core/utils/encrypt"
 	"gopkg.in/yaml.v3"
 
+	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/constant"
-	"github.com/zzsen/gin_core/global"
 	"github.com/zzsen/gin_core/logger"
 	fileUtil "github.com/zzsen/gin_core/utils/file"
 )
 
 func InitCustomConfig(conf any) {
-	global.Config = conf
+	app.Config = conf
 }
 
 func loadConfig(conf any) {
@@ -70,7 +70,7 @@ func loadConfig(conf any) {
 			os.Exit(1)
 		}
 	}
-	global.Env = cmdArgs.Env
+	app.Env = cmdArgs.Env
 }
 
 func getDateTime() string {
@@ -98,7 +98,7 @@ func loadYamlConfig(path string, conf any, CipherKey string) error {
 		return err
 	}
 
-	err = yaml.Unmarshal(fileData, &global.BaseConfig)
+	err = yaml.Unmarshal(fileData, &app.BaseConfig)
 	if err != nil {
 		logger.Error("[配置解析] 加载基础配置%s失败: %s", path, err.Error())
 		return err

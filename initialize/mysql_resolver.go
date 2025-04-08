@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zzsen/gin_core/global"
+	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
 
@@ -14,12 +14,12 @@ import (
 )
 
 func InitDBResolver() {
-	if len(global.BaseConfig.DbResolvers) > 0 {
-		dbClient, err := initMultiDB(global.BaseConfig.DbResolvers)
+	if len(app.BaseConfig.DbResolvers) > 0 {
+		dbClient, err := initMultiDB(app.BaseConfig.DbResolvers)
 		if err != nil {
 			panic(fmt.Errorf("[db] 初始化db resolver失败, %s", err.Error()))
 		}
-		global.DBResolver = dbClient
+		app.DBResolver = dbClient
 		logger.Info("[db] db resolver已初始化")
 	}
 }

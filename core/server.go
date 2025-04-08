@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/constant"
-	"github.com/zzsen/gin_core/global"
 	"github.com/zzsen/gin_core/logger"
 
 	"github.com/gin-gonic/gin"
@@ -21,7 +21,7 @@ import (
 // Start 启动服务
 func Start(exitfunctions ...func()) {
 	// 加载配置
-	loadConfig(global.Config)
+	loadConfig(app.Config)
 
 	// 初始化中间件
 	initMiddleware()
@@ -38,14 +38,14 @@ func Start(exitfunctions ...func()) {
 		cancel()
 	}()
 
-	serverAddr := fmt.Sprintf("%s:%d", global.BaseConfig.Service.Ip, global.BaseConfig.Service.Port)
-	logger.Info("[server] Service start by %s:%d", global.BaseConfig.Service.Ip, global.BaseConfig.Service.Port)
+	serverAddr := fmt.Sprintf("%s:%d", app.BaseConfig.Service.Ip, app.BaseConfig.Service.Port)
+	logger.Info("[server] Service start by %s:%d", app.BaseConfig.Service.Ip, app.BaseConfig.Service.Port)
 
 	server := &http.Server{
 		Addr:         serverAddr,
 		Handler:      initEngine(),
-		ReadTimeout:  time.Duration(global.BaseConfig.Service.ReadTimeout) * time.Second,
-		WriteTimeout: time.Duration(global.BaseConfig.Service.WriteTimeout) * time.Second,
+		ReadTimeout:  time.Duration(app.BaseConfig.Service.ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(app.BaseConfig.Service.WriteTimeout) * time.Second,
 	}
 
 	go func() {
@@ -65,11 +65,11 @@ func Start(exitfunctions ...func()) {
 		}
 	}()
 
-	if global.Env != constant.ProdEnv {
-		pprofPort := global.BaseConfig.Service.PprofPort
-		pprofAddr := fmt.Sprintf("%s:%d", global.BaseConfig.Service.Ip, constant.DefaultPprofPort)
-		if pprofPort != nil && *pprofPort == global.BaseConfig.Service.Port {
-			pprofAddr = fmt.Sprintf("%s:%d", global.BaseConfig.Service.Ip, *pprofPort)
+	if app.Env != constant.ProdEnv {
+		pprofPort := app.BaseConfig.Service.PprofPort
+		pprofAddr := fmt.Sprintf("%s:%d", app.BaseConfig.Service.Ip, constant.DefaultPprofPort)
+		if pprofPort != nil && *pprofPort == app.BaseConfig.Service.Port {
+			pprofAddr = fmt.Sprintf("%s:%d", app.BaseConfig.Service.Ip, *pprofPort)
 		}
 
 		mux := http.NewServeMux()
@@ -89,19 +89,19 @@ func Start(exitfunctions ...func()) {
 
 func closeService() {
 	// 关闭redis
-	if global.BaseConfig.System.UseRedis && global.Redis != nil {
-		global.Redis.Close()
+	if app.BaseConfig.System.UseRedis && app.Redis != nil {
+		app.Redis.Close()
 	}
 	// 关闭消息队列
-	if global.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
-		for _, rabbitMqProducer := range global.RabbitMQProducerList {
+	if app.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
+		for _, rabbitMqProducer := range app.RabbitMQProducerList {
 			rabbitMqProducer.Close()
 			logger.Error("[server] [消息队列] 已关闭消息队列生产者：%s", rabbitMqProducer.GetInfo())
 		}
 	}
 	// 关闭etcd
-	if global.BaseConfig.System.UseEtcd && global.Etcd != nil {
-		global.Etcd.Close()
+	if app.BaseConfig.System.UseEtcd && app.Etcd != nil {
+		app.Etcd.Close()
 	}
 }
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zzsen/gin_core/global"
+	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
 )
@@ -33,10 +33,10 @@ func InitialRabbitMq(messageQueueList ...config.MessageQueue) {
 
 func startMqConsume(messageQueue *config.MessageQueue) {
 	// 获取消息队列连接字符串
-	mqConnStr := global.BaseConfig.RabbitMQ.Url()
+	mqConnStr := app.BaseConfig.RabbitMQ.Url()
 	// 如果配置了消息队列名称, 则使用对应的消息队列
 	if messageQueue.MQName != "" {
-		mqConnStr = global.BaseConfig.RabbitMQList.Url(messageQueue.MQName)
+		mqConnStr = app.BaseConfig.RabbitMQList.Url(messageQueue.MQName)
 	}
 	if mqConnStr == "" {
 		logger.Error("[消息队列] 未找到对应的消息队列配置, MQName: %s", messageQueue.MQName)

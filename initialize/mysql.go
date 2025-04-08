@@ -3,7 +3,7 @@ package initialize
 import (
 	"fmt"
 
-	"github.com/zzsen/gin_core/global"
+	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
 
@@ -14,26 +14,26 @@ import (
 var tableEntity []any
 
 func InitDB() {
-	if global.BaseConfig.Db == nil {
+	if app.BaseConfig.Db == nil {
 		logger.Error("[db] 未找到配置, 请检查配置")
 		return
 	}
-	dbClient, err := initSingleDB(*global.BaseConfig.Db)
+	dbClient, err := initSingleDB(*app.BaseConfig.Db)
 	if err != nil {
 		panic(fmt.Errorf("[db] 初始化db失败, %s", err.Error()))
 	}
-	global.DB = dbClient
+	app.DB = dbClient
 	logger.Info("[db] db已初始化")
 }
 
 func InitDBList() {
-	global.DBList = make(map[string]*gorm.DB)
-	for _, dbConfig := range global.BaseConfig.DbList {
+	app.DBList = make(map[string]*gorm.DB)
+	for _, dbConfig := range app.BaseConfig.DbList {
 		dbClient, err := initSingleDB(dbConfig)
 		if err != nil {
 			panic(fmt.Errorf("[db] 初始化db [%s] 失败, %s", dbConfig.AliasName, err.Error()))
 		}
-		global.DBList[dbConfig.AliasName] = dbClient
+		app.DBList[dbConfig.AliasName] = dbClient
 	}
 	logger.Info("[db] db列表已初始化")
 }

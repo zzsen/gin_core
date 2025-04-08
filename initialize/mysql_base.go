@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/constant"
-	"github.com/zzsen/gin_core/global"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
 	"gorm.io/gorm"
@@ -67,7 +67,7 @@ var dbLogger *logrus.Logger
 func initDBLogger() *logrus.Logger {
 	initOnce.Do(func() {
 		// 初始化日志记录器
-		loggerConfig := global.BaseConfig.Log.ToDbLoggerConfig()
+		loggerConfig := app.BaseConfig.Log.ToDbLoggerConfig()
 		dbLogger = logger.InitLogger(loggerConfig)
 	})
 	return dbLogger
