@@ -58,8 +58,8 @@ gin_core
 │   ├── index.go                      #   ├ 普通失败
 │   ├── invalid_param.go              #   ├ 参数校验不通过
 │   └── rpc_error.go                  #   └ rpc错误
-├── global                            # 全局变量
-│   └── global.go                     #   └ 全局变量, redisClient, mysqlClient等
+├── app                               # 全局应用
+│   └── app.go                        #   └ 全局应用, redisClient, mysqlClient等
 ├── initialize                        # 初始化
 │   ├── elasticsearch.go              #   ├ 初始化es
 │   ├── etcd.go                       #   ├ 初始化etcd
