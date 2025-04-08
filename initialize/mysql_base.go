@@ -12,7 +12,6 @@ import (
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	gormLogger "gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
@@ -48,16 +47,13 @@ func initDBCallbacks(gormDB *gorm.DB) {
 		if db.Statement.Schema == nil {
 			return
 		}
-		set := clause.Set{}
 		timeFieldsToInit := []string{"UpdateTime", "UpdatedAt"}
 		for _, field := range timeFieldsToInit {
+
 			if timeField := db.Statement.Schema.LookUpField(field); timeField != nil {
-				if db.Statement.ReflectValue.CanAddr() {
-					set = append(set, clause.Assignment{Column: clause.Column{Name: timeField.DBName}, Value: db.Statement.DB.NowFunc()})
-				}
+				timeField.Set(db.Statement.Context, db.Statement.ReflectValue, time.Now())
 			}
 		}
-		db.Statement.AddClause(set)
 	})
 }
 
