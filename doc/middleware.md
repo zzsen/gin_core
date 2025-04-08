@@ -1,4 +1,4 @@
-# 中间件(Middleware)
+# 中间件 (Middleware)
 
 gin 的中间件, 和 controller 方法本质上是一样的, 都是 handlerFunc 类型的函数
 
