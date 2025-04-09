@@ -49,9 +49,8 @@ func initDBCallbacks(gormDB *gorm.DB) {
 		}
 		timeFieldsToInit := []string{"UpdateTime", "UpdatedAt"}
 		for _, field := range timeFieldsToInit {
-
 			if timeField := db.Statement.Schema.LookUpField(field); timeField != nil {
-				timeField.Set(db.Statement.Context, db.Statement.ReflectValue, time.Now())
+				db.Statement.Dest = map[string]any{timeField.DBName: db.Statement.DB.NowFunc()}
 			}
 		}
 	})
