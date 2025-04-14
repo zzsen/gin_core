@@ -34,9 +34,10 @@ gin 框架, 用于快速搭建项目
 - [运行环境](./doc/env.md)
 - [配置](./doc/config.md)
 - [中间件](./doc/middleware.md)
+- [路由](./doc/router.md)
 
 内置对象
-路由
+
 控制器
 服务
 插件
