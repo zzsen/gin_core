@@ -42,6 +42,7 @@ func initDBCallbacks(gormDB *gorm.DB) {
 		}
 	})
 
+
 	// 更新前修改updateTime字段
 	gormDB.Callback().Update().Before("gorm:update").Register("update:updateTime", func(db *gorm.DB) {
 		if db.Statement.Schema == nil {
@@ -49,7 +50,7 @@ func initDBCallbacks(gormDB *gorm.DB) {
 		}
 		timeFieldsToInit := []string{"UpdateTime", "UpdatedAt"}
 		for _, field := range timeFieldsToInit {
-			if timeField := db.Statement.Schema.LookUpField(field); timeField != nil {
+			if timeField := db.Statement.Schema.LookUpField(field); timeField != nil && db.Statement.ReflectValue.CanAddr() {
 				timeField.Set(db.Statement.Context, db.Statement.ReflectValue, time.Now())
 			}
 		}
