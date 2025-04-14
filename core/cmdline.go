@@ -17,7 +17,7 @@ type CmdArgs struct {
 func parseCmdArgs() (*CmdArgs, error) {
 	info := CmdArgs{}
 	argv := flag.NewFlagSet(os.Args[0], 2)
-	argv.StringVar(&info.Env, "env", constant.DefaultEnv, "运行环境，dev, test, prod等， 默认dev")
+	argv.StringVar(&info.Env, "env", "", "运行环境，dev, test, prod等， 默认dev")
 	argv.StringVar(&info.Config, "config", constant.DefaultConfigDirPath, "配置文件路径，默认./conf")
 	argv.StringVar(&info.CipherKey, "cipherKey", "", "加密key, 配置文件加密时使用")
 	if !argv.Parsed() {

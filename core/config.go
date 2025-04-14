@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -34,6 +35,16 @@ func loadConfig(conf any) {
 	}()
 
 	cmdArgs, err := parseCmdArgs()
+
+	if cmdArgs.Env == "" {
+		env, err := getEnvFromFile()
+		if err != nil {
+			logger.Error("[配置解析] 获取环境变量失败, %s", err.Error())
+			cmdArgs.Env = constant.DefaultEnv
+		} else {
+			cmdArgs.Env = env
+		}
+	}
 
 	if cmdArgs.Env == constant.ProdEnv {
 		gin.SetMode(gin.ReleaseMode)
@@ -71,6 +82,53 @@ func loadConfig(conf any) {
 		}
 	}
 	app.Env = cmdArgs.Env
+}
+
+func getEnvFromFile() (string, error) {
+	// 命令行中未指定参数时, 先判断环境文件是否存在, 若存在则读取文件首行内容
+
+	envFileName := "env"
+	// 检查文件是否存在
+	_, err := os.Stat(envFileName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("[getEnvFromFile] 环境文件不存在: %s", envFileName)
+		}
+		return "", fmt.Errorf("[getEnvFromFile] 检查环境文件时发生错误: %s", err.Error())
+	}
+
+	// 打开文件
+	file, err := os.Open(envFileName)
+	if err != nil {
+		return "", fmt.Errorf("[getEnvFromFile] 打开环境文件时发生错误: %s", err.Error())
+	}
+	// 确保文件在函数结束时关闭
+	defer file.Close()
+
+	// 创建一个扫描器来逐行读取文件
+	scanner := bufio.NewScanner(file)
+	if scanner.Scan() {
+		// 获取首行内容
+		firstLine := scanner.Text()
+
+		// 定义正则表达式，匹配字母、数字和下划线
+		regex := regexp.MustCompile(`[a-zA-Z0-9_]+`)
+		// 查找首个匹配项
+		match := regex.FindString(firstLine)
+
+		if match != "" {
+			// 返回匹配到的内容
+			return match, nil
+		}
+		return "", fmt.Errorf("[getEnvFromFile] 环境文件首行内容无效: %s", firstLine)
+	}
+
+	// 检查扫描过程中是否有错误
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("[getEnvFromFile] 扫描环境文件时发生错误: %s", err.Error())
+	}
+
+	return "", fmt.Errorf("[getEnvFromFile] 环境文件为空")
 }
 
 func getDateTime() string {
