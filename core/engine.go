@@ -10,14 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var opts = make([]gin.OptionFunc, 0)
+var optionFuncList = make([]gin.OptionFunc, 0)
 
-func AddOptionFunc(optionFunc gin.OptionFunc) {
-	opts = append(opts, optionFunc)
-}
-
-func AddOptionFuncs(optionFuncs []gin.OptionFunc) {
-	opts = append(opts, optionFuncs...)
+func AddOptionFunc(optionFunc ...gin.OptionFunc) {
+	optionFuncList = append(optionFuncList, optionFunc...)
 }
 
 // 健康检查
@@ -57,7 +53,7 @@ func initEngine() *gin.Engine {
 
 	// 健康检查
 	AddOptionFunc(healthDetactEngine)
-	engine.With(opts...)
+	engine.With(optionFuncList...)
 
 	return engine
 }
