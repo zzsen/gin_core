@@ -31,6 +31,7 @@ gin 框架, 用于快速搭建项目
 # 文档
 
 - [目录结构](./doc/structure.md)
+- [运行参数](./doc/args.md)
 - [运行环境](./doc/env.md)
 - [配置](./doc/config.md)
 - [中间件](./doc/middleware.md)
