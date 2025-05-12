@@ -140,6 +140,7 @@ func TimeoutHandler() gin.HandlerFunc {
    # ...
    middlewares: # 中间件, 注意: 顺序对应中间件调用顺序
      - "exceptionHandler" # 异常处理中间件
+     - "traceIdHandler" # 请求id中间件
      - "traceLogHandler" # 请求日志中间件
      - "timeoutHandler" # 超时中间件
    # 上述配置中, 则会先调用异常处理中间件, 然后是请求日志中间件, 最后是超时中间件
@@ -169,6 +170,7 @@ func TimeoutHandler() gin.HandlerFunc {
 ## 内置中间件
 本框架内置了以下中间件：
 * **exceptionHandler**：异常处理中间件，捕获并处理程序中的异常，返回统一的错误响应。
+* **traceLogHandler**：请求id中间件，使用uuid生成traceId, 并添加到上下文和请求头中, 方便地跟踪和分析请求的处理流程，定位问题和进行性能监控。
 * **traceLogHandler**：请求日志中间件，记录请求的相关信息，如请求方式、请求路由、状态码、请求 IP 等。
 * **timeoutHandler**：超时处理中间件，处理请求超时的情况，并记录请求响应时长。
 

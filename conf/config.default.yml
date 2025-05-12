@@ -17,6 +17,7 @@ service: # http服务配置
   writeTimeout: 60 # 写超时
   middlewares: # 中间件, 注意: 顺序对应中间件调用顺序
     - "exceptionHandler" # 异常处理中间件
+    - "traceIdHandler" # 请求id中间件
     - "traceLogHandler" # 请求日志中间件
     - "timeoutHandler" # 超时中间件
 log:
