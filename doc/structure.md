@@ -51,6 +51,7 @@ gin_core
 │   ├── engine.go                     #   ├ 路由初始化
 │   ├── middleware.go                 #   ├ 配置默认中间件(异常处理, 请求日志, 超时处理等)
 │   ├── service.go                    #   ├ 服务初始化（mysql, es, 消息队列, 定时任务等）
+│   ├── validator.go                  #   ├ 参数校验（使用github.com/go-playground/validator/v10覆盖gin的参数校验）
 │   └── server.go                     #   └ 服务启动主方法
 ├── exception                         # 异常
 │   ├── auth_failed.go                #   ├ 授权失败
