@@ -23,6 +23,10 @@ func initMiddleware() {
 		logger.Error("%s", err.Error())
 	}
 
+	if err := RegisterMiddleware("traceIdHandler", middleware.TraceIdHandler); err != nil {
+		logger.Error("%s", err.Error())
+	}
+
 	if err := RegisterMiddleware("traceLogHandler", middleware.TraceLogHandler); err != nil {
 		logger.Error("%s", err.Error())
 	}
