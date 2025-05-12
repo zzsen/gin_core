@@ -41,6 +41,12 @@ func TraceLogHandler() gin.HandlerFunc {
 		// 获取请求中的 requestId
 		requestId := c.GetString("requestId")
 
+		// 获取请求中的 traceId
+		traceId, exists := c.Get("traceId")
+		if !exists {
+			traceId = ""
+		}
+
 		// 获取 Gin 中间件中的错误信息
 		var errorsStr string
 		for _, err := range c.Errors.Errors() {
@@ -48,6 +54,7 @@ func TraceLogHandler() gin.HandlerFunc {
 		}
 
 		logger.Logger.WithFields(logrus.Fields{
+			"traceId":      traceId,
 			"requestId":    requestId,
 			"statusCode":   statusCode,
 			"responseTime": responseTime,

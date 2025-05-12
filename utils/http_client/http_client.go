@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type ResponseWrapper struct {
@@ -18,7 +20,7 @@ type ResponseWrapper struct {
 	Header     http.Header
 }
 
-func Get(url string, timeout int, headers map[string]string) ResponseWrapper {
+func Get(ctx *gin.Context, url string, timeout int, headers map[string]string) ResponseWrapper {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return createRequestError(err)
@@ -27,10 +29,10 @@ func Get(url string, timeout int, headers map[string]string) ResponseWrapper {
 		req.Header.Set(headerKey, headerValue)
 	}
 
-	return request(req, timeout)
+	return request(ctx, req, timeout)
 }
 
-func PostParams(url string, params string, timeout int, headers map[string]string) ResponseWrapper {
+func PostParams(ctx *gin.Context, url string, params string, timeout int, headers map[string]string) ResponseWrapper {
 	buf := bytes.NewBufferString(params)
 	req, err := http.NewRequest("POST", url, buf)
 	if err != nil {
@@ -39,10 +41,11 @@ func PostParams(url string, params string, timeout int, headers map[string]strin
 	for headerKey, headerValue := range headers {
 		req.Header.Set(headerKey, headerValue)
 	}
-	return request(req, timeout)
+
+	return request(ctx, req, timeout)
 }
 
-func PutParams(url string, params string, timeout int, headers map[string]string) ResponseWrapper {
+func PutParams(ctx *gin.Context, url string, params string, timeout int, headers map[string]string) ResponseWrapper {
 	buf := bytes.NewBufferString(params)
 	req, err := http.NewRequest("PUT", url, buf)
 	if err != nil {
@@ -53,10 +56,11 @@ func PutParams(url string, params string, timeout int, headers map[string]string
 	for headerKey, headerValue := range headers {
 		req.Header.Set(headerKey, headerValue)
 	}
-	return request(req, timeout)
+
+	return request(ctx, req, timeout)
 }
 
-func PostJson(url string, body string, headers map[string]string, timeout int) ResponseWrapper {
+func PostJson(ctx *gin.Context, url string, body string, headers map[string]string, timeout int) ResponseWrapper {
 	buf := bytes.NewBufferString(body)
 	req, err := http.NewRequest("POST", url, buf)
 	if err != nil {
@@ -67,10 +71,10 @@ func PostJson(url string, body string, headers map[string]string, timeout int) R
 	}
 	req.Header.Set("Content-type", "application/json")
 
-	return request(req, timeout)
+	return request(ctx, req, timeout)
 }
 
-func PostForm(httpUrl string, dataMap map[string]string,
+func PostForm(ctx *gin.Context, httpUrl string, dataMap map[string]string,
 	filePathMap map[string]string, fileMap map[string]io.Reader,
 	headers map[string]string, timeout int) ResponseWrapper {
 	os.Setenv("GODEBUG", "tlsrsakex=1")
@@ -141,16 +145,17 @@ func PostForm(httpUrl string, dataMap map[string]string,
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
-	return request(req, timeout)
+
+	return request(ctx, req, timeout)
 }
 
-func request(req *http.Request, timeout int) ResponseWrapper {
+func request(ctx *gin.Context, req *http.Request, timeout int) ResponseWrapper {
 	wrapper := ResponseWrapper{StatusCode: 0, Body: "", Header: make(http.Header)}
 	client := &http.Client{}
 	if timeout > 0 {
 		client.Timeout = time.Duration(timeout) * time.Second
 	}
-	setRequestHeader(req)
+	setRequestHeader(ctx, req)
 	resp, err := client.Do(req)
 	if err != nil {
 		wrapper.Body = fmt.Sprintf("执行HTTP请求错误-%s", err.Error())
@@ -169,8 +174,13 @@ func request(req *http.Request, timeout int) ResponseWrapper {
 	return wrapper
 }
 
-func setRequestHeader(req *http.Request) {
+func setRequestHeader(ctx *gin.Context, req *http.Request) {
 	req.Header.Set("User-Agent", "golang/gocron")
+	// 获取 Trace ID
+	traceId, exists := ctx.Get("traceId")
+	if exists {
+		req.Header.Set("X-Trace-ID", traceId.(string))
+	}
 }
 
 func createRequestError(err error) ResponseWrapper {
