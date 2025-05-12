@@ -20,6 +20,9 @@ import (
 
 // Start 启动服务
 func Start(exitfunctions ...func()) {
+	// 重写gin的Validator
+	overrideValidator()
+
 	// 加载配置
 	loadConfig(app.Config)
 
