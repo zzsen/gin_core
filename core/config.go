@@ -39,10 +39,14 @@ func loadConfig(conf any) {
 	if cmdArgs.Env == "" {
 		env, err := getEnvFromFile()
 		if err != nil {
-			logger.Error("[配置解析] 获取环境变量失败, %s", err.Error())
+			logger.Info("[配置解析] 获取环境变量失败, %s", err.Error())
 			cmdArgs.Env = constant.DefaultEnv
+		} else if env == "" {
+			cmdArgs.Env = constant.DefaultEnv
+			logger.Info("[配置解析] env文件内容无效, 当前运行环境: %s", cmdArgs.Env)
 		} else {
 			cmdArgs.Env = env
+			logger.Info("[配置解析] 从env文件中加载运行环境, 当前运行环境: %s", cmdArgs.Env)
 		}
 	}
 
