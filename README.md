@@ -36,13 +36,6 @@ gin 框架, 用于快速搭建项目
 - [配置](./doc/config.md)
 - [中间件](./doc/middleware.md)
 - [路由](./doc/router.md)
-
-内置对象
-
-控制器
-服务
-插件
-定时任务
-框架拓展
-启动自定义
-
+- [控制器](./doc/controller.md)
+- [服务](./doc/service.md)
+- [定时任务](./doc/schedule.md)
