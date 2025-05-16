@@ -1,22 +1,22 @@
 # 控制器 (Controller)
 
-## 什么是 Controller
-[前面章节](./router.md) 提到，我们通过 Router 将用户的请求基于 method 和 URL 分发到了对应的 Controller，那么 Controller 主要有什么职责呢？
+## 一、概述
+[前面章节](./router.md) 提到，我们通过 `Router` 将用户的请求基于 method 和 URL 分发到了对应的 `Controller`，那么 `Controller` 主要有什么职责呢？
 
-简单地说，Controller 负责**解析用户的输入，处理后返回相应的结果**。例如：
+简单地说，`Controller` 负责**解析用户的输入，处理后返回相应的结果**。例如：
 
-* 在 RESTful 接口中，Controller 接受用户的参数，从数据库中查找内容返回给用户，或将用户的请求更新到数据库中。
-* 在 HTML 页面请求中，Controller 根据用户访问不同的 URL，渲染不同的模板得到 HTML，后返回给用户。
-* 在代理服务器中，Controller 将用户的请求转发到其他服务器，之后将那些服务器的处理结果返回给用户。
+* 在 RESTful 接口中，`Controller` 接受用户的参数，从数据库中查找内容返回给用户，或将用户的请求更新到数据库中。
+* 在 HTML 页面请求中，`Controller` 根据用户访问不同的 URL，渲染不同的模板得到 HTML，后返回给用户。
+* 在代理服务器中，`Controller` 将用户的请求转发到其他服务器，之后将那些服务器的处理结果返回给用户。
 
-框架推荐的 Controller 层主要流程是：
+框架推荐的 `Controller` 层主要流程是：
 1. 获取用户通过 HTTP 传递过来的请求参数。
 2. 校验、组装参数。
-3. 调用 Service 进行业务处理，必要时处理转换 Service 的返回结果，让它适应用户的需求。
+3. 调用 `Service` 进行业务处理，必要时处理转换 `Service` 的返回结果，让它适应用户的需求。
 4. 通过 HTTP 将结果响应给用户。
 
 
-## 编写controller
+## 二、编写controller
 ### 1. 模型编写
 在编写controller之前，先编写请求模型和数据库模型，用于接收http请求参数和数据库的数据交互。
 请求模型统一放于`model/request`中，数据库模型统一放于`model/entity`中。
@@ -95,4 +95,28 @@ func AddUser (ctx *gin.Context) {
 }
 ```
 
-框架使用[validator](https://github.com/go-playground/validator)覆盖了gin自带的参数校验, 支持更多中类型的参数校验。接口响应也封装了一层，位于[Response](https://github.com/zzsen/gin_core/blob/master/model/response/response.go)。
+## 三、参数校验和响应封装
+1. 参数校验
+
+	框架使用[validator](https://github.com/go-playground/validator)覆盖了gin自带的参数校验, 支持更多中类型的参数校验, 详细可见 [validator文档](https://pkg.go.dev/github.com/go-playground/validator/v10)。
+	```golang
+	type User struct {
+		Username string `binding:"required,gt=10"`
+	}
+	```
+
+2. 响应封装
+
+	接口响应封装了一层，位于[Response](https://github.com/zzsen/gin_core/blob/master/model/response/response.go)。
+	```golang
+	package test
+
+	import (
+		"github.com/gin-gonic/gin"
+		"github.com/zzsen/gin_core/model/response"
+	)
+	func test (ctx *gin.Context) {
+		// 设置响应内容和响应状态码
+		response.OkWithMessage(c, "成功")
+	}
+	```
