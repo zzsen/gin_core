@@ -69,7 +69,7 @@ func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
 		}
 
 		if writeMap[logLevel] == nil {
-			defaultLogWriter, _ := initRotatelogs(config.LoggersConfig{}, config.LoggerConfig{}, logLevel.String())
+			defaultLogWriter, _ := initRotatelogs(loggersConfig, config.LoggerConfig{}, logLevel.String())
 			writeMap[logLevel] = defaultLogWriter
 		}
 
@@ -135,9 +135,9 @@ func initRotatelogs(globalConfig config.LoggersConfig,
 	fullFileName := path.Join(filePath, fileName)
 
 	filePattern := fullFileName + ".%Y%m%d.log"
-	if rotationTime < 60 {
+	if rotationTime <= 60 {
 		filePattern = fullFileName + ".%Y%m%d%H%M.log"
-	} else if rotationTime >= 60 && rotationTime < 24*60 {
+	} else if rotationTime > 60 && rotationTime < 24*60 {
 		filePattern = fullFileName + ".%Y%m%d%H.log"
 	}
 	// 设置 rotatelogs，实现日志文件轮转
