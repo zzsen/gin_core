@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	elasticsearch "github.com/elastic/go-elasticsearch/v8"
+	elasticsearch "github.com/elastic/go-elasticsearch/v9"
 	"github.com/sirupsen/logrus"
 
 	"github.com/zzsen/gin_core/logger"
