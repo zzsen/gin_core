@@ -56,7 +56,7 @@ func getCustomRouter1() func(e *gin.Engine) {
 				var testData TestData
 
 				if err := json.Unmarshal(hit.Source_, &testData); err != nil {
-					log.Printf("解析 %s 失败: %v", hit.Id_, err)
+					log.Printf("解析 %v 失败: %v", hit.Id_, err)
 					continue
 				}
 				testDatas = append(testDatas, testData)
