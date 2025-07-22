@@ -59,6 +59,7 @@ func initService() {
 	if app.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
 		go initialize.InitialRabbitMq(messageQueueConsumerList...)
 	}
+	// 初始化etcd
 	if app.BaseConfig.System.UseEtcd {
 		if app.BaseConfig.Etcd == nil {
 			panic("[etcd] not valid etcd config, please check config")
