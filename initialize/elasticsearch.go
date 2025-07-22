@@ -6,7 +6,7 @@ import (
 
 	"github.com/zzsen/gin_core/app"
 
-	elasticsearch "github.com/elastic/go-elasticsearch/v8"
+	elasticsearch "github.com/elastic/go-elasticsearch/v9"
 	"github.com/zzsen/gin_core/logger"
 )
 
