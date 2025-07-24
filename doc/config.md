@@ -2,32 +2,78 @@
 
 ## 一、概述
 
-框架提供了强大且可扩展的配置功能，支持以下功能:
-1. **多环境配置** 根据环境配置加载不同的配置
-2. **加载环境变量** 配置可通过环境变量传入
-3. **配置加密** 配置可加密存放于配置文件中
-4. **自定义配置** 框架提供了BaseConfig类型的配置类型, 项目可按需自行拓展
-5. **指定配置路径** 配置可与代码分离, 通过路径的方式传入, 再读取具体路径的配置文件, 具体可见: [启动参数](./args.md)
+gin_core 框架提供了强大、灵活且生产就绪的配置管理系统，支持现代应用开发中的各种配置需求：
+
+### 🚀 **核心特性**
+1. **多环境配置管理** - 支持开发、测试、生产等不同环境的配置隔离
+2. **环境变量集成** - 与 Kubernetes、Docker 等容器化平台无缝集成
+3. **配置安全加密** - 内置 AES 加密，保护敏感配置信息
+4. **自定义配置扩展** - 基于 BaseConfig 灵活扩展项目特定配置
+5. **外部配置支持** - 支持配置文件与代码分离部署
+6. **热加载机制** - 支持配置变更的动态生效（结合 Etcd）
+
+---
 
 ## 二、多环境配置
 
 框架支持根据环境来加载配置，定义多个环境的配置文件，具体可见: [环境](./env.md)
 
 ### 2.1 配置文件结构
+框架采用分层配置策略，通过环境标识符加载对应的配置文件，实现不同环境的配置隔离和管理。
 
-配置目录下, 可存放多个环境的配置, 框架会根据环境加载不同的配置。示例配置文件结构如下：
+#### 🗂️ **配置文件结构**
+示例配置文件结构如下：
 ```bash
 config
-├ config.default.yml # 默认配置
-├ config.prod.yml    # prod环境下, 加载该配置
-├ config.test.yml    # test环境下, 加载该配置
-└ config.dev.yml     # dev环境下, 加载该配置
+├── config.default.yml    # 🔧 基础配置（所有环境共享）
+├── config.dev.yml        # 🛠️ 开发环境配置
+├── config.test.yml       # 🧪 测试环境配置
+├── config.prod.yml       # 🚀 生产环境配置
+└── config.local.yml      # 💻 本地开发配置（通常不纳入版本控制）
 ```
 
-### 2.2 加载规则
-`config.default.yml`为默认配置, 所有环境都会先加载该配置文件, 然后再读取具体环境对应的配置, **相同配置项, 会覆盖默认配置的配置项**。
+#### 📋 **环境映射表**
+| 环境标识 | 配置文件 | 用途 | Gin模式 |
+|---------|---------|------|---------|
+| `default` | config.default.yml | 基础配置 | debug |
+| `dev` | config.dev.yml | 开发环境 | debug |
+| `test` | config.test.yml | 单元测试 | debug |
+| `prod` | config.prod.yml | 生产环境 | release |
+| `local` | config.local.yml | 本地开发 | debug |
 
-如: 当前环境为`prod`, 且有以下配置
+### 2.2 配置加载机制
+
+#### 🔄 **加载流程**
+```
+开始
+  ↓
+检查命令行 --env 参数
+  ↓
+有值? → 是 → 使用命令行参数值
+  ↓
+  否
+  ↓
+检查 env 文件是否存在
+  ↓
+存在且有效? → 是 → 读取 env 文件首行
+  ↓
+  否
+  ↓
+使用默认值 "default"
+  ↓
+设置框架运行模式
+  ↓
+继续启动流程
+```
+
+#### ⚙️ **合并规则**
+1. **基础配置**: 首先加载 `config.default.yml`
+2. **环境覆盖**: 加载对应环境的配置文件，相同字段覆盖默认值
+3. **深度合并**: 嵌套对象进行深度合并，而非完全替换
+4. **类型保持**: 保持原有数据类型，防止类型转换错误
+
+#### 💡 **配置示例**
+
 ```yml
 # config.default.yml
 service:
@@ -42,31 +88,92 @@ service:
 
 最终应用中的`service`的`port`为7778
 
-## 三、加载环境变量
+---
 
-对于接入k8s等支持配置加密变量的项目, 可将一些不便直接存放在配置中的配置项配置到k8s的密钥中, 框架将通过读取环境变量的方式加载并替换配置, 
-框架将会根据 `{{xxx}}` 中的变量名, 从环境变量中获取对应的值, 并替换到配置中.
+## 三、环境变量集成
 
-如: 项目中的mysql配置信息如下：
-|host|port|username|password|
-|--|--|--|--|
-|127.0.0.1|3306|root|password|
+### 3.1 环境变量机制
 
-配置环境变量如下：
-|dbHost|dbPort|dbUsername|dbPassword|
-|--|--|--|--|
-|127.0.0.1|3306|root|password|
+框架支持通过 `{{变量名}}` 语法从系统环境变量中动态获取配置值，特别适用于容器化部署和CI/CD场景。
 
-```yml
+#### 🔧 **语法规则**
+- **字符串替换**: `"{{ENV_VAR}}"` - 完整替换字符串
+- **数值替换**: `{{PORT}}` - 直接替换数值（不需要引号）
+- **嵌套替换**: `"jdbc:mysql://{{DB_HOST}}:{{DB_PORT}}/{{DB_NAME}}"` - 多变量组合
+
+#### 🐳 **容器化部署示例**
+
+**Docker Compose 配置**
+```yaml
+version: '3.8'
+services:
+  app:
+    image: gin-core-app:latest
+    environment:
+      - ENV=prod
+      - DB_HOST=mysql-server
+      - DB_PORT=3306
+      - DB_NAME=production_db
+      - DB_USERNAME=app_user
+      - DB_PASSWORD=secure_password
+    depends_on:
+      - mysql-server
+      - redis-server
+```
+
+**Kubernetes ConfigMap + Secret**
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  DB_HOST: "mysql-service"
+  DB_PORT: "3306"
+  DB_NAME: "production_db"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+type: Opaque
+data:
+  DB_PASSWORD: "c2VjdXJlX3Bhc3N3b3Jk"  # base64编码
+```
+
+**应用配置文件**
+```yaml
+# config.prod.yml
 db:
-  host: "{{dbHost}}"
-  port: {{dbPort}}
-  username: "{{dbUsername}}"
-  password: "{{dbPassword}}"
+  host: "{{DB_HOST}}"
+  port: {{DB_PORT}}
+  dbName: "{{DB_NAME}}"
+  username: "{{DB_USERNAME}}"
+  password: "{{DB_PASSWORD}}"
+
+```
+
+#### 🔍 **环境变量最佳实践**
+
+**1. 命名规范**
+```bash
+# 推荐的环境变量命名
+APP_ENV=prod                    # 应用环境
+DB_HOST=mysql.prod.com         # 数据库主机
+DB_PORT=3306                   # 数据库端口  
+DB_NAME=production_db          # 数据库名
+```
+
+**2. 敏感信息处理**
+```bash
+# 密码等敏感信息
+export DB_PASSWORD="your_secure_password"
 ```
 
 
-## 四、配置加密
+---
+
+## 四、配置安全加密
 考虑到不是所有项目都接入了k8s, 且环境变量配置稍显复杂, 故框架支持对配置中的参数进行加密存放。此时需要在运行项目时, 在命令行参数中加入`cipherKey`, 框架将会使用命令行中的cipherKey作为解密密钥, 对`CIPHER(xxx)`中的`xxx`进行解密, 并替换到配置中.
 > 加密方式为aes
 
@@ -76,7 +183,7 @@ db:
   password: CIPHER(/t8wxJyz5nLKYDa7w8W3oQ==)
 ```
 
-## 五、自定义配置
+## 五、自定义配置扩展
 
 ### 5.1 了解基础配置结构
 
