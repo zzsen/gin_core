@@ -59,7 +59,7 @@ var _ binding.StructValidator = &defaultValidator{}
 //	  Email string `binding:"required,email"`
 //	  Age   int    `binding:"min=18,max=120"`
 //	}
-func (v *defaultValidator) ValidateStruct(obj interface{}) error {
+func (v *defaultValidator) ValidateStruct(obj any) error {
 	// 检查传入的对象是否为结构体类型
 	// 只有结构体类型才需要进行字段验证
 	if kindOfData(obj) == reflect.Struct {
@@ -90,7 +90,7 @@ func (v *defaultValidator) ValidateStruct(obj interface{}) error {
 //
 //	engine := validator.Engine().(*validator.Validate)
 //	engine.RegisterValidation("custom", customValidationFunc)
-func (v *defaultValidator) Engine() interface{} {
+func (v *defaultValidator) Engine() any {
 	// 确保验证器已初始化
 	v.lazyinit()
 	return v.validate
@@ -148,7 +148,7 @@ func (v *defaultValidator) lazyinit() {
 //	kindOfData(User{})     // 返回 reflect.Struct
 //	kindOfData("string")   // 返回 reflect.String
 //	kindOfData(&"string")  // 返回 reflect.String
-func kindOfData(data interface{}) reflect.Kind {
+func kindOfData(data any) reflect.Kind {
 	// 获取数据的反射值
 	value := reflect.ValueOf(data)
 	// 获取值的类型
