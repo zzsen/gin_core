@@ -1,3 +1,4 @@
+// Package encrypt 提供RSA非对称加密解密和数字签名功能
 package encrypt
 
 import (
@@ -12,7 +13,9 @@ import (
 	"os"
 )
 
-// 生成指定长度的RSA私钥
+// RsaGeneratePrivateKey 生成指定长度的RSA私钥
+// bits: 密钥长度，建议使用2048或4096位
+// 返回: RSA私钥对象和错误信息
 func RsaGeneratePrivateKey(bits int) (*rsa.PrivateKey, error) {
 	// 使用加密安全的随机数生成器生成私钥
 	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
@@ -22,7 +25,11 @@ func RsaGeneratePrivateKey(bits int) (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
-// 保存RSA私钥或公钥到PEM格式的文件
+// savePem 保存RSA私钥或公钥到PEM格式的文件
+// key: RSA私钥或公钥对象
+// filePath: 保存路径
+// isPrivateKey: 是否为私钥
+// 返回: 错误信息
 func savePem(key any, filePath string, isPrivateKey bool) error {
 	var keyBytes []byte
 	if isPrivateKey {
@@ -35,11 +42,14 @@ func savePem(key any, filePath string, isPrivateKey bool) error {
 	if !isPrivateKey {
 		keyType = "RSA PUBLIC KEY"
 	}
+	// 创建PEM块
 	block := &pem.Block{
 		Type:  keyType,
 		Bytes: keyBytes,
 	}
+	// 编码为PEM格式
 	pemBytes := pem.EncodeToMemory(block)
+	// 写入文件，设置权限为600（仅所有者可读写）
 	err := os.WriteFile(filePath, pemBytes, 0600)
 	if err != nil {
 		return fmt.Errorf("save %s failed: %v", filePath, err)
@@ -47,27 +57,38 @@ func savePem(key any, filePath string, isPrivateKey bool) error {
 	return nil
 }
 
-// 将RSA私钥转换为PEM格式的字节切片, 并保存到文件
+// RsaSavePrivatePem 将RSA私钥保存为PEM格式文件
+// privateKey: RSA私钥对象
+// filePath: 保存路径
+// 返回: 错误信息
 func RsaSavePrivatePem(privateKey *rsa.PrivateKey, filePath string) error {
 	return savePem(privateKey, filePath, true)
 }
 
-// 将RSA私钥转换为PEM格式的字节切片, 并保存到文件
+// RsaSavePublicPem 将RSA公钥保存为PEM格式文件
+// publicKey: RSA公钥对象
+// filePath: 保存路径
+// 返回: 错误信息
 func RsaSavePublicPem(publicKey *rsa.PublicKey, filePath string) error {
 	return savePem(publicKey, filePath, false)
 }
 
-// 转换字符串为私钥
+// convertStrToPrivateKey 将PEM格式字符串转换为RSA私钥
+// privatekeyStr: PEM格式的私钥字符串
+// 返回: RSA私钥对象和错误信息
 func convertStrToPrivateKey(privatekeyStr string) (*rsa.PrivateKey, error) {
 	privatekeyBytes := []byte(privatekeyStr)
+	// 解码PEM格式
 	block, _ := pem.Decode(privatekeyBytes)
 	if block == nil {
 		return nil, errors.New("get private key error")
 	}
+	// 尝试PKCS#1格式解析
 	priCs1, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err == nil {
 		return priCs1, nil
 	}
+	// 尝试PKCS#8格式解析
 	pri2, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, err
@@ -75,7 +96,9 @@ func convertStrToPrivateKey(privatekeyStr string) (*rsa.PrivateKey, error) {
 	return pri2.(*rsa.PrivateKey), nil
 }
 
-// 从文件中读取PEM格式的RSA私钥
+// RsaReadPrivatePem 从文件中读取PEM格式的RSA私钥
+// filePath: 私钥文件路径
+// 返回: RSA私钥对象和错误信息
 func RsaReadPrivatePem(filePath string) (*rsa.PrivateKey, error) {
 	pemBytes, err := os.ReadFile(filePath)
 	if err != nil {
@@ -84,20 +107,22 @@ func RsaReadPrivatePem(filePath string) (*rsa.PrivateKey, error) {
 	return convertStrToPrivateKey(string(pemBytes))
 }
 
-// 转换字符串为公钥
+// convertStrToPublicKey 将PEM格式字符串转换为RSA公钥
+// publickeyStr: PEM格式的公钥字符串
+// 返回: RSA公钥对象和错误信息
 func convertStrToPublicKey(publickeyStr string) (*rsa.PublicKey, error) {
 	publickeyBytes := []byte(publickeyStr)
-	// decode public key
+	// 解码PEM格式
 	block, _ := pem.Decode(publickeyBytes)
 	if block == nil {
 		return nil, errors.New("get public key error")
 	}
-	// x509 parse public key
+	// 尝试PKCS#1格式解析
 	pubCs1, err := x509.ParsePKCS1PublicKey(block.Bytes)
 	if err == nil {
 		return pubCs1, err
 	}
-	// x509 parse public key
+	// 尝试PKIX格式解析
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return nil, err
@@ -105,7 +130,9 @@ func convertStrToPublicKey(publickeyStr string) (*rsa.PublicKey, error) {
 	return pub.(*rsa.PublicKey), err
 }
 
-// 从文件中读取PEM格式的RSA公钥
+// RsaReadPublicPem 从文件中读取PEM格式的RSA公钥
+// filePath: 公钥文件路径
+// 返回: RSA公钥对象和错误信息
 func RsaReadPublicPem(filePath string) (*rsa.PublicKey, error) {
 	pemBytes, err := os.ReadFile(filePath)
 	if err != nil {
@@ -114,17 +141,24 @@ func RsaReadPublicPem(filePath string) (*rsa.PublicKey, error) {
 	return convertStrToPublicKey(string(pemBytes))
 }
 
-// 公钥加密，返回密文
+// RsaEncrypt 使用RSA公钥加密数据
+// publicKey: RSA公钥对象
+// plainText: 待加密的明文
+// 返回: 加密后的字节数组和错误信息
 func RsaEncrypt(publicKey *rsa.PublicKey, plainText string) ([]byte, error) {
 	plainBytes := []byte(plainText)
 	if publicKey == nil {
 		return nil, errors.New(`rsa public key is empty`)
 	}
 
+	// 使用PKCS1v15填充模式进行加密
 	return rsa.EncryptPKCS1v15(rand.Reader, publicKey, plainBytes)
 }
 
-// 公钥加密，返回base64编码的密文
+// RsaEncrypt2Base64 使用RSA公钥加密数据并返回base64编码的密文
+// publicKey: RSA公钥对象
+// plainText: 待加密的明文
+// 返回: base64编码的加密结果和错误信息
 func RsaEncrypt2Base64(publicKey *rsa.PublicKey, plainText string) (string, error) {
 	encryptedData, err := RsaEncrypt(publicKey, plainText)
 	if err != nil {
@@ -133,22 +167,31 @@ func RsaEncrypt2Base64(publicKey *rsa.PublicKey, plainText string) (string, erro
 	return base64.StdEncoding.EncodeToString(encryptedData), nil
 }
 
-// 私钥解密
+// RsaDecrypt 使用RSA私钥解密数据
+// privateKey: RSA私钥对象
+// cipherBytes: 待解密的密文字节数组
+// 返回: 解密后的明文字节数组和错误信息
 func RsaDecrypt(privateKey *rsa.PrivateKey, cipherBytes []byte) ([]byte, error) {
 	if privateKey == nil {
 		return nil, errors.New(`rsa private key is empty`)
 	}
 
+	// 使用PKCS1v15填充模式进行解密
 	return rsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherBytes)
 }
 
-// 私钥解密
+// RsaDecryptFromBase64 使用RSA私钥解密base64编码的密文
+// privateKey: RSA私钥对象
+// cipherText: base64编码的密文
+// 返回: 解密后的明文和错误信息
 func RsaDecryptFromBase64(privateKey *rsa.PrivateKey, cipherText string) (string, error) {
+	// 解码base64密文
 	cipherBytes, err := base64.StdEncoding.DecodeString(cipherText)
 	if err != nil {
 		return "", err
 	}
 
+	// 解密数据
 	decryptedData, err := RsaDecrypt(privateKey, cipherBytes)
 	if err != nil {
 		return "", err
@@ -156,7 +199,10 @@ func RsaDecryptFromBase64(privateKey *rsa.PrivateKey, cipherText string) (string
 	return string(decryptedData), nil
 }
 
-// 使用RSA私钥加密数据（数字签名场景常用）
+// RsaSign 使用RSA私钥对数据进行数字签名
+// privateKey: RSA私钥对象
+// plaintext: 待签名的明文
+// 返回: 签名字节数组和错误信息
 func RsaSign(privateKey *rsa.PrivateKey, plaintext string) ([]byte, error) {
 	if privateKey == nil {
 		return nil, errors.New(`rsa private key is empty`)
@@ -172,7 +218,10 @@ func RsaSign(privateKey *rsa.PrivateKey, plaintext string) ([]byte, error) {
 	return rsa.SignPKCS1v15(rand.Reader, privateKey, myhash, hashed)
 }
 
-// 使用RSA私钥加密数据（数字签名场景常用）
+// RsaSign2Base64 使用RSA私钥对数据进行数字签名并返回base64编码
+// privateKey: RSA私钥对象
+// plaintext: 待签名的明文
+// 返回: base64编码的签名和错误信息
 func RsaSign2Base64(privateKey *rsa.PrivateKey, plaintext string) (string, error) {
 	bytes, err := RsaSign(privateKey, plaintext)
 	if err != nil {
@@ -182,7 +231,11 @@ func RsaSign2Base64(privateKey *rsa.PrivateKey, plaintext string) (string, error
 	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
-// 使用RSA公钥解密数据（验证数字签名场景常用）
+// RsaValidSign 使用RSA公钥验证数字签名
+// publicKey: RSA公钥对象
+// ciphertext: 原始明文
+// signBytes: 签名字节数组
+// 返回: 验证结果错误信息
 func RsaValidSign(publicKey *rsa.PublicKey, ciphertext string, signBytes []byte) error {
 	cipherBytes := []byte(ciphertext)
 	// 1、选择hash算法，对需要签名的数据进行hash运算
@@ -195,8 +248,13 @@ func RsaValidSign(publicKey *rsa.PublicKey, ciphertext string, signBytes []byte)
 	return rsa.VerifyPKCS1v15(publicKey, myhash, hashed, signBytes)
 }
 
-// 使用RSA公钥解密数据（验证数字签名场景常用）
+// RsaValidSignFromBase64 使用RSA公钥验证base64编码的数字签名
+// publicKey: RSA公钥对象
+// ciphertext: 原始明文
+// sign: base64编码的签名
+// 返回: 验证结果错误信息
 func RsaValidSignFromBase64(publicKey *rsa.PublicKey, ciphertext string, sign string) error {
+	// 解码base64签名
 	signBytes, err := base64.StdEncoding.DecodeString(sign)
 	if err != nil {
 		return err
