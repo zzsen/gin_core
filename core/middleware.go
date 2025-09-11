@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/zzsen/gin_core/logger"
@@ -14,6 +15,46 @@ import (
 // value: 中间件工厂函数，返回具体的Gin中间件处理函数
 // 这种设计模式允许通过配置文件动态启用/禁用中间件，提高了系统的灵活性
 var middleWareMap = make(map[string]func() gin.HandlerFunc)
+
+// middlewareMutex 保护middleWareMap并发访问的互斥锁
+var middlewareMutex sync.RWMutex
+
+// getMiddleware 安全地获取中间件处理函数 (仅用于测试)
+func getMiddleware(name string) (func() gin.HandlerFunc, bool) {
+	middlewareMutex.RLock()
+	defer middlewareMutex.RUnlock()
+	handler, exists := middleWareMap[name]
+	return handler, exists
+}
+
+// setMiddleware 安全地设置中间件处理函数（仅用于测试）
+func setMiddleware(name string, handler func() gin.HandlerFunc) {
+	middlewareMutex.Lock()
+	defer middlewareMutex.Unlock()
+	middleWareMap[name] = handler
+}
+
+// clearMiddlewares 清空中间件映射表（仅用于测试）
+func clearMiddlewares() {
+	middlewareMutex.Lock()
+	defer middlewareMutex.Unlock()
+	middleWareMap = make(map[string]func() gin.HandlerFunc)
+}
+
+// getMiddlewareCount 安全地获取中间件数量（仅用于测试）
+func getMiddlewareCount() int {
+	middlewareMutex.RLock()
+	defer middlewareMutex.RUnlock()
+	return len(middleWareMap)
+}
+
+// hasMiddleware 安全地检查中间件是否存在（仅用于测试）
+func hasMiddleware(name string) bool {
+	middlewareMutex.RLock()
+	defer middlewareMutex.RUnlock()
+	_, exists := middleWareMap[name]
+	return exists
+}
 
 // RegisterMiddleware 注册中间件到映射表
 // 将中间件处理函数注册到全局中间件映射表中，使其可以通过名称引用
@@ -35,6 +76,10 @@ var middleWareMap = make(map[string]func() gin.HandlerFunc)
 //	  })
 //	})
 func RegisterMiddleware(name string, handlerFunc func() gin.HandlerFunc) error {
+	// 使用写锁保护并发访问
+	middlewareMutex.Lock()
+	defer middlewareMutex.Unlock()
+
 	// 检查中间件名称是否已被使用，防止重复注册
 	if _, ok := middleWareMap[name]; ok {
 		return errors.New("this name is already in use")
