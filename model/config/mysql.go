@@ -25,6 +25,7 @@ type DbInfo struct {
 	IgnoreRecordNotFoundError *bool    `yaml:"ignoreRecordNotFoundError"` // 忽略记录未找到错误，当查询结果为空时是否记录错误日志
 	Tables                    []string `yaml:"tables"`                    // 走该库查询的数据表，用于分库分表场景下的表路由
 	TablePrefix               string   `yaml:"tablePrefix"`               // 表名前缀，所有表名都会自动添加此前缀
+	SingularTable             *bool    `yaml:"singularTable"`             // 是否使用单数表名，true时User表为user，false时User表为users
 }
 
 // Dsn 生成数据库连接字符串

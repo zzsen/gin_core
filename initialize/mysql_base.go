@@ -117,10 +117,16 @@ func initGormLoggerConfig(dbConfig config.DbInfo) gormLogger.Config {
 // 2. 配置命名策略（单数表名、表前缀等）
 // 3. 设置GORM日志记录器
 func initGormConfig(dbConfig config.DbInfo) *gorm.Config {
+	// 设置单数表名，默认使用单数表名
+	singularTable := true
+	if dbConfig.SingularTable != nil {
+		singularTable = *dbConfig.SingularTable
+	}
+
 	gormConfig := &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true, // 迁移时禁用外键约束
 		NamingStrategy: schema.NamingStrategy{
-			SingularTable: true,                 // 使用单数表名，启用该选项后，`User` 表将是`user`
+			SingularTable: singularTable,        // 使用单数表名，启用该选项后，`User` 表将是`user`
 			TablePrefix:   dbConfig.TablePrefix, // 表名前缀，`User`表为`t_users`
 			//NameReplacer:  strings.NewReplacer("CID", "Cid"), // 在转为数据库名称之前，使用NameReplacer更改结构/字段名称。
 		},
