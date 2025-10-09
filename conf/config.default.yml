@@ -66,6 +66,8 @@ db: # 主数据库连接配置
   ignoreRecordNotFoundError: true # 是否忽略"记录未找到"错误
   slowThreshold: 500 # 慢查询阈值，单位：毫秒，超过此时间的查询会被记录, 单位毫秒, 默认200毫秒
   migrate: "" # 数据库迁移模式：空-不迁移 create-重建表 update-更新表结构
+  tablePrefix: "" # 表名前缀，所有表名都会自动添加此前缀，如设置为"t_"，则User表为t_user
+  singularTable: true # 是否使用单数表名，true时User表为user，false时User表为users
 
 # ==================== 数据库读写分离配置 ====================
 dbResolvers: # 数据库读写分离和多数据源配置
