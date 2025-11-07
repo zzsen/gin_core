@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/sirupsen/logrus"
 	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/logger"
@@ -33,6 +34,13 @@ func ExceptionHandler() gin.HandlerFunc {
 				// 设置默认的错误消息和错误码
 				message := "服务端异常"
 				code := response.ResponseExceptionUnknown.GetCode()
+
+				// 如果是error类型且是validator校验异常，转换为InvalidParam异常
+				if errValue, ok := err.(error); ok {
+					if validationErrors, ok := errValue.(validator.ValidationErrors); ok {
+						err = exception.NewInvalidParamFromValidator(validationErrors)
+					}
+				}
 
 				// 检查异常是否实现了自定义异常处理接口
 				if handler, ok := err.(exception.Handler); ok {
