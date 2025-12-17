@@ -151,6 +151,45 @@ func (m *MessageQueue) initChannel() error {
 	return nil
 }
 
+// InitChannelForProducer 初始化发送者通道
+// 该方法专门为消息发送者设计，只初始化连接、通道和交换机
+// 不进行队列声明和绑定，这些操作由消费者负责
+// 返回值：
+//   - error: 初始化失败时返回错误信息
+func (m *MessageQueue) InitChannelForProducer() error {
+	if m.Channel == nil || m.Channel.IsClosed() {
+		queueInfo := m.GetInfo()
+
+		if err := m.initConn(); err != nil {
+			return err
+		}
+
+		ch, err := m.Conn.Channel()
+		if err != nil {
+			return fmt.Errorf("开启通道失败: queueInfo: %s, error: %v", queueInfo, err)
+		}
+
+		// 发送者只需要声明交换机，不需要声明队列和绑定
+		if m.ExchangeName != "" {
+			err = ch.ExchangeDeclare(
+				m.ExchangeName, // name
+				m.ExchangeType, // type
+				true,           // durable
+				false,          // auto-deleted
+				false,          // internal
+				false,          // no-wait
+				nil,            // arguments
+			)
+			if err != nil {
+				return fmt.Errorf("声明交换机失败: queueInfo: %s, error: %v", queueInfo, err)
+			}
+		}
+
+		m.Channel = ch
+	}
+	return nil
+}
+
 func (m *MessageQueue) Close() {
 	if m.Conn != nil && !m.Conn.IsClosed() {
 		m.Conn.Close()
