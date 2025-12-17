@@ -81,16 +81,37 @@ func SendRabbitMqMsg(queueName string, exchangeName string,
 }
 
 func sendRabbitMqMsg(messageQueue config.MessageQueue, message string) {
-	if _, ok := RabbitMQProducerList[messageQueue.GetInfo()]; !ok {
-		RabbitMQProducerList[messageQueue.GetInfo()] = &messageQueue
+	queueInfo := messageQueue.GetInfo()
+
+	// 优先使用已初始化的发送者
+	producer, ok := RabbitMQProducerList[queueInfo]
+	if !ok {
+		// 如果发送者未初始化，则创建并初始化
+		producer = &messageQueue
+		// 初始化连接和通道
+		err := producer.InitChannelForProducer()
+		if err != nil {
+			logger.Error("[消息队列] 初始化发送者失败, queueInfo: %s, error: %v", queueInfo, err)
+			return
+		}
+		RabbitMQProducerList[queueInfo] = producer
+		logger.Info("[消息队列] 动态初始化发送者成功, queueInfo: %s", queueInfo)
 	}
 
-	err := RabbitMQProducerList[messageQueue.GetInfo()].Publish(message)
+	// 检查通道是否已关闭，如果关闭则重新初始化
+	if producer.Channel == nil || producer.Channel.IsClosed() {
+		err := producer.InitChannelForProducer()
+		if err != nil {
+			logger.Error("[消息队列] 重新初始化发送者失败, queueInfo: %s, error: %v", queueInfo, err)
+			return
+		}
+	}
 
+	err := producer.Publish(message)
 	if err != nil {
-		logger.Error("[消息队列] 消息发布失败, error: %v", err)
+		logger.Error("[消息队列] 消息发布失败, queueInfo: %s, error: %v", queueInfo, err)
 		return
 	}
 
-	logger.Info("[消息队列] 消息发布成功, queueInfo: %s, message: %s", messageQueue.GetInfo(), message)
+	logger.Info("[消息队列] 消息发布成功, queueInfo: %s, message: %s", queueInfo, message)
 }

@@ -14,6 +14,12 @@ import (
 // 支持多个消费者同时工作，提供高并发的消息处理能力
 var messageQueueConsumerList []config.MessageQueue = make([]config.MessageQueue, 0)
 
+// messageQueueProducerList 消息队列发送者配置列表
+// 存储应用中所有需要初始化的消息队列发送者配置
+// 这些发送者会在服务启动时被初始化，用于发送异步消息
+// 支持多个发送者配置，提供灵活的消息发送能力
+var messageQueueProducerList []config.MessageQueue = make([]config.MessageQueue, 0)
+
 // AddMessageQueueConsumer 添加消息队列消费者配置
 // 将消息队列消费者配置添加到全局列表中，在服务启动时会自动初始化这些消费者
 // 支持多种消息队列类型和交换机模式，提供灵活的异步处理能力
@@ -38,6 +44,31 @@ func AddMessageQueueConsumer(messageQueue config.MessageQueue) {
 	messageQueueConsumerList = append(messageQueueConsumerList, messageQueue)
 	logger.Info("[消息队列] 添加消息队列成功, 队列信息: %s, 方法: %s",
 		messageQueue.GetInfo(), messageQueue.GetFuncInfo())
+}
+
+// AddMessageQueueProducer 添加消息队列发送者配置
+// 将消息队列发送者配置添加到全局列表中，在服务启动时会自动初始化这些发送者
+// 支持多种消息队列类型和交换机模式，提供灵活的消息发送能力
+//
+// 参数 messageQueue: 消息队列配置对象，包含队列名、交换机、路由键等信息
+//
+// 功能特性：
+// - 支持多个发送者配置
+// - 自动记录队列配置信息
+// - 提供详细的日志输出
+//
+// 使用示例：
+//
+//	AddMessageQueueProducer(config.MessageQueue{
+//	  MQName:       "default",
+//	  QueueName:    "user.created",
+//	  ExchangeName: "user.events",
+//	  ExchangeType: "topic",
+//	  RoutingKey:   "user.created",
+//	})
+func AddMessageQueueProducer(messageQueue config.MessageQueue) {
+	messageQueueProducerList = append(messageQueueProducerList, messageQueue)
+	logger.Info("[消息队列] 添加消息队列发送者成功, 队列信息: %s", messageQueue.GetInfo())
 }
 
 // scheduleList 定时任务配置列表
@@ -136,9 +167,15 @@ func initService() {
 		}
 	}
 	// 初始化消息队列
-	if app.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
+	if app.BaseConfig.System.UseRabbitMQ {
+		// 初始化消息队列生产者
+		if len(messageQueueProducerList) > 0 {
+			initialize.InitialRabbitMqProducer(messageQueueProducerList...)
+		}
 		// 在协程中启动消息队列消费者，避免阻塞服务启动
-		go initialize.InitialRabbitMq(messageQueueConsumerList...)
+		if len(messageQueueConsumerList) > 0 {
+			go initialize.InitialRabbitMq(messageQueueConsumerList...)
+		}
 	}
 	// 初始化etcd
 	if app.BaseConfig.System.UseEtcd {
