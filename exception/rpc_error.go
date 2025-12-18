@@ -22,6 +22,6 @@ func NewRpcError(msg string) RpcError {
 
 func (e RpcError) OnException(*gin.Context) (msg string, code int) {
 	logger.Error("%v", e)
-	logger.Error(string(debug.Stack()))
+	logger.Error("%s", string(debug.Stack()))
 	return e.Error(), response.ResponseExceptionRpc.GetCode()
 }
