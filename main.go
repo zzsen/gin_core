@@ -72,11 +72,13 @@ func getCustomRouter2() func(e *gin.Engine) {
 	return func(e *gin.Engine) {
 		r := e.Group("customRouter2")
 		r.GET("test", func(c *gin.Context) {
-			app.SendRabbitMqMsg("QueueName", "ExchangeName", "fanout", "RoutingKey", "message", "rabbitMQ1")
+			err := app.SendRabbitMqMsg("QueueName", "ExchangeName", "fanout", "RoutingKey", "message", "rabbitMQ1")
+			if err != nil {
+				response.FailWithMessage(c, fmt.Sprintf("消息发送失败: %v", err))
+				return
+			}
 
-			c.JSON(200, gin.H{
-				"message": "success",
-			})
+			response.OkWithMessage(c, "消息发送成功")
 		})
 	}
 }
