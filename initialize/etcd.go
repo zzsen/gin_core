@@ -8,6 +8,7 @@ import (
 
 	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/constant"
+	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/logger"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -21,8 +22,7 @@ import (
 func InitEtcd() {
 	// 检查Etcd配置是否存在，如果为空则记录错误并返回
 	if app.BaseConfig.Etcd == nil {
-		logger.Error("[etcd] etcd has no config, please check config")
-		return
+		panic(exception.NewInitError("etcd", "检查配置", fmt.Errorf("未找到Etcd配置, 请检查配置")))
 	}
 
 	// 设置连接超时时间，优先使用配置中的超时值，否则使用默认值
@@ -41,7 +41,7 @@ func InitEtcd() {
 
 	// 如果创建客户端失败，则抛出panic
 	if err != nil {
-		panic(fmt.Errorf("[etcd] 初始化 etcd client 失败: %v", err))
+		panic(exception.NewInitError("etcd", "创建客户端", err))
 	}
 
 	// 将Etcd客户端实例存储到全局变量中，供其他模块使用

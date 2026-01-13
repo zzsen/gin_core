@@ -33,23 +33,36 @@ var (
 	lock                 sync.RWMutex
 )
 
-// GetDbByName 通过名称获取db 如果不存在则panic
-func GetDbByName(dbname string) *gorm.DB {
+// GetDbByName 通过名称获取db，如果不存在则返回错误
+// 参数：
+//   - dbname: 数据库别名
+//
+// 返回：
+//   - *gorm.DB: 数据库实例
+//   - error: 如果数据库不存在或未初始化则返回错误
+func GetDbByName(dbname string) (*gorm.DB, error) {
 	lock.RLock()
 	defer lock.RUnlock()
 	db, ok := DBList[dbname]
 	if !ok || db == nil {
-		panic("db no init")
+		return nil, fmt.Errorf("[db] 数据库 `%s` 未初始化或不可用", dbname)
 	}
-	return db
+	return db, nil
 }
 
-func GetRedisByName(name string) redis.UniversalClient {
-	redis, ok := RedisList[name]
-	if !ok || redis == nil {
-		panic(fmt.Sprintf("redis `%s` no init", name))
+// GetRedisByName 通过名称获取Redis客户端，如果不存在则返回错误
+// 参数：
+//   - name: Redis别名
+//
+// 返回：
+//   - redis.UniversalClient: Redis客户端实例
+//   - error: 如果Redis不存在或未初始化则返回错误
+func GetRedisByName(name string) (redis.UniversalClient, error) {
+	redisClient, ok := RedisList[name]
+	if !ok || redisClient == nil {
+		return nil, fmt.Errorf("[redis] Redis `%s` 未初始化或不可用", name)
 	}
-	return redis
+	return redisClient, nil
 }
 
 func SendRabbitMqMsg(queueName string, exchangeName string,

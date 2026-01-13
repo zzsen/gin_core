@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/zzsen/gin_core/app"
+	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
 
@@ -26,7 +27,7 @@ func InitDBResolver() {
 		// 初始化多数据库配置
 		dbClient, err := initMultiDB(app.BaseConfig.DbResolvers)
 		if err != nil {
-			panic(fmt.Errorf("[db] 初始化db resolver失败, %s", err.Error()))
+			panic(exception.NewInitError("db", "初始化解析器", err))
 		}
 		// 将数据库解析器实例存储到全局变量中，供其他模块使用
 		app.DBResolver = dbClient

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/zzsen/gin_core/app"
+	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/model/config"
 
 	"github.com/redis/go-redis/v9"
@@ -62,14 +63,13 @@ func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 func InitRedis() {
 	// 检查Redis配置是否存在
 	if app.BaseConfig.Redis == nil {
-		logger.Error("[redis] single redis has no config, please check config")
-		return
+		panic(exception.NewInitError("redis", "检查配置", fmt.Errorf("未找到Redis配置, 请检查配置")))
 	}
 
 	// 初始化Redis客户端
 	redisClient, err := initRedisClient(*app.BaseConfig.Redis)
 	if err != nil {
-		panic(fmt.Errorf("[redis] 初始化redis失败, %s", err.Error()))
+		panic(exception.NewInitError("redis", "初始化连接", err))
 	}
 
 	// 将Redis客户端实例存储到全局变量中，供其他模块使用
@@ -89,7 +89,7 @@ func InitRedisList() {
 	for _, redisCfg := range app.BaseConfig.RedisList {
 		client, err := initRedisClient(redisCfg)
 		if err != nil {
-			panic(fmt.Errorf("[redis] 初始化redis [%s]失败, %s", redisCfg.AliasName, err.Error()))
+			panic(exception.NewInitErrorWithConfig("redis", "初始化连接", redisCfg.AliasName, err))
 		}
 		// 将Redis客户端实例按别名存储到映射表中
 		redisMap[redisCfg.AliasName] = client

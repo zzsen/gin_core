@@ -1,8 +1,11 @@
 package core
 
 import (
+	"fmt"
+
 	"github.com/robfig/cron/v3"
 	"github.com/zzsen/gin_core/app"
+	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/initialize"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
@@ -134,7 +137,7 @@ func initService() {
 	if app.BaseConfig.System.UseRedis {
 		// 验证Redis配置的完整性
 		if app.BaseConfig.Redis == nil && len(app.BaseConfig.RedisList) == 0 {
-			panic("[redis] not valid redis config, please check config")
+			panic(exception.NewInitError("redis", "验证配置", fmt.Errorf("未找到有效的Redis配置, 请检查配置")))
 		} else {
 			// 初始化主Redis连接
 			initialize.InitRedis()
@@ -146,7 +149,7 @@ func initService() {
 	if app.BaseConfig.System.UseMysql {
 		// 验证数据库配置的完整性
 		if app.BaseConfig.Db == nil && len(app.BaseConfig.DbList) == 0 && len(app.BaseConfig.DbResolvers) == 0 {
-			panic("[db] not valid db config, please check config")
+			panic(exception.NewInitError("db", "验证配置", fmt.Errorf("未找到有效的数据库配置, 请检查配置")))
 		} else {
 			// 初始化主数据库连接
 			initialize.InitDB()
@@ -160,7 +163,7 @@ func initService() {
 	if app.BaseConfig.System.UseEs {
 		// 验证Elasticsearch配置
 		if app.BaseConfig.Es == nil {
-			panic("[es] not valid es config, please check config")
+			panic(exception.NewInitError("es", "验证配置", fmt.Errorf("未找到有效的Elasticsearch配置, 请检查配置")))
 		} else {
 			// 初始化Elasticsearch客户端
 			initialize.InitElasticsearch()
@@ -181,7 +184,7 @@ func initService() {
 	if app.BaseConfig.System.UseEtcd {
 		// 验证Etcd配置
 		if app.BaseConfig.Etcd == nil {
-			panic("[etcd] not valid etcd config, please check config")
+			panic(exception.NewInitError("etcd", "验证配置", fmt.Errorf("未找到有效的Etcd配置, 请检查配置")))
 		} else {
 			// 初始化Etcd客户端
 			initialize.InitEtcd()

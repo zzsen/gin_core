@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/zzsen/gin_core/app"
+	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
 
@@ -24,14 +25,13 @@ var tableEntity []any
 func InitDB() {
 	// 检查数据库配置是否存在
 	if app.BaseConfig.Db == nil {
-		logger.Error("[db] 未找到配置, 请检查配置")
-		return
+		panic(exception.NewInitError("db", "检查配置", fmt.Errorf("未找到数据库配置, 请检查配置")))
 	}
 
 	// 初始化单个数据库连接
 	dbClient, err := initSingleDB(*app.BaseConfig.Db)
 	if err != nil {
-		panic(fmt.Errorf("[db] 初始化db失败, %s", err.Error()))
+		panic(exception.NewInitError("db", "初始化连接", err))
 	}
 
 	// 将数据库实例存储到全局变量中，供其他模块使用
@@ -52,7 +52,7 @@ func InitDBList() {
 	for _, dbConfig := range app.BaseConfig.DbList {
 		dbClient, err := initSingleDB(dbConfig)
 		if err != nil {
-			panic(fmt.Errorf("[db] 初始化db [%s] 失败, %s", dbConfig.AliasName, err.Error()))
+			panic(exception.NewInitErrorWithConfig("db", "初始化连接", dbConfig.AliasName, err))
 		}
 		// 将数据库实例按别名存储到映射表中
 		app.DBList[dbConfig.AliasName] = dbClient

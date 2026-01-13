@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/zzsen/gin_core/app"
+	"github.com/zzsen/gin_core/exception"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v9"
 	"github.com/zzsen/gin_core/logger"
@@ -21,8 +22,7 @@ import (
 func InitElasticsearch() {
 	// 检查ES配置是否存在，如果为空则记录错误并返回
 	if app.BaseConfig.Es == nil {
-		logger.Error("[es] single es has no config, please check config")
-		return
+		panic(exception.NewInitError("es", "检查配置", fmt.Errorf("未找到Elasticsearch配置, 请检查配置")))
 	}
 
 	// 构建ES客户端配置
@@ -37,7 +37,7 @@ func InitElasticsearch() {
 
 	// 如果创建客户端失败，则抛出panic
 	if err != nil {
-		panic(fmt.Errorf("[es] 初始化es client失败: %v", err))
+		panic(exception.NewInitError("es", "创建客户端", err))
 	} else {
 		// 将ES客户端实例存储到全局变量中，供其他模块使用
 		app.ES = es
@@ -45,7 +45,7 @@ func InitElasticsearch() {
 
 	// 测试ES连接并获取服务器信息，如果失败则抛出panic
 	if err = info(); err != nil {
-		panic(fmt.Errorf("[es] 获取es信息失败: %v", err))
+		panic(exception.NewInitError("es", "获取服务器信息", err))
 	}
 }
 
