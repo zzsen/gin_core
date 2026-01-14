@@ -40,7 +40,10 @@ func init() {
 	Logger.SetLevel(logrus.DebugLevel)
 
 	// 初始化默认的日志轮转配置
-	defaultLogWriter, _ := initRotatelogs(config.LoggersConfig{}, config.LoggerConfig{}, "")
+	defaultLogWriter, err := initRotatelogs(config.LoggersConfig{}, config.LoggerConfig{}, "")
+	if err != nil {
+		Logger.Errorf("[logger] 初始化默认日志轮转失败: %v", err)
+	}
 
 	// 配置 lfshook，为所有日志级别设置相同的输出
 	writeMap := lfshook.WriterMap{}
@@ -93,7 +96,10 @@ func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
 
 		// 如果没有找到匹配的配置，使用默认配置
 		if writeMap[logLevel] == nil {
-			defaultLogWriter, _ := initRotatelogs(loggersConfig, config.LoggerConfig{}, logLevel.String())
+			defaultLogWriter, err := initRotatelogs(loggersConfig, config.LoggerConfig{}, logLevel.String())
+			if err != nil {
+				Logger.Errorf("[logger] 初始化日志轮转失败 [%s]: %v", logLevel.String(), err)
+			}
 			writeMap[logLevel] = defaultLogWriter
 		}
 
@@ -185,14 +191,14 @@ func initRotatelogs(globalConfig config.LoggersConfig,
 	}
 
 	// 创建支持轮转的日志写入器
-	logWriter, _ := rotatelogs.New(
+	logWriter, err := rotatelogs.New(
 		filePattern,                           // 文件命名模式
 		rotatelogs.WithLinkName(fullFileName), // 软链接名称
 		rotatelogs.WithMaxAge(time.Duration(maxAge*24)*time.Hour),            // 最大保存时间
 		rotatelogs.WithRotationTime(time.Duration(rotationTime)*time.Minute), // 轮转时间间隔
 		rotatelogs.WithRotationSize(int64(rotationSize)*1024),                // 轮转大小限制
 	)
-	return logWriter, nil
+	return logWriter, err
 }
 
 // Add 函数用于添加带请求ID的结构化日志记录
@@ -204,16 +210,17 @@ func initRotatelogs(globalConfig config.LoggersConfig,
 //   - info: 日志信息
 //   - err: 错误信息（可为nil）
 func Add(requestId, info string, err error) {
+	entry := withCallerFields(2)
 	if err != nil {
 		// 如果有错误，记录 Error 级别的日志
-		Logger.WithFields(logrus.Fields{
+		entry.WithFields(logrus.Fields{
 			"request_id": requestId,
 			"info":       info,
 			"error":      err.Error(),
 		}).Error()
 	} else {
 		// 如果没有错误，记录 Info 级别的日志
-		Logger.WithFields(logrus.Fields{
+		entry.WithFields(logrus.Fields{
 			"request_id": requestId,
 			"info":       info,
 			"error":      "",
@@ -223,8 +230,7 @@ func Add(requestId, info string, err error) {
 
 // callerInfo 调用者信息结构
 type callerInfo struct {
-	File string // 文件路径
-	Line int    // 行号
+	File string // 文件路径（含行号）
 	Func string // 函数名
 }
 
@@ -233,11 +239,11 @@ type callerInfo struct {
 //   - skip: 跳过的调用栈层数
 //
 // 返回：
-//   - callerInfo: 包含文件名、行号、函数名的调用者信息
+//   - callerInfo: 包含文件路径和函数名的调用者信息
 func getCaller(skip int) callerInfo {
 	pc, file, line, ok := runtime.Caller(skip)
 	if !ok {
-		return callerInfo{File: "unknown", Line: 0, Func: "unknown"}
+		return callerInfo{File: "unknown:0", Func: "unknown"}
 	}
 
 	// 获取函数名
@@ -248,7 +254,6 @@ func getCaller(skip int) callerInfo {
 
 	return callerInfo{
 		File: fmt.Sprintf("%s:%d", file, line),
-		Line: line,
 		Func: funcName,
 	}
 }
@@ -306,5 +311,18 @@ func Warn(msg string, arg ...any) {
 		entry.Warnf(msg, arg...)
 	} else {
 		entry.Warn(msg)
+	}
+}
+
+// Debug 记录Debug级别的日志，支持格式化字符串
+// 参数：
+//   - msg: 日志消息或格式化字符串
+//   - arg: 格式化参数（可选）
+func Debug(msg string, arg ...any) {
+	entry := withCallerFields(3)
+	if len(arg) > 0 {
+		entry.Debugf(msg, arg...)
+	} else {
+		entry.Debug(msg)
 	}
 }
