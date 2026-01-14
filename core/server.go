@@ -12,6 +12,7 @@ import (
 
 	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/constant"
+	"github.com/zzsen/gin_core/core/lifecycle"
 	"github.com/zzsen/gin_core/logger"
 
 	"github.com/gin-gonic/gin"
@@ -88,7 +89,7 @@ func Start(exitfunctions ...func()) {
 		}
 
 		// 关闭各种服务连接
-		closeService()
+		_ = lifecycle.CloseServices(context.Background())
 
 		// 设置5秒的关闭超时时间
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -128,41 +129,6 @@ func Start(exitfunctions ...func()) {
 	// 服务器会持续运行直到收到关闭信号或发生错误
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Error("[server] 服务启动异常：%v", err)
-	}
-}
-
-// closeService 关闭各种服务连接
-// 在应用关闭时清理所有打开的资源连接，防止资源泄露
-// 这是优雅关闭流程的重要组成部分，确保所有外部连接都被正确释放
-//
-// 清理的资源包括：
-// - Redis连接池
-// - RabbitMQ生产者连接
-// - Etcd客户端连接
-//
-// 注意：数据库连接通常由GORM自动管理，无需手动关闭
-func closeService() {
-	// 关闭Redis连接
-	// 检查Redis是否启用且连接存在，然后安全关闭连接池
-	if app.BaseConfig.System.UseRedis && app.Redis != nil {
-		app.Redis.Close()
-		logger.Info("[server] [Redis] Redis连接已关闭")
-	}
-
-	// 关闭RabbitMQ消息队列生产者连接
-	// 遍历所有活跃的生产者连接并逐一关闭
-	if app.BaseConfig.System.UseRabbitMQ && len(messageQueueConsumerList) > 0 {
-		for _, rabbitMqProducer := range app.RabbitMQProducerList {
-			rabbitMqProducer.Close()
-			logger.Info("[server] [消息队列] 已关闭消息队列生产者：%s", rabbitMqProducer.GetInfo())
-		}
-	}
-
-	// 关闭Etcd客户端连接
-	// Etcd通常用于服务发现和配置管理
-	if app.BaseConfig.System.UseEtcd && app.Etcd != nil {
-		app.Etcd.Close()
-		logger.Info("[server] [Etcd] Etcd连接已关闭")
 	}
 }
 
