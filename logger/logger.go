@@ -3,7 +3,9 @@
 package logger
 
 import (
+	"fmt"
 	"path"
+	"runtime"
 	"time"
 
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
@@ -14,6 +16,9 @@ import (
 
 // Logger 是日志记录器实例，全局单例
 var Logger *logrus.Logger
+
+// printCaller 是否打印调用者信息
+var printCaller bool
 
 // 默认配置常量
 var defaultFilePath = "./log/" // 默认日志文件路径
@@ -100,8 +105,8 @@ func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
 		}))
 	}
 
-	// 设置是否打印调用者信息
-	Logger.SetReportCaller(loggersConfig.PrintCaller)
+	// 保存是否打印调用者信息的配置（由包装函数使用）
+	printCaller = loggersConfig.PrintCaller
 	return Logger
 }
 
@@ -216,15 +221,65 @@ func Add(requestId, info string, err error) {
 	}
 }
 
+// callerInfo 调用者信息结构
+type callerInfo struct {
+	File string // 文件路径
+	Line int    // 行号
+	Func string // 函数名
+}
+
+// getCaller 获取调用者信息
+// 参数：
+//   - skip: 跳过的调用栈层数
+//
+// 返回：
+//   - callerInfo: 包含文件名、行号、函数名的调用者信息
+func getCaller(skip int) callerInfo {
+	pc, file, line, ok := runtime.Caller(skip)
+	if !ok {
+		return callerInfo{File: "unknown", Line: 0, Func: "unknown"}
+	}
+
+	// 获取函数名
+	funcName := "unknown"
+	if fn := runtime.FuncForPC(pc); fn != nil {
+		funcName = fn.Name()
+	}
+
+	return callerInfo{
+		File: fmt.Sprintf("%s:%d", file, line),
+		Line: line,
+		Func: funcName,
+	}
+}
+
+// withCallerFields 为日志条目添加调用者信息
+// 参数：
+//   - skip: 跳过的调用栈层数
+//
+// 返回：
+//   - *logrus.Entry: 带调用者信息的日志条目
+func withCallerFields(skip int) *logrus.Entry {
+	if !printCaller {
+		return logrus.NewEntry(Logger)
+	}
+	caller := getCaller(skip)
+	return Logger.WithFields(logrus.Fields{
+		"func": caller.Func,
+		"file": caller.File,
+	})
+}
+
 // Info 记录Info级别的日志，支持格式化字符串
 // 参数：
 //   - msg: 日志消息或格式化字符串
 //   - arg: 格式化参数（可选）
 func Info(msg string, arg ...any) {
+	entry := withCallerFields(3)
 	if len(arg) > 0 {
-		Logger.Infof(msg, arg...)
+		entry.Infof(msg, arg...)
 	} else {
-		Logger.Info(msg)
+		entry.Info(msg)
 	}
 }
 
@@ -233,10 +288,11 @@ func Info(msg string, arg ...any) {
 //   - msg: 日志消息或格式化字符串
 //   - arg: 格式化参数（可选）
 func Error(msg string, arg ...any) {
+	entry := withCallerFields(3)
 	if len(arg) > 0 {
-		Logger.Errorf(msg, arg...)
+		entry.Errorf(msg, arg...)
 	} else {
-		Logger.Error(msg)
+		entry.Error(msg)
 	}
 }
 
@@ -245,9 +301,10 @@ func Error(msg string, arg ...any) {
 //   - msg: 日志消息或格式化字符串
 //   - arg: 格式化参数（可选）
 func Warn(msg string, arg ...any) {
+	entry := withCallerFields(3)
 	if len(arg) > 0 {
-		Logger.Warnf(msg, arg...)
+		entry.Warnf(msg, arg...)
 	} else {
-		Logger.Warn(msg)
+		entry.Warn(msg)
 	}
 }
