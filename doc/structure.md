@@ -46,21 +46,39 @@ gin_core
 ├── constant                          # 常量
 │   └── config.go                     #   └ 配置类常量
 ├── core                              # 核心文件
-│   ├── cmdline.go                    #   ├ 命令行参数解析
-│   ├── config.go                     #   ├ 配置文件初始化
-│   ├── engine.go                     #   ├ 路由初始化
-│   ├── middleware.go                 #   ├ 配置默认中间件(异常处理, 请求日志, 超时处理等)
-│   ├── service.go                    #   ├ 服务初始化（mysql, es, 消息队列, 定时任务等）
-│   ├── validator.go                  #   ├ 参数校验（使用github.com/go-playground/validator/v10覆盖gin的参数校验）
-│   └── server.go                     #   └ 服务启动主方法
+│   ├── cmdline.go                    #   ├ 命令行参数解析
+│   ├── config.go                     #   ├ 配置文件初始化
+│   ├── engine.go                     #   ├ 路由初始化
+│   ├── middleware.go                 #   ├ 配置默认中间件(异常处理, 请求日志, 超时处理等)
+│   ├── service.go                    #   ├ 服务初始化入口
+│   ├── validator.go                  #   ├ 参数校验（使用github.com/go-playground/validator/v10覆盖gin的参数校验）
+│   ├── server.go                     #   ├ 服务启动主方法
+│   ├── lifecycle                     #   ├ 服务生命周期管理
+│   │   ├── interface.go              #   │ ├ 服务接口定义
+│   │   ├── registry.go               #   │ ├ 服务注册中心
+│   │   ├── resolver.go               #   │ ├ 依赖解析器
+│   │   ├── initializer.go            #   │ ├ 并行初始化器
+│   │   └── bootstrap.go              #   │ └ 消息队列/定时任务配置
+│   └── services                      #   └ 内置服务实现
+│       ├── logger_service.go         #     ├ 日志服务
+│       ├── redis_service.go          #     ├ Redis服务
+│       ├── mysql_service.go          #     ├ MySQL服务
+│       ├── elasticsearch_service.go  #     ├ Elasticsearch服务
+│       ├── rabbitmq_service.go       #     ├ RabbitMQ服务
+│       ├── etcd_service.go           #     ├ Etcd服务
+│       └── schedule_service.go       #     └ 定时任务服务
 ├── exception                         # 异常
-│   ├── auth_failed.go                #   ├ 授权失败
-│   ├── common_error.go               #   ├ 常规错误
-│   ├── index.go                      #   ├ 普通失败
-│   ├── invalid_param.go              #   ├ 参数校验不通过
-│   └── rpc_error.go                  #   └ rpc错误
+│   ├── auth_failed.go                #   ├ 授权失败
+│   ├── common_error.go               #   ├ 常规错误
+│   ├── index.go                      #   ├ 普通失败
+│   ├── init_error.go                 #   ├ 初始化错误（结构化错误类型）
+│   ├── invalid_param.go              #   ├ 参数校验不通过
+│   └── rpc_error.go                  #   └ rpc错误
 ├── app                               # 全局应用
-│   └── app.go                        #   └ 全局应用, redisClient, mysqlClient等
+│   ├── app.go                        #   ├ 全局变量定义（DB, Redis, ES, Etcd等）
+│   ├── db.go                         #   ├ 数据库工具方法
+│   ├── redis.go                      #   ├ Redis工具方法
+│   └── mq.go                         #   └ 消息队列工具方法（带重试机制）
 ├── initialize                        # 初始化
 │   ├── elasticsearch.go              #   ├ 初始化es
 │   ├── etcd.go                       #   ├ 初始化etcd
