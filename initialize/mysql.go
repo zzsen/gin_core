@@ -9,6 +9,7 @@ import (
 	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
+	"github.com/zzsen/gin_core/tracing"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -65,8 +66,9 @@ func InitDBList() {
 // 1. 创建GORM配置
 // 2. 建立MySQL数据库连接
 // 3. 初始化数据库回调函数
-// 4. 配置数据库连接池
-// 5. 执行数据库迁移（如果配置了迁移模式）
+// 4. 添加链路追踪插件（如果已启用）
+// 5. 配置数据库连接池
+// 6. 执行数据库迁移（如果配置了迁移模式）
 func initSingleDB(dbConfig config.DbInfo) (*gorm.DB, error) {
 	var err error
 
@@ -83,6 +85,19 @@ func initSingleDB(dbConfig config.DbInfo) (*gorm.DB, error) {
 
 	// 初始化数据库回调函数（如自动时间字段填充等）
 	initDBCallbacks(DB)
+
+	// 添加 OpenTelemetry 链路追踪插件
+	if tracing.IsDBTracingEnabled() {
+		dbName := dbConfig.AliasName
+		if dbName == "" {
+			dbName = dbConfig.DBName
+		}
+		if err := DB.Use(tracing.NewGormTracingPlugin(dbName)); err != nil {
+			logger.Warn("[db] 添加链路追踪插件失败: %v", err)
+		} else {
+			logger.Info("[db] 链路追踪插件已添加, 数据库: %s", dbName)
+		}
+	}
 
 	// 配置数据库连接池参数
 	initDBConnConfig(DB, dbConfig)

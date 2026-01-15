@@ -9,6 +9,7 @@ type BaseConfig struct {
 	Service      ServiceInfo      `yaml:"service"`      // 服务配置，包含端口、超时时间等
 	Log          LoggersConfig    `yaml:"log"`          // 日志配置，包含文件路径、轮转策略等
 	Metrics      MetricsConfig    `yaml:"metrics"`      // Prometheus 指标监控配置
+	Tracing      *TracingConfig   `yaml:"tracing"`      // OpenTelemetry 链路追踪配置
 	Db           *DbInfo          `yaml:"db"`           // 单数据库配置，指向单个数据库实例
 	Etcd         *EtcdInfo        `yaml:"etcd"`         // Etcd配置，用于服务发现和配置管理
 	DbList       []DbInfo         `yaml:"dbList"`       // 多数据库列表配置，支持分库分表

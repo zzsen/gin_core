@@ -11,6 +11,7 @@ import (
 	"github.com/zzsen/gin_core/constant"
 	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/model/config"
+	"github.com/zzsen/gin_core/tracing"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/zzsen/gin_core/logger"
@@ -20,7 +21,8 @@ import (
 // 该函数会：
 // 1. 根据配置选择Redis模式（集群模式或单实例模式）
 // 2. 创建对应的Redis客户端实例
-// 3. 测试连接并返回客户端
+// 3. 添加链路追踪钩子（如果已启用）
+// 4. 测试连接并返回客户端
 // 参数：
 //   - redisCfg: Redis配置信息
 //
@@ -43,16 +45,28 @@ func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 	// 根据配置选择Redis模式
 	if redisCfg.UseCluster {
 		// 使用集群模式，支持Redis Cluster
-		client = redis.NewClusterClient(&redis.ClusterOptions{
+		clusterClient := redis.NewClusterClient(&redis.ClusterOptions{
 			Addrs:        redisCfg.ClusterAddrs,                                         // 集群节点地址列表
 			Password:     redisCfg.Password,                                             // 集群访问密码
 			PoolSize:     poolSize,                                                      // 连接池大小
 			MinIdleConns: minIdleConns,                                                  // 最小空闲连接数
 			PoolTimeout:  time.Duration(constant.DefaultRedisPoolTimeout) * time.Second, // 获取连接超时时间
 		})
+
+		// 添加 OpenTelemetry 链路追踪钩子
+		if tracing.IsRedisTracingEnabled() {
+			addr := "cluster"
+			if len(redisCfg.ClusterAddrs) > 0 {
+				addr = redisCfg.ClusterAddrs[0]
+			}
+			clusterClient.AddHook(tracing.NewRedisTracingHook(addr, redisCfg.AliasName, 0))
+			logger.Info("[redis] 链路追踪钩子已添加, 别名: %s (集群模式)", redisCfg.AliasName)
+		}
+
+		client = clusterClient
 	} else {
 		// 使用单实例模式，连接单个Redis服务器
-		client = redis.NewClient(&redis.Options{
+		singleClient := redis.NewClient(&redis.Options{
 			Addr:         redisCfg.Addr,                                                 // Redis服务器地址
 			Password:     redisCfg.Password,                                             // Redis访问密码
 			DB:           redisCfg.DB,                                                   // 数据库编号
@@ -60,6 +74,14 @@ func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 			MinIdleConns: minIdleConns,                                                  // 最小空闲连接数
 			PoolTimeout:  time.Duration(constant.DefaultRedisPoolTimeout) * time.Second, // 获取连接超时时间
 		})
+
+		// 添加 OpenTelemetry 链路追踪钩子
+		if tracing.IsRedisTracingEnabled() {
+			singleClient.AddHook(tracing.NewRedisTracingHook(redisCfg.Addr, redisCfg.AliasName, redisCfg.DB))
+			logger.Info("[redis] 链路追踪钩子已添加, 别名: %s, 地址: %s", redisCfg.AliasName, redisCfg.Addr)
+		}
+
+		client = singleClient
 	}
 
 	// 测试Redis连接，使用Ping命令验证连通性

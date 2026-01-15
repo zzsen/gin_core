@@ -93,6 +93,9 @@ func registerBuiltinServices() {
 	// 注册日志服务（最先初始化）
 	_ = RegisterService(&services.LoggerService{})
 
+	// 注册链路追踪服务（在日志之后、其他服务之前初始化）
+	_ = RegisterService(&services.TracingService{})
+
 	// 注册Redis服务
 	_ = RegisterService(&services.RedisService{})
 

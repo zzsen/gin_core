@@ -97,8 +97,9 @@ func RegisterMiddleware(name string, handlerFunc func() gin.HandlerFunc) error {
 // 注册的中间件包括：
 // 1. exceptionHandler - 异常处理中间件，统一处理应用异常
 // 2. traceIdHandler - 请求追踪中间件，为每个请求分配唯一ID
-// 3. traceLogHandler - 追踪日志中间件，记录请求的详细信息
-// 4. timeoutHandler - 超时处理中间件，防止请求长时间阻塞
+// 3. otelTraceHandler - OpenTelemetry 链路追踪中间件，支持分布式追踪
+// 4. traceLogHandler - 追踪日志中间件，记录请求的详细信息
+// 5. timeoutHandler - 超时处理中间件，防止请求长时间阻塞
 func initMiddleware() {
 	// 注册 Prometheus 指标采集中间件
 	// 统计 HTTP 请求总数、耗时分布和处理中请求数
@@ -112,10 +113,17 @@ func initMiddleware() {
 		logger.Error("%s", err.Error())
 	}
 
-	// 注册请求追踪ID中间件
+	// 注册请求追踪ID中间件（兼容旧版）
 	// 为每个HTTP请求生成唯一的追踪ID，便于在分布式系统中追踪请求链路
 	// 追踪ID会被添加到响应头和日志中，方便问题排查和性能分析
 	if err := RegisterMiddleware("traceIdHandler", middleware.TraceIdHandler); err != nil {
+		logger.Error("%s", err.Error())
+	}
+
+	// 注册 OpenTelemetry 链路追踪中间件
+	// 支持 W3C Trace Context 标准，可与 Jaeger、Zipkin 等追踪系统集成
+	// 提供完整的分布式链路追踪能力，包括跨服务追踪、数据库和缓存追踪
+	if err := RegisterMiddleware("otelTraceHandler", middleware.OtelTraceHandler); err != nil {
 		logger.Error("%s", err.Error())
 	}
 

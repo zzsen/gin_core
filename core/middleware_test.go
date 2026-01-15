@@ -173,8 +173,10 @@ func TestInitMiddleware(t *testing.T) {
 
 		// 验证所有默认中间件都已注册
 		expectedMiddlewares := []string{
+			"prometheusHandler",
 			"exceptionHandler",
 			"traceIdHandler",
+			"otelTraceHandler",
 			"traceLogHandler",
 			"timeoutHandler",
 		}
@@ -187,7 +189,7 @@ func TestInitMiddleware(t *testing.T) {
 		}
 
 		// 验证注册的中间件数量
-		assert.Equal(t, 4, getMiddlewareCount())
+		assert.Equal(t, 6, getMiddlewareCount())
 	})
 
 	t.Run("initialize multiple times", func(t *testing.T) {
@@ -201,8 +203,10 @@ func TestInitMiddleware(t *testing.T) {
 
 		// 验证中间件只注册了一次（因为重复注册会失败）
 		expectedMiddlewares := []string{
+			"prometheusHandler",
 			"exceptionHandler",
 			"traceIdHandler",
+			"otelTraceHandler",
 			"traceLogHandler",
 			"timeoutHandler",
 		}
@@ -212,7 +216,7 @@ func TestInitMiddleware(t *testing.T) {
 		}
 
 		// 验证注册的中间件数量
-		assert.Equal(t, 4, getMiddlewareCount())
+		assert.Equal(t, 6, getMiddlewareCount())
 	})
 }
 
