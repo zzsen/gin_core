@@ -42,3 +42,14 @@ const DefaultPprofPort = 6060
 // 用于服务发现、配置中心等场景
 // 如果网络环境较差，可适当增加此值
 const DefaultEtcdTimeout = 5
+
+// Redis 连接池相关常量
+
+// DefaultRedisPoolSize 默认Redis连接池大小
+const DefaultRedisPoolSize = 10
+
+// DefaultRedisMinIdleConns 默认Redis最小空闲连接数
+const DefaultRedisMinIdleConns = 5
+
+// DefaultRedisPoolTimeout 默认Redis获取连接超时时间（秒）
+const DefaultRedisPoolTimeout = 30

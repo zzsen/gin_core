@@ -5,8 +5,10 @@ package initialize
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/zzsen/gin_core/app"
+	"github.com/zzsen/gin_core/constant"
 	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/model/config"
 
@@ -28,19 +30,35 @@ import (
 func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 	var client redis.UniversalClient
 
+	// 获取连接池配置，使用默认值
+	poolSize := redisCfg.PoolSize
+	if poolSize <= 0 {
+		poolSize = constant.DefaultRedisPoolSize
+	}
+	minIdleConns := redisCfg.MinIdleConns
+	if minIdleConns <= 0 {
+		minIdleConns = constant.DefaultRedisMinIdleConns
+	}
+
 	// 根据配置选择Redis模式
 	if redisCfg.UseCluster {
 		// 使用集群模式，支持Redis Cluster
 		client = redis.NewClusterClient(&redis.ClusterOptions{
-			Addrs:    redisCfg.ClusterAddrs, // 集群节点地址列表
-			Password: redisCfg.Password,     // 集群访问密码
+			Addrs:        redisCfg.ClusterAddrs,                                         // 集群节点地址列表
+			Password:     redisCfg.Password,                                             // 集群访问密码
+			PoolSize:     poolSize,                                                      // 连接池大小
+			MinIdleConns: minIdleConns,                                                  // 最小空闲连接数
+			PoolTimeout:  time.Duration(constant.DefaultRedisPoolTimeout) * time.Second, // 获取连接超时时间
 		})
 	} else {
 		// 使用单实例模式，连接单个Redis服务器
 		client = redis.NewClient(&redis.Options{
-			Addr:     redisCfg.Addr,     // Redis服务器地址
-			Password: redisCfg.Password, // Redis访问密码
-			DB:       redisCfg.DB,       // 数据库编号
+			Addr:         redisCfg.Addr,                                                 // Redis服务器地址
+			Password:     redisCfg.Password,                                             // Redis访问密码
+			DB:           redisCfg.DB,                                                   // 数据库编号
+			PoolSize:     poolSize,                                                      // 连接池大小
+			MinIdleConns: minIdleConns,                                                  // 最小空闲连接数
+			PoolTimeout:  time.Duration(constant.DefaultRedisPoolTimeout) * time.Second, // 获取连接超时时间
 		})
 	}
 

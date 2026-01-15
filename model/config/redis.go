@@ -11,4 +11,8 @@ type RedisInfo struct {
 	UseCluster   bool     `yaml:"useCluster"`   // 是否使用集群模式，true为集群模式，false为单实例模式
 	DB           int      `yaml:"db"`           // 单实例模式下redis的哪个数据库，Redis支持0-15共16个数据库
 	Password     string   `yaml:"password"`     // 密码，用于Redis身份认证，支持空密码
+
+	// 连接池配置
+	PoolSize     int `yaml:"poolSize"`     // 连接池大小，默认10
+	MinIdleConns int `yaml:"minIdleConns"` // 最小空闲连接数，默认5
 }

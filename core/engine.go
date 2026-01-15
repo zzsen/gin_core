@@ -35,15 +35,45 @@ func AddOptionFunc(optionFunc ...gin.OptionFunc) {
 // 提供标准的健康检查接口，便于负载均衡器、监控系统等外部服务检查应用状态
 //
 // 路由信息：
-//   - 路径: /healthy
-//   - 方法: GET
-//   - 响应: {"code": 20000, "msg": "healthy", "data": {"status": "healthy"}}
+//   - GET /healthy       - 存活检查（liveness），始终返回健康状态
+//   - GET /healthy/ready - 就绪检查（readiness），检查所有依赖服务状态
+//   - GET /healthy/stats - 连接池统计信息
 var healthDetactEngine = func(e *gin.Engine) {
 	r := e.Group("healthy")
+
+	// 存活检查 - 只要服务运行就返回健康
 	r.GET("", func(c *gin.Context) {
 		response.OkWithDetail(c, "healthy", gin.H{
 			"status": "healthy",
 		})
+	})
+
+	// 就绪检查 - 检查所有依赖服务
+	r.GET("/ready", func(c *gin.Context) {
+		health := app.CheckPoolHealth()
+		allHealthy := app.IsAllHealthy()
+
+		if allHealthy {
+			response.OkWithDetail(c, "ready", gin.H{
+				"status":   "ready",
+				"services": health,
+			})
+		} else {
+			c.JSON(503, gin.H{
+				"code": 50300,
+				"msg":  "not ready",
+				"data": gin.H{
+					"status":   "not ready",
+					"services": health,
+				},
+			})
+		}
+	})
+
+	// 连接池统计
+	r.GET("/stats", func(c *gin.Context) {
+		stats := app.GetPoolStats()
+		response.OkWithDetail(c, "stats", stats)
 	})
 }
 
