@@ -42,3 +42,4 @@ gin 框架, 用于快速搭建项目
 - [服务](./doc/service.md)
 - [服务注册](./doc/service_register.md)
 - [定时任务](./doc/schedule.md)
+- [链路追踪](./doc/tracing.md)
