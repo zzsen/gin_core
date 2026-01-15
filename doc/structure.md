@@ -78,7 +78,11 @@ gin_core
 │   ├── app.go                        #   ├ 全局变量定义（DB, Redis, ES, Etcd等）
 │   ├── db.go                         #   ├ 数据库工具方法
 │   ├── redis.go                      #   ├ Redis工具方法
-│   └── mq.go                         #   └ 消息队列工具方法（带重试机制）
+│   ├── mq.go                         #   ├ 消息队列工具方法（带重试机制）
+│   └── pool_stats.go                 #   └ 连接池统计和健康检查
+├── metrics                           # Prometheus 指标监控
+│   ├── metrics.go                    #   ├ 指标定义（HTTP、连接池指标）
+│   └── collector.go                  #   └ 指标收集器
 ├── initialize                        # 初始化
 │   ├── elasticsearch.go              #   ├ 初始化es
 │   ├── etcd.go                       #   ├ 初始化etcd
@@ -91,15 +95,17 @@ gin_core
 ├── logger                            # 日志
 ├── main.go                           # （供参考）程序主入口
 ├── middleware                        # 中间件
-│   ├── exception_handler.go          #   ├ 异常处理
-│   ├── timeout_handler.go            #   ├ 超时处理
-│   └── trace_log_handler.go          #   ├ 请求日志
+│   ├── exception_handler.go          #   ├ 异常处理
+│   ├── prometheus_handler.go         #   ├ Prometheus 指标采集
+│   ├── timeout_handler.go            #   ├ 超时处理
+│   └── trace_log_handler.go          #   └ 请求日志
 ├── model                             # 模型
 │   ├── config                        #   ├ 配置模型
 │   │   ├── config.go                 #   │ ├ 配置模型
 │   │   ├── elasticsearch.go          #   │ ├ es配置模型
-│   │   ├── logger.go                 #   │ ├ 日志配置模型
-│   │   ├── etcd.go                   #   │ ├ etcd配置模型
+│   │   ├── logger.go                 #   │ ├ 日志配置模型
+│   │   ├── metrics.go                #   │ ├ 指标监控配置模型
+│   │   ├── etcd.go                   #   │ ├ etcd配置模型
 │   │   ├── mysql.go                  #   │ ├ 数据库配置模型
 │   │   ├── mysql_resolver.go         #   │ ├ 数据库配置模型（读写分离, 多库）
 │   │   ├── rabbitmq.go               #   │ ├ 消息队列配置模型
