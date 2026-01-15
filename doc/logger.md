@@ -44,18 +44,22 @@ logger.InfoWithFields(map[string]any{
 在 `config.yaml` 中配置日志：
 
 ```yaml
-loggers:
-  filePath: "./log/"        # 日志文件存储路径
+log:
+  filePath: "./log"         # 日志文件存储路径
   maxAge: 30                # 日志保存天数
-  rotationTime: 60          # 轮转时间间隔（分钟）
+  rotationTime: 1           # 轮转时间间隔（小时）
   rotationSize: 1024        # 轮转大小限制（KB）
   printCaller: true         # 是否打印调用者信息
   loggers:                  # 各级别单独配置（可选）
-    - level: "error"
-      fileName: "error"     # 错误日志单独文件
-      maxAge: 90            # 错误日志保留更久
     - level: "info"
       fileName: "info"
+      rotationSize: 2048    # 此级别日志的切割大小（KB）
+      rotationTime: 4       # 此级别日志的切割时间间隔（小时）
+      maxAge: 7             # 此级别日志的保存天数
+    - level: "error"
+      fileName: "error"
+      filePath: "./log/error"  # 错误日志专用存储路径
+      maxAge: 30            # 错误日志保存更久
 ```
 
 ### 配置参数说明
@@ -220,7 +224,7 @@ msg := logger.SanitizeMessage("login with password=secret123")
 启用 `printCaller: true` 后，日志会包含调用位置信息：
 
 ```yaml
-loggers:
+log:
   printCaller: true
 ```
 

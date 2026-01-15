@@ -129,6 +129,8 @@ redis:
   addr: "localhost:6379" # Redis服务器地址和端口
   db: 0 # Redis数据库编号，0-15
   password: "redis_password" # Redis密码，如无密码可留空
+  poolSize: 10 # 连接池大小，默认10
+  minIdleConns: 5 # 最小空闲连接数，默认5
 
 # 多Redis配置（支持多个Redis实例）
 redisList:
@@ -136,10 +138,25 @@ redisList:
     addr: "redis1.example.com:6379" # 第一个Redis实例地址
     db: 1 # 使用数据库1
     password: "" # 密码，如无密码可留空
+    poolSize: 10 # 连接池大小
+    minIdleConns: 5 # 最小空闲连接数
   - aliasName: "redis2" # 第二个Redis实例别名
     addr: "redis2.example.com:6379" # 第二个Redis实例地址
     db: 2 # 使用数据库2
     password: ""
+    poolSize: 10 # 连接池大小
+    minIdleConns: 5 # 最小空闲连接数
+
+# Redis集群配置示例（可选）
+# redis:
+#   useCluster: true # 启用集群模式
+#   clusterAddrs: # 集群节点地址列表
+#     - "redis-node1:6379"
+#     - "redis-node2:6379"
+#     - "redis-node3:6379"
+#   password: ""
+#   poolSize: 10
+#   minIdleConns: 5
 
 # ==================== 邮件配置 ====================
 smtp: # SMTP邮件发送配置
