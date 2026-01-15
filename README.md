@@ -34,6 +34,7 @@ gin 框架, 用于快速搭建项目
 - [运行参数](./doc/args.md)
 - [运行环境](./doc/env.md)
 - [配置](./doc/config.md)
+- [日志](./doc/logger.md)
 - [中间件](./doc/middleware.md)
 - [路由](./doc/router.md)
 - [控制器](./doc/controller.md)
