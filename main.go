@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/elastic/go-elasticsearch/v9/typedapi/core/search"
 	"github.com/elastic/go-elasticsearch/v9/typedapi/types"
@@ -37,7 +38,12 @@ func getCustomRouter1() func(e *gin.Engine) {
 			}
 			testDatas := []TestData{}
 			size := 2
-			resp, _ := app.ES.Search().Index("test_data*").Request(&search.Request{
+
+			// 使用带超时的 context，避免请求长时间阻塞
+			ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+			defer cancel()
+
+			resp, err := app.ES.Search().Index("test_data*").Request(&search.Request{
 				Query: &types.Query{
 					Match: map[string]types.MatchQuery{
 						"extension": types.MatchQuery{
@@ -46,7 +52,14 @@ func getCustomRouter1() func(e *gin.Engine) {
 					},
 				},
 				Size: &size,
-			}).Do(context.Background())
+			}).Do(ctx)
+
+			// 正确处理 ES 查询错误
+			if err != nil {
+				logger.Error("ES查询失败: %v", err)
+				response.FailWithMessage(c, "查询失败")
+				return
+			}
 
 			fmt.Println(resp.Hits.Total.Value)
 
