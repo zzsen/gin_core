@@ -3,6 +3,7 @@ package core
 import (
 	"os"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/response"
@@ -77,6 +78,22 @@ var healthDetactEngine = func(e *gin.Engine) {
 	})
 }
 
+// metricsEngine Prometheus 指标端点配置函数
+// 为应用添加 Prometheus 指标端点，用于指标采集
+var metricsEngine = func(e *gin.Engine) {
+	if !app.BaseConfig.Metrics.Enabled {
+		return
+	}
+
+	path := app.BaseConfig.Metrics.Path
+	if path == "" {
+		path = "/metrics"
+	}
+
+	e.GET(path, gin.WrapH(promhttp.Handler()))
+	logger.Info("[server] Prometheus 指标端点已启用: %s", path)
+}
+
 // initEngine 初始化Gin引擎
 // 这是Web服务器引擎的核心初始化函数，负责：
 // 1. 创建Gin引擎实例
@@ -130,6 +147,8 @@ func initEngine() *gin.Engine {
 
 	// 添加健康检查路由，用于检测服务是否正常运行
 	AddOptionFunc(healthDetactEngine)
+	// 添加 Prometheus 指标端点
+	AddOptionFunc(metricsEngine)
 	// 应用所有用户自定义的路由配置函数
 	// 这些函数在应用启动时通过AddOptionFunc注册
 	engine.With(optionFuncList...)

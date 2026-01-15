@@ -23,6 +23,7 @@ service: # HTTP服务器相关配置
   readTimeout: 60 # HTTP请求读取超时时间，单位：秒
   writeTimeout: 60 # HTTP响应写入超时时间，单位：秒
   middlewares: # 中间件配置列表，注意：顺序对应中间件调用顺序
+    - "prometheusHandler" # Prometheus 指标采集中间件，统计请求指标
     - "exceptionHandler" # 异常处理中间件，统一处理应用异常
     - "traceIdHandler" # 请求追踪ID中间件，为每个请求生成唯一标识
     - "traceLogHandler" # 请求日志中间件，记录请求详细信息
@@ -48,6 +49,16 @@ log: # 日志系统配置
       maxAge: 30 # 错误日志保存天数，通常保存更长时间
       rotationSize: 1024 # 错误日志切割大小，单位：KB
       rotationTime: 6 # 错误日志切割时间间隔，单位：小时
+
+# ==================== 指标监控配置 ====================
+metrics:
+  enabled: true # 是否启用 Prometheus 指标监控
+  path: "/metrics" # 指标端点路径
+  excludePaths: # 不统计的路径列表
+    - "/healthy"
+    - "/healthy/ready"
+    - "/healthy/stats"
+    - "/metrics"
 
 # ==================== 数据库配置 ====================
 db: # 主数据库连接配置

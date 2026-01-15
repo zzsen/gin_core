@@ -100,6 +100,12 @@ func RegisterMiddleware(name string, handlerFunc func() gin.HandlerFunc) error {
 // 3. traceLogHandler - 追踪日志中间件，记录请求的详细信息
 // 4. timeoutHandler - 超时处理中间件，防止请求长时间阻塞
 func initMiddleware() {
+	// 注册 Prometheus 指标采集中间件
+	// 统计 HTTP 请求总数、耗时分布和处理中请求数
+	if err := RegisterMiddleware("prometheusHandler", middleware.PrometheusHandler); err != nil {
+		logger.Error("%s", err.Error())
+	}
+
 	// 注册异常处理中间件
 	// 提供统一的异常捕获和错误响应处理，确保应用在遇到异常时能够优雅降级
 	if err := RegisterMiddleware("exceptionHandler", middleware.ExceptionHandler); err != nil {

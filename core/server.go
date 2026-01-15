@@ -14,6 +14,7 @@ import (
 	"github.com/zzsen/gin_core/constant"
 	"github.com/zzsen/gin_core/core/lifecycle"
 	"github.com/zzsen/gin_core/logger"
+	"github.com/zzsen/gin_core/metrics"
 
 	"github.com/gin-gonic/gin"
 )
@@ -53,6 +54,12 @@ func Start(exitfunctions ...func()) {
 
 	// 创建用于优雅关闭的上下文
 	ctx, cancel := context.WithCancel(context.Background())
+
+	// 启动 Prometheus 指标收集器
+	if app.BaseConfig.Metrics.Enabled {
+		metrics.StartCollector(ctx, 15*time.Second)
+		logger.Info("[server] Prometheus 指标收集器已启动")
+	}
 	defer cancel()
 
 	// 启动信号监听协程，处理优雅关闭
