@@ -83,6 +83,26 @@ func getCustomRouter2() func(e *gin.Engine) {
 	}
 }
 
+func getCustomRouter3() func(e *gin.Engine) {
+	return func(e *gin.Engine) {
+		r := e.Group("customRouter3")
+		r.GET("test", func(c *gin.Context) {
+			logger.TraceWithFields(map[string]any{
+				"traceId":      "1234567890",
+				"requestId":    "1234567890",
+				"statusCode":   200,
+				"responseTime": 1000,
+				"clientIp":     "127.0.0.1",
+				"reqMethod":    "GET",
+				"reqUri":       "/customRouter3/test",
+				"body":         "{\"name\":\"test\"}",
+				"errStr":       "",
+			}, "password=1234567890")
+			response.OkWithMessage(c, "消息发送成功")
+		})
+	}
+}
+
 func mqFunc(message string) error {
 	fmt.Println("message", message)
 	return nil
@@ -94,6 +114,7 @@ func Print() {
 func main() {
 	core.AddOptionFunc(getCustomRouter1())
 	core.AddOptionFunc(getCustomRouter2())
+	core.AddOptionFunc(getCustomRouter3())
 
 	core.InitCustomConfig(&CustomConfig{})
 	core.AddMessageQueueConsumer(config.MessageQueue{

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	"github.com/zzsen/gin_core/logger"
 )
 
@@ -71,7 +70,8 @@ func TraceLogHandler() gin.HandlerFunc {
 		}
 
 		// 使用结构化日志记录所有请求信息，便于日志分析和问题排查
-		logger.Logger.WithFields(logrus.Fields{
+		// 敏感字段（如token）会自动脱敏
+		logger.TraceWithFields(map[string]any{
 			"traceId":      traceId,      // 追踪ID，用于分布式追踪
 			"requestId":    requestId,    // 请求ID，用于关联同一请求的不同操作
 			"statusCode":   statusCode,   // HTTP状态码，用于判断请求处理结果
@@ -82,6 +82,6 @@ func TraceLogHandler() gin.HandlerFunc {
 			"reqUri":       reqUrl,       // 请求URI，用于路由分析
 			"body":         reqJsonStr,   // 请求体数据，用于调试和审计
 			"errStr":       errorsStr,    // 错误信息，用于问题排查
-		}).Trace() // 使用Trace级别记录，确保所有请求信息都被记录
+		}, "请求日志")
 	}
 }

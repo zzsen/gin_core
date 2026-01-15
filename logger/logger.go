@@ -5,7 +5,9 @@ package logger
 import (
 	"fmt"
 	"path"
+	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
@@ -275,54 +277,158 @@ func withCallerFields(skip int) *logrus.Entry {
 	})
 }
 
-// Info 记录Info级别的日志，支持格式化字符串
-// 参数：
-//   - msg: 日志消息或格式化字符串
-//   - arg: 格式化参数（可选）
+// sanitizeLog 对日志消息进行脱敏处理
+func sanitizeLog(msg string, arg ...any) string {
+	var result string
+	if len(arg) > 0 {
+		result = fmt.Sprintf(msg, arg...)
+	} else {
+		result = msg
+	}
+	return SanitizeMessage(result)
+}
+
+// Info 记录Info级别的日志，支持格式化字符串（自动脱敏）
 func Info(msg string, arg ...any) {
 	entry := withCallerFields(3)
-	if len(arg) > 0 {
-		entry.Infof(msg, arg...)
-	} else {
-		entry.Info(msg)
-	}
+	entry.Info(sanitizeLog(msg, arg...))
 }
 
-// Error 记录Error级别的日志，支持格式化字符串
-// 参数：
-//   - msg: 日志消息或格式化字符串
-//   - arg: 格式化参数（可选）
+// Error 记录Error级别的日志，支持格式化字符串（自动脱敏）
 func Error(msg string, arg ...any) {
 	entry := withCallerFields(3)
-	if len(arg) > 0 {
-		entry.Errorf(msg, arg...)
-	} else {
-		entry.Error(msg)
-	}
+	entry.Error(sanitizeLog(msg, arg...))
 }
 
-// Warn 记录Warn级别的日志，支持格式化字符串
-// 参数：
-//   - msg: 日志消息或格式化字符串
-//   - arg: 格式化参数（可选）
+// Warn 记录Warn级别的日志，支持格式化字符串（自动脱敏）
 func Warn(msg string, arg ...any) {
 	entry := withCallerFields(3)
-	if len(arg) > 0 {
-		entry.Warnf(msg, arg...)
-	} else {
-		entry.Warn(msg)
+	entry.Warn(sanitizeLog(msg, arg...))
+}
+
+// Debug 记录Debug级别的日志，支持格式化字符串（自动脱敏）
+func Debug(msg string, arg ...any) {
+	entry := withCallerFields(3)
+	entry.Debug(sanitizeLog(msg, arg...))
+}
+
+// --- 结构化日志和脱敏功能 ---
+
+// sensitiveKeywords 敏感字段关键词列表（小写）
+var sensitiveKeywords = []string{
+	"password", "pwd", "passwd",
+	"token", "accesstoken", "refreshtoken",
+	"secret", "apikey", "api_key",
+	"authorization", "auth",
+	"credential", "private",
+}
+
+// sensitivePatterns 敏感信息正则模式（用于消息内容脱敏）
+// 匹配格式：key=value, key:value, "key":"value", key: value 等
+var sensitivePatterns []*regexp.Regexp
+
+func init() {
+	// 构建敏感信息匹配正则
+	for _, keyword := range sensitiveKeywords {
+		// 匹配 key=value 格式（URL参数、配置等）
+		sensitivePatterns = append(sensitivePatterns,
+			regexp.MustCompile(`(?i)(`+keyword+`)\s*[=:]\s*["']?([^"'\s&,;}\]]+)["']?`))
+		// 匹配 JSON 格式 "key": "value"
+		sensitivePatterns = append(sensitivePatterns,
+			regexp.MustCompile(`(?i)"(`+keyword+`)"\s*:\s*"([^"]+)"`))
 	}
 }
 
-// Debug 记录Debug级别的日志，支持格式化字符串
-// 参数：
-//   - msg: 日志消息或格式化字符串
-//   - arg: 格式化参数（可选）
-func Debug(msg string, arg ...any) {
-	entry := withCallerFields(3)
-	if len(arg) > 0 {
-		entry.Debugf(msg, arg...)
-	} else {
-		entry.Debug(msg)
+// MaskValue 对敏感值进行脱敏处理
+// 保留首尾各2个字符，中间用****替换
+func MaskValue(value string) string {
+	if len(value) <= 4 {
+		return "****"
 	}
+	return value[:2] + "****" + value[len(value)-2:]
+}
+
+// SanitizeMessage 对消息内容进行脱敏处理
+// 自动检测并脱敏消息中的敏感信息
+func SanitizeMessage(msg string) string {
+	result := msg
+	for _, pattern := range sensitivePatterns {
+		result = pattern.ReplaceAllStringFunc(result, func(match string) string {
+			submatches := pattern.FindStringSubmatch(match)
+			if len(submatches) >= 3 {
+				value := submatches[2]
+				masked := MaskValue(value)
+				// 保持原格式，只替换值
+				return strings.Replace(match, value, masked, 1)
+			}
+			// 无法解析时，整体替换为 ****
+			return "****"
+		})
+	}
+	return result
+}
+
+// isSensitiveField 判断字段名是否为敏感字段
+func isSensitiveField(key string) bool {
+	keyLower := strings.ToLower(key)
+	for _, keyword := range sensitiveKeywords {
+		if strings.Contains(keyLower, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// SanitizeFields 对字段进行脱敏处理
+// 自动检测敏感字段并进行脱敏
+func SanitizeFields(fields map[string]any) logrus.Fields {
+	result := make(logrus.Fields)
+	for key, value := range fields {
+		if isSensitiveField(key) {
+			if str, ok := value.(string); ok {
+				result[key] = MaskValue(str)
+			} else {
+				result[key] = "****"
+			}
+		} else {
+			result[key] = value
+		}
+	}
+	return result
+}
+
+// InfoWithFields 带结构化字段的Info日志（字段和消息自动脱敏）
+func InfoWithFields(fields map[string]any, msg string, arg ...any) {
+	entry := withCallerFields(3).WithFields(SanitizeFields(fields))
+	entry.Info(sanitizeLog(msg, arg...))
+}
+
+// ErrorWithFields 带结构化字段的Error日志（字段和消息自动脱敏）
+func ErrorWithFields(fields map[string]any, msg string, arg ...any) {
+	entry := withCallerFields(3).WithFields(SanitizeFields(fields))
+	entry.Error(sanitizeLog(msg, arg...))
+}
+
+// WarnWithFields 带结构化字段的Warn日志（字段和消息自动脱敏）
+func WarnWithFields(fields map[string]any, msg string, arg ...any) {
+	entry := withCallerFields(3).WithFields(SanitizeFields(fields))
+	entry.Warn(sanitizeLog(msg, arg...))
+}
+
+// DebugWithFields 带结构化字段的Debug日志（字段和消息自动脱敏）
+func DebugWithFields(fields map[string]any, msg string, arg ...any) {
+	entry := withCallerFields(3).WithFields(SanitizeFields(fields))
+	entry.Debug(sanitizeLog(msg, arg...))
+}
+
+// Trace 记录Trace级别的日志（自动脱敏）
+func Trace(msg string, arg ...any) {
+	entry := withCallerFields(3)
+	entry.Trace(sanitizeLog(msg, arg...))
+}
+
+// TraceWithFields 带结构化字段的Trace日志（字段和消息自动脱敏）
+func TraceWithFields(fields map[string]any, msg string, arg ...any) {
+	entry := withCallerFields(3).WithFields(SanitizeFields(fields))
+	entry.Trace(sanitizeLog(msg, arg...))
 }

@@ -8,7 +8,6 @@ import (
 	"runtime/debug"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/sirupsen/logrus"
 	"github.com/zzsen/gin_core/exception"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/response"
@@ -48,10 +47,10 @@ func ExceptionHandler() gin.HandlerFunc {
 					message, code = handler.OnException(ctx)
 				} else {
 					// 如果未实现自定义异常处理接口，记录异常信息和堆栈跟踪
-					logger.Logger.WithFields(logrus.Fields{
+					logger.ErrorWithFields(map[string]any{
 						"error":     err,                   // 异常信息
 						"stackInfo": string(debug.Stack()), // 堆栈跟踪信息
-					}).Error()
+					}, "未处理的异常")
 				}
 
 				// 将错误信息添加到Gin上下文的错误列表中
