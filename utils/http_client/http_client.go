@@ -1,19 +1,18 @@
-package http_client
-
-// HTTP客户端工具包
+// Package http_client HTTP客户端工具包
 // 提供常用的HTTP请求方法，支持GET、POST、PUT等请求类型
 // 支持表单提交、文件上传、JSON请求等功能
+// 已优化：连接池复用、链路追踪、请求重试
+package http_client
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 // ResponseWrapper HTTP响应包装器
@@ -22,270 +21,240 @@ type ResponseWrapper struct {
 	StatusCode int         // HTTP状态码
 	Body       string      // 响应体内容
 	Header     http.Header // 响应头信息
+	Error      error       // 错误信息（新增）
 }
 
-// Get 发送GET请求
+// IsSuccess 判断请求是否成功
+func (r *ResponseWrapper) IsSuccess() bool {
+	return r.StatusCode >= 200 && r.StatusCode < 300
+}
+
+// HasError 判断是否有错误
+func (r *ResponseWrapper) HasError() bool {
+	return r.Error != nil || r.StatusCode == 0
+}
+
+// ==================== 基于 context.Context 的新 API ====================
+
+// GetWithContext 发送GET请求（推荐使用）
 // 参数:
-//   - ctx: Gin上下文对象
+//   - ctx: 上下文，用于超时控制和链路追踪
 //   - url: 请求的URL地址
-//   - timeout: 请求超时时间（秒）
+//   - timeout: 请求超时时间（秒），0 表示使用默认超时
 //   - headers: 自定义请求头
 //
 // 返回值: ResponseWrapper 包含响应状态码、响应体和响应头
-func Get(ctx *gin.Context, url string, timeout int, headers map[string]string) ResponseWrapper {
-	// 创建GET请求
-	req, err := http.NewRequest("GET", url, nil)
+func GetWithContext(ctx context.Context, url string, timeout int, headers map[string]string) ResponseWrapper {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return createRequestError(err)
 	}
 
-	// 设置自定义请求头
-	for headerKey, headerValue := range headers {
-		req.Header.Set(headerKey, headerValue)
-	}
-
-	return request(ctx, req, timeout)
+	setHeaders(req, headers)
+	return doRequest(ctx, req, timeout)
 }
 
-// PostParams 发送POST请求（参数形式）
+// PostJSONWithContext 发送POST请求（JSON格式，推荐使用）
 // 参数:
-//   - ctx: Gin上下文对象
+//   - ctx: 上下文，用于超时控制和链路追踪
+//   - url: 请求的URL地址
+//   - body: JSON格式的请求体
+//   - timeout: 请求超时时间（秒）
+//   - headers: 自定义请求头
+//
+// 返回值: ResponseWrapper 包含响应状态码、响应体和响应头
+func PostJSONWithContext(ctx context.Context, url string, body string, timeout int, headers map[string]string) ResponseWrapper {
+	buf := bytes.NewBufferString(body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, buf)
+	if err != nil {
+		return createRequestError(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	setHeaders(req, headers)
+	return doRequest(ctx, req, timeout)
+}
+
+// PostParamsWithContext 发送POST请求（参数形式，推荐使用）
+// 参数:
+//   - ctx: 上下文，用于超时控制和链路追踪
 //   - url: 请求的URL地址
 //   - params: POST参数（字符串形式）
 //   - timeout: 请求超时时间（秒）
 //   - headers: 自定义请求头
 //
 // 返回值: ResponseWrapper 包含响应状态码、响应体和响应头
-func PostParams(ctx *gin.Context, url string, params string, timeout int, headers map[string]string) ResponseWrapper {
-	// 将参数字符串转换为字节缓冲区
+func PostParamsWithContext(ctx context.Context, url string, params string, timeout int, headers map[string]string) ResponseWrapper {
 	buf := bytes.NewBufferString(params)
-	req, err := http.NewRequest("POST", url, buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, buf)
 	if err != nil {
 		return createRequestError(err)
 	}
 
-	// 设置自定义请求头
-	for headerKey, headerValue := range headers {
-		req.Header.Set(headerKey, headerValue)
-	}
-
-	return request(ctx, req, timeout)
+	setHeaders(req, headers)
+	return doRequest(ctx, req, timeout)
 }
 
-// PutParams 发送PUT请求（参数形式）
+// PutJSONWithContext 发送PUT请求（JSON格式，推荐使用）
 // 参数:
-//   - ctx: Gin上下文对象
-//   - url: 请求的URL地址
-//   - params: PUT参数（字符串形式）
-//   - timeout: 请求超时时间（秒）
-//   - headers: 自定义请求头
-//
-// 返回值: ResponseWrapper 包含响应状态码、响应体和响应头
-func PutParams(ctx *gin.Context, url string, params string, timeout int, headers map[string]string) ResponseWrapper {
-	// 将参数字符串转换为字节缓冲区
-	buf := bytes.NewBufferString(params)
-	req, err := http.NewRequest("PUT", url, buf)
-	if err != nil {
-		return createRequestError(err)
-	}
-
-	// 设置Content-Type为JSON格式
-	req.Header.Set("Content-Type", "application/json")
-
-	// 设置自定义请求头
-	for headerKey, headerValue := range headers {
-		req.Header.Set(headerKey, headerValue)
-	}
-
-	return request(ctx, req, timeout)
-}
-
-// PostJson 发送POST请求（JSON格式）
-// 参数:
-//   - ctx: Gin上下文对象
+//   - ctx: 上下文，用于超时控制和链路追踪
 //   - url: 请求的URL地址
 //   - body: JSON格式的请求体
-//   - headers: 自定义请求头
 //   - timeout: 请求超时时间（秒）
+//   - headers: 自定义请求头
 //
 // 返回值: ResponseWrapper 包含响应状态码、响应体和响应头
-func PostJson(ctx *gin.Context, url string, body string, headers map[string]string, timeout int) ResponseWrapper {
-	// 将JSON字符串转换为字节缓冲区
+func PutJSONWithContext(ctx context.Context, url string, body string, timeout int, headers map[string]string) ResponseWrapper {
 	buf := bytes.NewBufferString(body)
-	req, err := http.NewRequest("POST", url, buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, buf)
 	if err != nil {
 		return createRequestError(err)
 	}
 
-	// 设置自定义请求头
-	for headerKey, headerValue := range headers {
-		req.Header.Set(headerKey, headerValue)
-	}
-
-	// 设置Content-Type为JSON格式
-	req.Header.Set("Content-type", "application/json")
-
-	return request(ctx, req, timeout)
+	req.Header.Set("Content-Type", "application/json")
+	setHeaders(req, headers)
+	return doRequest(ctx, req, timeout)
 }
 
-// PostForm 发送POST请求（表单形式，支持文件上传）
+// DeleteWithContext 发送DELETE请求（推荐使用）
 // 参数:
-//   - ctx: Gin上下文对象
+//   - ctx: 上下文，用于超时控制和链路追踪
+//   - url: 请求的URL地址
+//   - timeout: 请求超时时间（秒）
+//   - headers: 自定义请求头
+//
+// 返回值: ResponseWrapper 包含响应状态码、响应体和响应头
+func DeleteWithContext(ctx context.Context, url string, timeout int, headers map[string]string) ResponseWrapper {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return createRequestError(err)
+	}
+
+	setHeaders(req, headers)
+	return doRequest(ctx, req, timeout)
+}
+
+// PostFormWithContext 发送POST请求（表单形式，支持文件上传，推荐使用）
+// 参数:
+//   - ctx: 上下文，用于超时控制和链路追踪
 //   - httpUrl: 请求的URL地址
 //   - dataMap: 普通表单字段（键值对）
-//   - filePathMap: 文件路径映射（文件名 -> 文件路径）
-//   - fileMap: 文件读取器映射（文件名 -> io.Reader）
+//   - filePathMap: 文件路径映射（字段名 -> 文件路径）
+//   - fileMap: 文件读取器映射（字段名 -> io.Reader）
 //   - headers: 自定义请求头
 //   - timeout: 请求超时时间（秒）
 //
 // 返回值: ResponseWrapper 包含响应状态码、响应体和响应头
-func PostForm(ctx *gin.Context, httpUrl string, dataMap map[string]string,
+func PostFormWithContext(ctx context.Context, httpUrl string, dataMap map[string]string,
 	filePathMap map[string]string, fileMap map[string]io.Reader,
 	headers map[string]string, timeout int) ResponseWrapper {
 
-	// 设置TLS调试环境变量，解决某些TLS相关问题
-	os.Setenv("GODEBUG", "tlsrsakex=1")
-
-	// 创建一个字节缓冲区用于存储表单数据
 	body := &bytes.Buffer{}
-
-	// 创建一个multipart写入器，用于向缓冲区写入表单数据
 	writer := multipart.NewWriter(body)
 
-	// 遍历表单数据，将普通表单字段写入
+	// 写入普通表单字段
 	for key, value := range dataMap {
-		err := writer.WriteField(key, value)
-		if err != nil {
-			return ResponseWrapper{0, fmt.Sprintf("写入表单字段 %s 失败: %s", key, err.Error()), make(http.Header)}
+		if err := writer.WriteField(key, value); err != nil {
+			return ResponseWrapper{0, fmt.Sprintf("写入表单字段 %s 失败: %s", key, err.Error()), make(http.Header), err}
 		}
 	}
 
-	// 处理文件路径映射（从本地文件路径读取文件）
-	for fileName, filePath := range filePathMap {
-		// 打开要上传的文件
+	// 处理文件路径映射
+	for fieldName, filePath := range filePathMap {
 		file, err := os.Open(filePath)
 		if err != nil {
-			return ResponseWrapper{0, fmt.Sprintf("打开文件 %s 失败: %s", filePath, err.Error()), make(http.Header)}
+			return ResponseWrapper{0, fmt.Sprintf("打开文件 %s 失败: %s", filePath, err.Error()), make(http.Header), err}
 		}
 		defer file.Close()
 
-		// 创建一个表单文件字段
-		part, err := writer.CreateFormFile(fileName, filePath)
+		part, err := writer.CreateFormFile(fieldName, filePath)
 		if err != nil {
-			return ResponseWrapper{0, fmt.Sprintf("创建表单文件字段失败: %s", err.Error()), make(http.Header)}
+			return ResponseWrapper{0, fmt.Sprintf("创建表单文件字段失败: %s", err.Error()), make(http.Header), err}
 		}
 
-		// 将文件内容复制到表单文件字段中
-		_, err = io.Copy(part, file)
-		if err != nil {
-			return ResponseWrapper{0, fmt.Sprintf("复制文件内容失败: %s", err.Error()), make(http.Header)}
+		if _, err = io.Copy(part, file); err != nil {
+			return ResponseWrapper{0, fmt.Sprintf("复制文件内容失败: %s", err.Error()), make(http.Header), err}
 		}
 	}
 
-	// 处理文件读取器映射（直接使用io.Reader）
-	for fileName, fileReader := range fileMap {
-		// 创建一个表单文件字段
-		part, err := writer.CreateFormFile(fileName, fileName)
+	// 处理文件读取器映射
+	for fieldName, fileReader := range fileMap {
+		part, err := writer.CreateFormFile(fieldName, fieldName)
 		if err != nil {
-			return ResponseWrapper{0, fmt.Sprintf("创建表单文件字段失败: %s", err.Error()), make(http.Header)}
+			return ResponseWrapper{0, fmt.Sprintf("创建表单文件字段失败: %s", err.Error()), make(http.Header), err}
 		}
 
-		// 将文件内容复制到表单文件字段中
-		_, err = io.Copy(part, fileReader)
-		if err != nil {
-			return ResponseWrapper{0, fmt.Sprintf("复制文件内容失败: %s", err.Error()), make(http.Header)}
+		if _, err = io.Copy(part, fileReader); err != nil {
+			return ResponseWrapper{0, fmt.Sprintf("复制文件内容失败: %s", err.Error()), make(http.Header), err}
 		}
 	}
 
-	// 关闭写入器，完成表单数据的写入
-	err := writer.Close()
+	if err := writer.Close(); err != nil {
+		return ResponseWrapper{0, fmt.Sprintf("关闭写入器失败: %s", err.Error()), make(http.Header), err}
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, httpUrl, body)
 	if err != nil {
-		return ResponseWrapper{0, fmt.Sprintf("关闭写入器失败: %s", err.Error()), make(http.Header)}
+		return createRequestError(err)
 	}
 
-	// 创建一个POST请求
-	req, err := http.NewRequest("POST", httpUrl, body)
-	if err != nil {
-		return ResponseWrapper{0, fmt.Sprintf("创建请求失败: %s", err.Error()), make(http.Header)}
-	}
-
-	// 设置请求头的Content-Type为multipart/form-data并包含边界信息
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	// 添加自定义请求头
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-
-	return request(ctx, req, timeout)
+	setHeaders(req, headers)
+	return doRequest(ctx, req, timeout)
 }
 
-// request 执行HTTP请求的核心函数
-// 参数:
-//   - ctx: Gin上下文对象
-//   - req: HTTP请求对象
-//   - timeout: 请求超时时间（秒）
-//
-// 返回值: ResponseWrapper 包含响应状态码、响应体和响应头
-func request(ctx *gin.Context, req *http.Request, timeout int) ResponseWrapper {
-	// 初始化响应包装器
+// ==================== 核心请求函数 ====================
+
+// doRequest 执行HTTP请求的核心函数（使用全局客户端）
+func doRequest(ctx context.Context, req *http.Request, timeout int) ResponseWrapper {
 	wrapper := ResponseWrapper{StatusCode: 0, Body: "", Header: make(http.Header)}
 
-	// 创建HTTP客户端
-	client := &http.Client{}
-
-	// 设置超时时间
+	// 如果设置了超时，使用带超时的 context
 	if timeout > 0 {
-		client.Timeout = time.Duration(timeout) * time.Second
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+		defer cancel()
+		req = req.WithContext(ctx)
 	}
 
-	// 设置请求头（包括Trace ID等）
-	setRequestHeader(ctx, req)
-
-	// 执行HTTP请求
-	resp, err := client.Do(req)
+	// 使用全局客户端执行请求
+	client := GetDefaultClient()
+	resp, err := client.Do(ctx, req)
 	if err != nil {
 		wrapper.Body = fmt.Sprintf("执行HTTP请求错误-%s", err.Error())
+		wrapper.Error = err
 		return wrapper
 	}
 	defer resp.Body.Close()
 
-	// 读取响应体内容
+	// 读取响应体
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		wrapper.Body = fmt.Sprintf("读取HTTP请求返回值失败-%s", err.Error())
+		wrapper.Error = err
 		return wrapper
 	}
 
-	// 填充响应包装器
 	wrapper.StatusCode = resp.StatusCode
 	wrapper.Body = string(body)
 	wrapper.Header = resp.Header
-
 	return wrapper
 }
 
-// setRequestHeader 设置请求头信息
-// 参数:
-//   - ctx: Gin上下文对象
-//   - req: HTTP请求对象
-func setRequestHeader(ctx *gin.Context, req *http.Request) {
-	// 设置User-Agent
-	req.Header.Set("User-Agent", "golang/gocron")
-
-	// 获取Trace ID并设置到请求头中
-	traceId, exists := ctx.Get("traceId")
-	if exists {
-		req.Header.Set("X-Trace-ID", traceId.(string))
+// setHeaders 设置自定义请求头
+func setHeaders(req *http.Request, headers map[string]string) {
+	req.Header.Set("User-Agent", "gin-core/http-client")
+	for key, value := range headers {
+		req.Header.Set(key, value)
 	}
 }
 
 // createRequestError 创建请求错误响应
-// 参数:
-//   - err: 错误信息
-//
-// 返回值: ResponseWrapper 包含错误信息的响应包装器
 func createRequestError(err error) ResponseWrapper {
-	errorMessage := fmt.Sprintf("创建HTTP请求错误-%s", err.Error())
-	return ResponseWrapper{0, errorMessage, make(http.Header)}
+	return ResponseWrapper{
+		StatusCode: 0,
+		Body:       fmt.Sprintf("创建HTTP请求错误-%s", err.Error()),
+		Header:     make(http.Header),
+		Error:      err,
+	}
 }

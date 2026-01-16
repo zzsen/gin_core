@@ -144,4 +144,6 @@ gin_core
     ├── file                          #   ├ 文件工具类
     ├── gin_context                   #   ├ gin上下文工具类
     └── http_client                   #   └ http请求工具类
+        ├── client.go                 #     ├ 高性能HTTP客户端（连接池、重试）
+        └── http_client.go            #     └ HTTP请求方法封装
 ```
