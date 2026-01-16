@@ -25,6 +25,7 @@ service: # HTTP服务器相关配置
   middlewares: # 中间件配置列表，注意：顺序对应中间件调用顺序
     - "prometheusHandler" # Prometheus 指标采集中间件，统计请求指标
     - "exceptionHandler" # 异常处理中间件，统一处理应用异常
+    - "otelTraceHandler" # OpenTelemetry 链路追踪中间件（启用tracing时使用，可替代traceIdHandler）
     - "traceIdHandler" # 请求追踪ID中间件，为每个请求生成唯一标识
     - "traceLogHandler" # 请求日志中间件，记录请求详细信息
     - "timeoutHandler" # 请求超时中间件，防止请求长时间阻塞
@@ -59,6 +60,19 @@ metrics:
     - "/healthy/ready"
     - "/healthy/stats"
     - "/metrics"
+
+# ==================== 链路追踪配置 ====================
+tracing:
+  enabled: false # 是否启用 OpenTelemetry 链路追踪
+  serviceName: "gin-core-service" # 服务名称，用于在追踪系统中标识当前服务
+  exporterType: "otlp" # 导出器类型：otlp（推荐）、stdout（调试用）
+  endpoint: "localhost:4317" # OTLP 采集器地址（gRPC 端口）
+  sampleRate: 1.0 # 采样率：1.0=100%采样，0.1=10%采样，生产环境建议0.1-0.5
+  insecure: true # 是否禁用TLS，开发环境可设为true
+  propagatorType: "tracecontext" # 上下文传播格式：tracecontext（W3C标准）、b3（Zipkin格式）
+  enableDBTracing: true # 是否追踪数据库操作（MySQL查询、插入、更新、删除）
+  enableRedisTracing: true # 是否追踪Redis操作（GET、SET、Pipeline等）
+  enableHTTPClientTracing: true # 是否追踪出站HTTP请求（跨服务调用）
 
 # ==================== 数据库配置 ====================
 db: # 主数据库连接配置
