@@ -161,7 +161,8 @@ func TestMessageQueue_GetInfo(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := &tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.mq.GetInfo()
 			if result != tt.expected {
@@ -230,7 +231,8 @@ func TestMessageQueue_getDeadLetterExchange(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := &tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.mq.getDeadLetterExchange()
 			if result != tt.expected {
@@ -268,7 +270,8 @@ func TestMessageQueue_getDeadLetterQueue(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := &tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.mq.getDeadLetterQueue()
 			if result != tt.expected {
@@ -313,7 +316,8 @@ func TestMessageQueue_getDeadLetterRoutingKey(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := &tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.mq.getDeadLetterRoutingKey()
 			if result != tt.expected {
@@ -392,7 +396,8 @@ func TestPublishConfirmConfig(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := &tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.config.Enabled != tt.enabled {
 				t.Errorf("Enabled = %v, want %v", tt.config.Enabled, tt.enabled)
@@ -475,7 +480,8 @@ func TestMessageQueue_getRetryCount(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
+	for i := range tests {
+		tt := &tests[i]
 		t.Run(tt.name, func(t *testing.T) {
 			result := mq.getRetryCount(tt.msg)
 			if result != tt.expected {
