@@ -17,9 +17,9 @@ import (
 //   - messageQueueList: 消息队列配置列表，支持可变参数
 func InitialRabbitMqProducer(messageQueueList ...config.MessageQueue) {
 	// 遍历所有消息队列配置并初始化发送者
-	for _, messageQueue := range messageQueueList {
+	for i := range messageQueueList {
 		// 初始化单个消息队列发送者
-		initMqProducer(&messageQueue)
+		initMqProducer(&messageQueueList[i])
 	}
 }
 
