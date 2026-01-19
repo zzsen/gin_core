@@ -38,112 +38,158 @@ gin_project
 
 ```bash
 gin_core
-├── go.mod                            # 依赖包管理文件
-├── go.sum                            # 依赖包校验文件
-├── conf                              # 配置文件
-│   ├── config-default.yml            #   ├（供参考）默认配置文件
-│   └── config-prod.yml               #   └（供参考）正式环境配置文件
-├── constant                          # 常量
-│   └── config.go                     #   └ 配置类常量
-├── core                              # 核心文件
-│   ├── cmdline.go                    #   ├ 命令行参数解析
-│   ├── config.go                     #   ├ 配置文件初始化
-│   ├── engine.go                     #   ├ 路由初始化
-│   ├── middleware.go                 #   ├ 配置默认中间件(异常处理, 请求日志, 超时处理等)
-│   ├── service.go                    #   ├ 服务初始化入口
-│   ├── validator.go                  #   ├ 参数校验（使用github.com/go-playground/validator/v10覆盖gin的参数校验）
-│   ├── server.go                     #   ├ 服务启动主方法
-│   ├── lifecycle                     #   ├ 服务生命周期管理
-│   │   ├── interface.go              #   │ ├ 服务接口定义
-│   │   ├── registry.go               #   │ ├ 服务注册中心
-│   │   ├── resolver.go               #   │ ├ 依赖解析器
-│   │   ├── initializer.go            #   │ ├ 并行初始化器
-│   │   └── bootstrap.go              #   │ └ 消息队列/定时任务配置
-│   └── services                      #   └ 内置服务实现
-│       ├── logger_service.go         #     ├ 日志服务
-│       ├── tracing_service.go        #     ├ 链路追踪服务
-│       ├── redis_service.go          #     ├ Redis服务
-│       ├── mysql_service.go          #     ├ MySQL服务
-│       ├── elasticsearch_service.go  #     ├ Elasticsearch服务
-│       ├── rabbitmq_service.go       #     ├ RabbitMQ服务
-│       ├── etcd_service.go           #     ├ Etcd服务
-│       └── schedule_service.go       #     └ 定时任务服务
-├── exception                         # 异常
-│   ├── auth_failed.go                #   ├ 授权失败
-│   ├── common_error.go               #   ├ 常规错误
-│   ├── index.go                      #   ├ 普通失败
-│   ├── init_error.go                 #   ├ 初始化错误（结构化错误类型）
-│   ├── invalid_param.go              #   ├ 参数校验不通过
-│   └── rpc_error.go                  #   └ rpc错误
-├── app                               # 全局应用
-│   ├── app.go                        #   ├ 全局变量定义（DB, Redis, ES, Etcd等）
-│   ├── db.go                         #   ├ 数据库工具方法
-│   ├── redis.go                      #   ├ Redis工具方法
-│   ├── mq.go                         #   ├ 消息队列工具方法（带重试机制）
-│   └── pool_stats.go                 #   └ 连接池统计和健康检查
-├── metrics                           # Prometheus 指标监控
-│   ├── metrics.go                    #   ├ 指标定义（HTTP、连接池指标）
-│   └── collector.go                  #   └ 指标收集器
-├── tracing                           # OpenTelemetry 链路追踪
-│   ├── tracing.go                    #   ├ 追踪核心初始化
-│   ├── gorm_plugin.go                #   ├ GORM 数据库追踪插件
-│   ├── redis_hook.go                 #   ├ Redis 追踪钩子
-│   └── http_transport.go             #   └ HTTP 客户端追踪传输层
-├── initialize                        # 初始化
-│   ├── elasticsearch.go              #   ├ 初始化es
-│   ├── etcd.go                       #   ├ 初始化etcd
-│   ├── mysql_base.go                 #   ├ 初始化mysql基类, 供其他mysql初始化使用
-│   ├── mysql_resolver_test.go        #   ├ (测试用例)初始化db读写分离
-│   ├── mysql_resolver.go             #   ├ 初始化db读写分离
-│   ├── mysql.go                      #   ├ 初始化mysql
-│   ├── rabbitmq_consumer.go          #   ├ 初始化消息队列消费者
-│   ├── redis.go                      #   ├ 初始化redis
-│   └── tracing.go                    #   └ 初始化链路追踪
-├── logger                            # 日志
-├── main.go                           # （供参考）程序主入口
-├── middleware                        # 中间件
-│   ├── exception_handler.go          #   ├ 异常处理
-│   ├── otel_trace_handler.go         #   ├ OpenTelemetry 链路追踪
-│   ├── prometheus_handler.go         #   ├ Prometheus 指标采集
-│   ├── timeout_handler.go            #   ├ 超时处理
-│   ├── trace_id_handler.go           #   ├ 请求追踪ID
-│   └── trace_log_handler.go          #   └ 请求日志
-├── model                             # 模型
-│   ├── config                        #   ├ 配置模型
-│   │   ├── config.go                 #   │ ├ 配置模型
-│   │   ├── elasticsearch.go          #   │ ├ es配置模型
-│   │   ├── logger.go                 #   │ ├ 日志配置模型
-│   │   ├── metrics.go                #   │ ├ 指标监控配置模型
-│   │   ├── tracing.go                #   │ ├ 链路追踪配置模型
-│   │   ├── etcd.go                   #   │ ├ etcd配置模型
-│   │   ├── mysql.go                  #   │ ├ 数据库配置模型
-│   │   ├── mysql_resolver.go         #   │ ├ 数据库配置模型（读写分离, 多库）
-│   │   ├── rabbitmq.go               #   │ ├ 消息队列配置模型
-│   │   ├── redis.go                  #   │ ├ redis配置模型
-│   │   ├── schedule.go               #   │ ├ 定时任务配置模型
-│   │   ├── service.go                #   │ ├ 服务配置模型
-│   │   ├── smtp.go                   #   │ ├ smtp配置模型
-│   │   └── system.go                 #   │ └ 系统配置模型
-│   ├── entity                        #   ├ 数据库模型
-│   │   └── base_model.go             #   │ └ 数据库基类模型
-│   ├── request                       #   ├ 请求模型
-│   │   ├── common.go                 #   │ ├ 常用请求模型（getById等）
-│   │   └── page.go                   #   │ └ 分页请求模型
-│   └── response                      #   └ 响应模型
-│       ├── page.go                   #     ├ 分页响应模型
-│       └── response.go               #     └ 响应模型
-├── doc                               # 文档
-│   ├── tracing.md                    #   ├ 链路追踪文档
-│   └── ...                           #   └ 其他文档
-├── README.md                         # readme
-├── request                           # 请求工具
-│   └── index.go                      #   └ 参数检验
-└── utils                             # 工具类
-    ├── email                         #   ├ 邮件工具类
-    ├── encrpt                        #   ├ 加解密工具类（aes, rsa）
-    ├── file                          #   ├ 文件工具类
-    ├── gin_context                   #   ├ gin上下文工具类
-    └── http_client                   #   └ http请求工具类
-        ├── client.go                 #     ├ 高性能HTTP客户端（连接池、重试）
-        └── http_client.go            #     └ HTTP请求方法封装
+├── go.mod                                  # 依赖包管理文件
+├── go.sum                                  # 依赖包校验文件
+├── conf                                    # 配置文件
+│   ├── config.default.yml                  #   ├（供参考）默认配置文件
+│   ├── config.dev.yml                      #   ├（供参考）开发环境配置文件
+│   └── config.prod.yml                     #   └（供参考）正式环境配置文件
+├── constant                                # 常量
+│   └── config.go                           #   └ 配置类常量
+├── core                                    # 核心文件
+│   ├── cmdline.go                          #   ├ 命令行参数解析
+│   ├── cmdline_test.go                     #   ├ (测试) 命令行参数解析
+│   ├── config.go                           #   ├ 配置文件初始化
+│   ├── config_test.go                      #   ├ (测试) 配置文件初始化
+│   ├── engine.go                           #   ├ 路由初始化
+│   ├── engine_test.go                      #   ├ (测试) 路由初始化
+│   ├── middleware.go                       #   ├ 配置默认中间件(异常处理, 请求日志, 超时处理等)
+│   ├── middleware_test.go                  #   ├ (测试) 默认中间件
+│   ├── service.go                          #   ├ 服务初始化入口
+│   ├── validator.go                        #   ├ 参数校验（使用github.com/go-playground/validator/v10覆盖gin的参数校验）
+│   ├── server.go                           #   ├ 服务启动主方法
+│   ├── lifecycle                           #   ├ 服务生命周期管理
+│   │   ├── interface.go                    #   │ ├ 服务接口定义
+│   │   ├── registry.go                     #   │ ├ 服务注册中心
+│   │   ├── resolver.go                     #   │ ├ 依赖解析器
+│   │   ├── initializer.go                  #   │ ├ 并行初始化器
+│   │   └── bootstrap.go                    #   │ └ 消息队列/定时任务配置
+│   └── services                            #   └ 内置服务实现
+│       ├── init.go                         #     ├ 服务初始化入口
+│       ├── logger_service.go               #     ├ 日志服务
+│       ├── tracing_service.go              #     ├ 链路追踪服务
+│       ├── redis_service.go                #     ├ Redis服务
+│       ├── mysql_service.go                #     ├ MySQL服务
+│       ├── elasticsearch_service.go        #     ├ Elasticsearch服务
+│       ├── rabbitmq_service.go             #     ├ RabbitMQ服务
+│       ├── rabbitmq_service_test.go        #     ├ (测试) RabbitMQ服务
+│       ├── etcd_service.go                 #     ├ Etcd服务
+│       └── schedule_service.go             #     └ 定时任务服务
+├── exception                               # 异常
+│   ├── auth_failed.go                      #   ├ 授权失败
+│   ├── common_error.go                     #   ├ 常规错误
+│   ├── index.go                            #   ├ 普通失败
+│   ├── init_error.go                       #   ├ 初始化错误（结构化错误类型）
+│   ├── invalid_param.go                    #   ├ 参数校验不通过
+│   └── rpc_error.go                        #   └ rpc错误
+├── app                                     # 全局应用
+│   ├── app.go                              #   ├ 全局变量定义（DB, Redis, ES, Etcd等）
+│   ├── db.go                               #   ├ 数据库工具方法
+│   ├── redis.go                            #   ├ Redis工具方法
+│   ├── mq.go                               #   ├ 消息队列工具方法（带重试机制）
+│   ├── mq_test.go                          #   ├ (单元测试) 消息队列
+│   ├── mq_integration_test.go              #   ├ (集成测试) 消息队列，需要 RabbitMQ 连接
+│   └── pool_stats.go                       #   └ 连接池统计和健康检查
+├── metrics                                 # Prometheus 指标监控
+│   ├── metrics.go                          #   ├ 指标定义（HTTP、连接池指标）
+│   └── collector.go                        #   └ 指标收集器
+├── tracing                                 # OpenTelemetry 链路追踪
+│   ├── tracing.go                          #   ├ 追踪核心初始化
+│   ├── gorm_plugin.go                      #   ├ GORM 数据库追踪插件
+│   ├── redis_hook.go                       #   ├ Redis 追踪钩子
+│   └── http_transport.go                   #   └ HTTP 客户端追踪传输层
+├── initialize                              # 初始化
+│   ├── elasticsearch.go                    #   ├ 初始化es
+│   ├── etcd.go                             #   ├ 初始化etcd
+│   ├── mysql_base.go                       #   ├ 初始化mysql基类, 供其他mysql初始化使用
+│   ├── mysql_resolver.go                   #   ├ 初始化db读写分离
+│   ├── mysql_resolver_test.go              #   ├ (测试) 初始化db读写分离
+│   ├── mysql.go                            #   ├ 初始化mysql
+│   ├── rabbitmq_consumer.go                #   ├ 初始化消息队列消费者
+│   ├── rabbitmq_consumer_test.go           #   ├ (测试) 消息队列消费者
+│   ├── rabbitmq_producer.go                #   ├ 初始化消息队列生产者
+│   ├── rabbitmq_producer_test.go           #   ├ (测试) 消息队列生产者
+│   ├── redis.go                            #   ├ 初始化redis
+│   └── tracing.go                          #   └ 初始化链路追踪
+├── logger                                  # 日志
+│   └── logger.go                           #   └ 日志封装
+├── main.go                                 # （供参考）程序主入口
+├── middleware                              # 中间件
+│   ├── exception_handler.go                #   ├ 异常处理
+│   ├── otel_trace_handler.go               #   ├ OpenTelemetry 链路追踪
+│   ├── prometheus_handler.go               #   ├ Prometheus 指标采集
+│   ├── timeout_handler.go                  #   ├ 超时处理
+│   ├── trace_id_handler.go                 #   ├ 请求追踪ID
+│   └── trace_log_handler.go                #   └ 请求日志
+├── model                                   # 模型
+│   ├── config                              #   ├ 配置模型
+│   │   ├── config.go                       #   │ ├ 配置模型
+│   │   ├── elasticsearch.go                #   │ ├ es配置模型
+│   │   ├── logger.go                       #   │ ├ 日志配置模型
+│   │   ├── metrics.go                      #   │ ├ 指标监控配置模型
+│   │   ├── tracing.go                      #   │ ├ 链路追踪配置模型
+│   │   ├── etcd.go                         #   │ ├ etcd配置模型
+│   │   ├── mysql.go                        #   │ ├ 数据库配置模型
+│   │   ├── mysql_resolver.go               #   │ ├ 数据库配置模型（读写分离, 多库）
+│   │   ├── rabbitmq.go                     #   │ ├ 消息队列配置模型
+│   │   ├── rabbitmq_test.go                #   │ ├ (单元测试) 消息队列配置
+│   │   ├── rabbitmq_integration_test.go    #   │ ├ (集成测试) 消息队列配置，需要 RabbitMQ 连接
+│   │   ├── redis.go                        #   │ ├ redis配置模型
+│   │   ├── schedule.go                     #   │ ├ 定时任务配置模型
+│   │   ├── service.go                      #   │ ├ 服务配置模型
+│   │   ├── smtp.go                         #   │ ├ smtp配置模型
+│   │   └── system.go                       #   │ └ 系统配置模型
+│   ├── entity                              #   ├ 数据库模型
+│   │   └── base_model.go                   #   │ └ 数据库基类模型
+│   ├── request                             #   ├ 请求模型
+│   │   ├── common.go                       #   │ ├ 常用请求模型（getById等）
+│   │   └── page.go                         #   │ └ 分页请求模型
+│   └── response                            #   └ 响应模型
+│       ├── constants.go                    #     ├ 响应常量定义
+│       ├── page.go                         #     ├ 分页响应模型
+│       └── response.go                     #     └ 响应模型
+├── doc                                     # 文档
+│   ├── README.md                           #   ├ 文档首页
+│   ├── args.md                             #   ├ 命令行参数文档
+│   ├── config.md                           #   ├ 配置文件文档
+│   ├── controller.md                       #   ├ 控制器文档
+│   ├── dead_letter_queue.md                #   ├ 死信队列文档
+│   ├── env.md                              #   ├ 环境变量文档
+│   ├── logger.md                           #   ├ 日志文档
+│   ├── metrics.md                          #   ├ 指标监控文档
+│   ├── middleware.md                       #   ├ 中间件文档
+│   ├── router.md                           #   ├ 路由文档
+│   ├── schedule.md                         #   ├ 定时任务文档
+│   ├── service.md                          #   ├ 服务文档
+│   ├── service_register.md                 #   ├ 服务注册文档
+│   ├── structure.md                        #   ├ 目录结构文档
+│   └── tracing.md                          #   └ 链路追踪文档
+├── docs                                    # Swagger 文档（自动生成）
+│   ├── docs.go                             #   ├ Swagger 文档代码
+│   ├── swagger.json                        #   ├ Swagger JSON
+│   └── swagger.yaml                        #   └ Swagger YAML
+├── README.md                               # readme
+├── request                                 # 请求工具
+│   └── index.go                            #   └ 参数检验
+└── utils                                   # 工具类
+    ├── email                               #   ├ 邮件工具类
+    │   ├── auth.go                         #   │ ├ 邮件认证
+    │   └── email.go                        #   │ └ 邮件发送
+    ├── encrypt                             #   ├ 加解密工具类
+    │   ├── aes_ecb.go                      #   │ ├ AES ECB加解密
+    │   ├── aes_ecb_test.go                 #   │ ├ (测试) AES ECB
+    │   ├── rsa.go                          #   │ ├ RSA加解密
+    │   └── rsa_test.go                     #   │ └ (测试) RSA
+    ├── file                                #   ├ 文件工具类
+    │   ├── file.go                         #   │ ├ 文件操作
+    │   └── file_test.go                    #   │ └ (测试) 文件操作
+    ├── gin_context                         #   ├ gin上下文工具类
+    │   ├── index.go                        #   │ ├ 上下文操作
+    │   └── index_test.go                   #   │ └ (测试) 上下文操作
+    ├── http_client                         #   ├ http请求工具类
+    │   ├── client.go                       #   │ ├ 高性能HTTP客户端（连接池、重试）
+    │   └── http_client.go                  #   │ └ HTTP请求方法封装
+    └── serialize                           #   └ 序列化工具类
+        ├── serialize.go                    #     ├ 序列化操作
+        └── serialize_test.go               #     └ (测试) 序列化
 ```
