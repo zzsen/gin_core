@@ -42,6 +42,9 @@ func (s *ScheduleService) Init(ctx context.Context) error {
 
 	// 注册所有定时任务到调度器
 	for _, schedule := range s.scheduleList {
+		if schedule.ShouldRunImmediately {
+			schedule.Cmd()
+		}
 		_, err := s.cron.AddFunc(schedule.Cron, schedule.Cmd)
 		if err != nil {
 			logger.Error("[定时任务] 添加任务失败, cron: %s, error: %v", schedule.Cron, err)

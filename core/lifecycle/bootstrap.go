@@ -105,8 +105,10 @@ var scheduleList []config.ScheduleInfo = make([]config.ScheduleInfo, 0)
 //	})
 func AddSchedule(schedule config.ScheduleInfo) {
 	scheduleList = append(scheduleList, schedule)
-	logger.Info("[定时任务] 添加定时任务成功, cron表达式: %s, 方法: %s",
-		schedule.Cron, schedule.GetFuncInfo())
+	if schedule.Name == "" {
+		schedule.Name = schedule.GetFuncInfo()
+	}
+	logger.Info("[定时任务] 添加定时任务成功, cron表达式: %s, 名称: %s", schedule.Cron, schedule.Name)
 }
 
 // GetMessageQueueConsumerList 获取消息队列消费者列表

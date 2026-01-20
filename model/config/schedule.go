@@ -10,8 +10,10 @@ import (
 // ScheduleInfo 定时任务配置信息
 // 该结构体定义了定时任务的执行策略和要执行的函数
 type ScheduleInfo struct {
-	Cron string `yaml:"cron"` // cron表达式，定义定时任务的执行时间规则
-	Cmd  func() `yaml:"cmd"`  // 定时任务执行的函数，无参数无返回值的函数类型
+	Name                 string `yaml:"name"`                   // 定时任务名称
+	Cron                 string `yaml:"cron"`                   // cron表达式，定义定时任务的执行时间规则
+	Cmd                  func() `yaml:"cmd"`                    // 定时任务执行的函数，无参数无返回值的函数类型
+	ShouldRunImmediately bool   `yaml:"should_run_immediately"` // 是否在服务启动后立即执行
 }
 
 // GetFuncInfo 获取定时任务函数的详细信息
