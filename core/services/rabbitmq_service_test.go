@@ -59,11 +59,11 @@ func setupRabbitMQServiceTestConfig() func() {
 // TestNewRabbitMQService 测试创建 RabbitMQ 服务
 // 不需要 RabbitMQ 连接：仅验证服务实例化逻辑
 func TestNewRabbitMQService(t *testing.T) {
-	consumers := []config.MessageQueue{
+	consumers := []*config.MessageQueue{
 		{QueueName: "consumer1"},
 		{QueueName: "consumer2"},
 	}
-	producers := []config.MessageQueue{
+	producers := []*config.MessageQueue{
 		{QueueName: "producer1"},
 	}
 
@@ -223,7 +223,7 @@ func TestRabbitMQService_Init_WithProducers(t *testing.T) {
 	cleanup := setupRabbitMQServiceTestConfig()
 	defer cleanup()
 
-	producers := []config.MessageQueue{
+	producers := []*config.MessageQueue{
 		{
 			QueueName:    "test-producer",
 			ExchangeName: "test-exchange",
@@ -251,7 +251,7 @@ func TestRabbitMQService_Init_WithConsumers(t *testing.T) {
 	cleanup := setupRabbitMQServiceTestConfig()
 	defer cleanup()
 
-	consumers := []config.MessageQueue{
+	consumers := []*config.MessageQueue{
 		{
 			QueueName:    "test-consumer",
 			ExchangeName: "test-exchange",
@@ -281,7 +281,7 @@ func TestRabbitMQService_Init_Full(t *testing.T) {
 	cleanup := setupRabbitMQServiceTestConfig()
 	defer cleanup()
 
-	consumers := []config.MessageQueue{
+	consumers := []*config.MessageQueue{
 		{
 			QueueName:    "consumer-queue",
 			ExchangeName: "consumer-exchange",
@@ -293,7 +293,7 @@ func TestRabbitMQService_Init_Full(t *testing.T) {
 		},
 	}
 
-	producers := []config.MessageQueue{
+	producers := []*config.MessageQueue{
 		{
 			QueueName:    "producer-queue",
 			ExchangeName: "producer-exchange",
@@ -368,7 +368,7 @@ func TestRabbitMQService_SetConsumerList(t *testing.T) {
 		t.Error("初始 consumerList 应为 nil")
 	}
 
-	consumers := []config.MessageQueue{
+	consumers := []*config.MessageQueue{
 		{QueueName: "queue1"},
 		{QueueName: "queue2"},
 		{QueueName: "queue3"},
@@ -384,7 +384,7 @@ func TestRabbitMQService_SetConsumerList(t *testing.T) {
 // TestRabbitMQService_SetConsumerList_Replace 测试替换消费者列表
 // 不需要 RabbitMQ 连接：仅验证列表替换逻辑
 func TestRabbitMQService_SetConsumerList_Replace(t *testing.T) {
-	initial := []config.MessageQueue{
+	initial := []*config.MessageQueue{
 		{QueueName: "initial-queue"},
 	}
 
@@ -394,7 +394,7 @@ func TestRabbitMQService_SetConsumerList_Replace(t *testing.T) {
 		t.Errorf("初始 consumerList 长度应为 1，实际为 %d", len(service.consumerList))
 	}
 
-	newConsumers := []config.MessageQueue{
+	newConsumers := []*config.MessageQueue{
 		{QueueName: "new-queue1"},
 		{QueueName: "new-queue2"},
 	}
@@ -422,7 +422,7 @@ func TestRabbitMQService_SetProducerList(t *testing.T) {
 		t.Error("初始 producerList 应为 nil")
 	}
 
-	producers := []config.MessageQueue{
+	producers := []*config.MessageQueue{
 		{QueueName: "producer1"},
 		{QueueName: "producer2"},
 	}
@@ -437,7 +437,7 @@ func TestRabbitMQService_SetProducerList(t *testing.T) {
 // TestRabbitMQService_SetProducerList_Replace 测试替换生产者列表
 // 不需要 RabbitMQ 连接：仅验证列表替换逻辑
 func TestRabbitMQService_SetProducerList_Replace(t *testing.T) {
-	initial := []config.MessageQueue{
+	initial := []*config.MessageQueue{
 		{QueueName: "initial-producer"},
 	}
 
@@ -447,7 +447,7 @@ func TestRabbitMQService_SetProducerList_Replace(t *testing.T) {
 		t.Errorf("初始 producerList 长度应为 1，实际为 %d", len(service.producerList))
 	}
 
-	newProducers := []config.MessageQueue{
+	newProducers := []*config.MessageQueue{
 		{QueueName: "new-producer1"},
 		{QueueName: "new-producer2"},
 		{QueueName: "new-producer3"},
@@ -483,11 +483,11 @@ func TestRabbitMQService_ImplementsServiceInterface(t *testing.T) {
 // BenchmarkNewRabbitMQService 基准测试创建服务的性能
 // 不需要 RabbitMQ 连接：仅测试实例化性能
 func BenchmarkNewRabbitMQService(b *testing.B) {
-	consumers := []config.MessageQueue{
+	consumers := []*config.MessageQueue{
 		{QueueName: "consumer1"},
 		{QueueName: "consumer2"},
 	}
-	producers := []config.MessageQueue{
+	producers := []*config.MessageQueue{
 		{QueueName: "producer1"},
 	}
 

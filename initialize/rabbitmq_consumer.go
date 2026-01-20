@@ -28,7 +28,7 @@ var consumerCancelLock sync.Mutex
 // 3. 启动故障恢复监听器，自动重启出错的消费者
 // 参数：
 //   - messageQueueList: 消息队列配置列表，支持可变参数
-func InitialRabbitMq(messageQueueList ...config.MessageQueue) {
+func InitialRabbitMq(messageQueueList ...*config.MessageQueue) {
 	InitialRabbitMqWithContext(context.Background(), messageQueueList...)
 }
 
@@ -41,13 +41,12 @@ func InitialRabbitMq(messageQueueList ...config.MessageQueue) {
 // 参数：
 //   - ctx: 用于控制消费者生命周期的 context
 //   - messageQueueList: 消息队列配置列表，支持可变参数
-func InitialRabbitMqWithContext(ctx context.Context, messageQueueList ...config.MessageQueue) {
+func InitialRabbitMqWithContext(ctx context.Context, messageQueueList ...*config.MessageQueue) {
 	// 创建消息队列配置映射表，用于快速查找和故障恢复
 	messageQueueMap := map[string]*config.MessageQueue{}
 
 	// 遍历所有消息队列配置并启动消费者
-	for i := range messageQueueList {
-		mq := &messageQueueList[i]
+	for _, mq := range messageQueueList {
 		// 将消息队列配置存储到映射表中，键为队列信息
 		messageQueueMap[mq.GetInfo()] = mq
 		// 为每个消息队列启动独立的消费者协程

@@ -12,13 +12,13 @@ import (
 // 存储应用中所有需要启动的消息队列消费者配置
 // 这些消费者会在服务启动时被初始化，用于处理异步消息
 // 支持多个消费者同时工作，提供高并发的消息处理能力
-var messageQueueConsumerList []config.MessageQueue = make([]config.MessageQueue, 0)
+var messageQueueConsumerList []*config.MessageQueue = make([]*config.MessageQueue, 0)
 
 // messageQueueProducerList 消息队列发送者配置列表
 // 存储应用中所有需要初始化的消息队列发送者配置
 // 这些发送者会在服务启动时被初始化，用于发送异步消息
 // 支持多个发送者配置，提供灵活的消息发送能力
-var messageQueueProducerList []config.MessageQueue = make([]config.MessageQueue, 0)
+var messageQueueProducerList []*config.MessageQueue = make([]*config.MessageQueue, 0)
 
 // AddMessageQueueConsumer 添加消息队列消费者配置
 // 将消息队列消费者配置添加到全局列表中，在服务启动时会自动初始化这些消费者
@@ -40,7 +40,7 @@ var messageQueueProducerList []config.MessageQueue = make([]config.MessageQueue,
 //	  RoutingKey:   "user.created",
 //	  Fun:          handleUserCreated,
 //	})
-func AddMessageQueueConsumer(messageQueue config.MessageQueue) {
+func AddMessageQueueConsumer(messageQueue *config.MessageQueue) {
 	messageQueueConsumerList = append(messageQueueConsumerList, messageQueue)
 	logger.Info("[消息队列] 添加消息队列成功, 队列信息: %s, 方法: %s",
 		messageQueue.GetInfo(), messageQueue.GetFuncInfo())
@@ -66,7 +66,7 @@ func AddMessageQueueConsumer(messageQueue config.MessageQueue) {
 //	  ExchangeType: "topic",
 //	  RoutingKey:   "user.created",
 //	})
-func AddMessageQueueProducer(messageQueue config.MessageQueue) {
+func AddMessageQueueProducer(messageQueue *config.MessageQueue) {
 	messageQueueProducerList = append(messageQueueProducerList, messageQueue)
 	logger.Info("[消息队列] 添加消息队列发送者成功, 队列信息: %s", messageQueue.GetInfo())
 }
@@ -110,12 +110,12 @@ func AddSchedule(schedule config.ScheduleInfo) {
 }
 
 // GetMessageQueueConsumerList 获取消息队列消费者列表
-func GetMessageQueueConsumerList() []config.MessageQueue {
+func GetMessageQueueConsumerList() []*config.MessageQueue {
 	return messageQueueConsumerList
 }
 
 // GetMessageQueueProducerList 获取消息队列发送者列表
-func GetMessageQueueProducerList() []config.MessageQueue {
+func GetMessageQueueProducerList() []*config.MessageQueue {
 	return messageQueueProducerList
 }
 

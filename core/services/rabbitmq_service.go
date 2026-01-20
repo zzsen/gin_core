@@ -11,12 +11,12 @@ import (
 
 // RabbitMQService RabbitMQ消息队列服务
 type RabbitMQService struct {
-	consumerList []config.MessageQueue
-	producerList []config.MessageQueue
+	consumerList []*config.MessageQueue
+	producerList []*config.MessageQueue
 }
 
 // NewRabbitMQService 创建RabbitMQ服务
-func NewRabbitMQService(consumerList, producerList []config.MessageQueue) *RabbitMQService {
+func NewRabbitMQService(consumerList, producerList []*config.MessageQueue) *RabbitMQService {
 	return &RabbitMQService{
 		consumerList: consumerList,
 		producerList: producerList,
@@ -62,11 +62,11 @@ func (s *RabbitMQService) Close(ctx context.Context) error {
 }
 
 // SetConsumerList 设置消费者列表
-func (s *RabbitMQService) SetConsumerList(list []config.MessageQueue) {
+func (s *RabbitMQService) SetConsumerList(list []*config.MessageQueue) {
 	s.consumerList = list
 }
 
 // SetProducerList 设置生产者列表
-func (s *RabbitMQService) SetProducerList(list []config.MessageQueue) {
+func (s *RabbitMQService) SetProducerList(list []*config.MessageQueue) {
 	s.producerList = list
 }

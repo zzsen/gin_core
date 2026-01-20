@@ -15,11 +15,11 @@ import (
 // 3. 将初始化好的发送者存储到全局映射表中，供后续使用
 // 参数：
 //   - messageQueueList: 消息队列配置列表，支持可变参数
-func InitialRabbitMqProducer(messageQueueList ...config.MessageQueue) {
+func InitialRabbitMqProducer(messageQueueList ...*config.MessageQueue) {
 	// 遍历所有消息队列配置并初始化发送者
-	for i := range messageQueueList {
+	for _, mq := range messageQueueList {
 		// 初始化单个消息队列发送者
-		initMqProducer(&messageQueueList[i])
+		initMqProducer(mq)
 	}
 }
 

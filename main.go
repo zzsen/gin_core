@@ -130,7 +130,7 @@ func main() {
 	core.AddOptionFunc(getCustomRouter3())
 
 	core.InitCustomConfig(&CustomConfig{})
-	core.AddMessageQueueConsumer(config.MessageQueue{
+	core.AddMessageQueueConsumer(&config.MessageQueue{
 		QueueName:    "QueueName",
 		ExchangeName: "ExchangeName",
 		ExchangeType: "fanout",

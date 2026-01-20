@@ -72,12 +72,12 @@ func SetInitConfig(cfg InitConfig) {
 }
 
 // AddMessageQueueConsumer 添加消息队列消费者配置
-func AddMessageQueueConsumer(messageQueue config.MessageQueue) {
+func AddMessageQueueConsumer(messageQueue *config.MessageQueue) {
 	lifecycle.AddMessageQueueConsumer(messageQueue)
 }
 
 // AddMessageQueueProducer 添加消息队列发送者配置
-func AddMessageQueueProducer(messageQueue config.MessageQueue) {
+func AddMessageQueueProducer(messageQueue *config.MessageQueue) {
 	lifecycle.AddMessageQueueProducer(messageQueue)
 }
 
