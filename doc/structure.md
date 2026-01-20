@@ -98,6 +98,12 @@ gin_core
 │   ├── gorm_plugin.go                      #   ├ GORM 数据库追踪插件
 │   ├── redis_hook.go                       #   ├ Redis 追踪钩子
 │   └── http_transport.go                   #   └ HTTP 客户端追踪传输层
+├── ratelimit                               # 限流
+│   ├── limiter.go                          #   ├ 限流器接口和内存实现
+│   ├── limiter_test.go                     #   ├ (单元测试) 内存限流器
+│   ├── redis.go                            #   ├ Redis 限流器实现
+│   ├── redis_test.go                       #   ├ (单元测试) Redis 限流器
+│   └── redis_integration_test.go           #   └ (集成测试) Redis 限流器
 ├── initialize                              # 初始化
 │   ├── elasticsearch.go                    #   ├ 初始化es
 │   ├── etcd.go                             #   ├ 初始化etcd
@@ -118,6 +124,8 @@ gin_core
 │   ├── exception_handler.go                #   ├ 异常处理
 │   ├── otel_trace_handler.go               #   ├ OpenTelemetry 链路追踪
 │   ├── prometheus_handler.go               #   ├ Prometheus 指标采集
+│   ├── ratelimit_handler.go                #   ├ 限流中间件
+│   ├── ratelimit_handler_test.go           #   ├ (测试) 限流中间件
 │   ├── timeout_handler.go                  #   ├ 超时处理
 │   ├── trace_id_handler.go                 #   ├ 请求追踪ID
 │   └── trace_log_handler.go                #   └ 请求日志
@@ -134,6 +142,7 @@ gin_core
 │   │   ├── rabbitmq.go                     #   │ ├ 消息队列配置模型
 │   │   ├── rabbitmq_test.go                #   │ ├ (单元测试) 消息队列配置
 │   │   ├── rabbitmq_integration_test.go    #   │ ├ (集成测试) 消息队列配置，需要 RabbitMQ 连接
+│   │   ├── ratelimit.go                    #   │ ├ 限流配置模型
 │   │   ├── redis.go                        #   │ ├ redis配置模型
 │   │   ├── schedule.go                     #   │ ├ 定时任务配置模型
 │   │   ├── service.go                      #   │ ├ 服务配置模型
@@ -159,6 +168,7 @@ gin_core
 │   ├── metrics.md                          #   ├ 指标监控文档
 │   ├── middleware.md                       #   ├ 中间件文档
 │   ├── router.md                           #   ├ 路由文档
+│   ├── ratelimit.md                        #   ├ 限流文档
 │   ├── schedule.md                         #   ├ 定时任务文档
 │   ├── service.md                          #   ├ 服务文档
 │   ├── service_register.md                 #   ├ 服务注册文档

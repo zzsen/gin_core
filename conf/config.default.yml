@@ -74,6 +74,30 @@ tracing:
   enableRedisTracing: true # 是否追踪Redis操作（GET、SET、Pipeline等）
   enableHTTPClientTracing: true # 是否追踪出站HTTP请求（跨服务调用）
 
+# ==================== 限流配置 ====================
+rateLimit:
+  enabled: false # 是否启用限流，生产环境建议开启
+  defaultRate: 100 # 默认每秒请求数
+  defaultBurst: 200 # 默认突发容量（令牌桶大小）
+  store: "memory" # 存储类型：memory（单机）/ redis（分布式）
+  message: "请求过于频繁，请稍后再试" # 默认限流提示消息
+  cleanupInterval: 60 # 内存限流器清理过期条目的间隔（秒）
+  rules: # 自定义限流规则列表
+    - path: "/api/login" # 登录接口限流
+      rate: 5 # 每秒5次
+      burst: 10 # 突发10次
+      keyType: "ip" # 按IP限流
+      message: "登录请求过于频繁，请稍后再试"
+    - path: "/api/sms/send" # 短信发送接口限流
+      rate: 1 # 每秒1次
+      burst: 3 # 突发3次
+      keyType: "ip"
+      message: "短信发送过于频繁，请稍后再试"
+    - path: "/api/*" # API 通用限流
+      rate: 50 # 每秒50次
+      burst: 100 # 突发100次
+      keyType: "ip"
+
 # ==================== 数据库配置 ====================
 db: # 主数据库连接配置
   host: "127.0.0.1" # 数据库服务器地址
@@ -125,6 +149,7 @@ rabbitMQ: # 主RabbitMQ连接配置
   port: 5672 # RabbitMQ端口，默认5672
   username: "username" # RabbitMQ用户名
   password: "password" # RabbitMQ密码，建议使用加密配置
+  logMessageContent: false # 是否在日志中输出消息内容，默认 false（不输出），生产环境建议关闭以避免敏感信息泄露
 
 rabbitMQList: # 多RabbitMQ实例配置，支持连接多个消息队列服务
   - aliasName: "rabbitMQ1" # 实例别名，用于在代码中引用

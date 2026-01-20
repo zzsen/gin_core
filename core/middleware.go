@@ -100,6 +100,7 @@ func RegisterMiddleware(name string, handlerFunc func() gin.HandlerFunc) error {
 // 3. otelTraceHandler - OpenTelemetry 链路追踪中间件，支持分布式追踪
 // 4. traceLogHandler - 追踪日志中间件，记录请求的详细信息
 // 5. timeoutHandler - 超时处理中间件，防止请求长时间阻塞
+// 6. rateLimitHandler - 限流中间件，控制API请求速率
 func initMiddleware() {
 	// 注册 Prometheus 指标采集中间件
 	// 统计 HTTP 请求总数、耗时分布和处理中请求数
@@ -139,6 +140,14 @@ func initMiddleware() {
 	// 超时时间可通过配置文件中的 Service.ApiTimeout 参数设置
 	// 当请求处理时间超过设定值时，会自动终止请求并返回超时错误
 	if err := RegisterMiddleware("timeoutHandler", middleware.TimeoutHandler); err != nil {
+		logger.Error("%s", err.Error())
+	}
+
+	// 注册限流中间件
+	// 控制API请求速率，防止服务过载
+	// 支持多种限流维度（IP/用户/全局）和多种存储方式（内存/Redis）
+	// 通过配置文件中的 RateLimit 参数设置限流规则
+	if err := RegisterMiddleware("rateLimitHandler", middleware.RateLimitHandler); err != nil {
 		logger.Error("%s", err.Error())
 	}
 }
