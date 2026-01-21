@@ -98,6 +98,32 @@ rateLimit:
       burst: 100 # 突发100次
       keyType: "ip"
 
+# ==================== CORS 跨域配置 ====================
+cors:
+  enabled: false # 是否启用 CORS 跨域中间件，前后端分离项目建议开启
+  allowOrigins: # 允许的来源列表，支持通配符
+    - "http://localhost:3000" # 本地开发前端
+    - "http://localhost:8080" # 本地开发前端
+    # - "*" # 允许所有来源（不建议在生产环境使用）
+    # - "*.example.com" # 通配符匹配所有子域名
+  allowMethods: # 允许的 HTTP 方法
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "PATCH"
+    - "DELETE"
+    - "OPTIONS"
+  allowHeaders: # 允许的请求头
+    - "Content-Type"
+    - "Authorization"
+    - "X-Trace-Id"
+    - "X-Request-Id"
+  exposeHeaders: # 暴露给浏览器的响应头
+    - "X-Trace-Id"
+    - "X-Request-Id"
+  allowCredentials: true # 是否允许携带凭证（Cookie）
+  maxAge: 86400 # 预检请求缓存时间（秒），默认24小时
+
 # ==================== 数据库配置 ====================
 db: # 主数据库连接配置
   host: "127.0.0.1" # 数据库服务器地址

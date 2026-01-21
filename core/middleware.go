@@ -150,4 +150,11 @@ func initMiddleware() {
 	if err := RegisterMiddleware("rateLimitHandler", middleware.RateLimitHandler); err != nil {
 		logger.Error("%s", err.Error())
 	}
+
+	// 注册 CORS 跨域中间件
+	// 处理浏览器的跨域请求，支持预检请求（OPTIONS）
+	// 通过配置文件中的 CORS 参数设置允许的来源、方法、请求头等
+	if err := RegisterMiddleware("corsHandler", middleware.CORSHandler); err != nil {
+		logger.Error("%s", err.Error())
+	}
 }

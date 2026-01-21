@@ -11,6 +11,7 @@ type BaseConfig struct {
 	Metrics      MetricsConfig    `yaml:"metrics"`      // Prometheus 指标监控配置
 	Tracing      *TracingConfig   `yaml:"tracing"`      // OpenTelemetry 链路追踪配置
 	RateLimit    RateLimitConfig  `yaml:"rateLimit"`    // 限流配置，用于控制API请求速率
+	CORS         CORSConfig       `yaml:"cors"`         // CORS跨域配置，用于处理跨域请求
 	Db           *DbInfo          `yaml:"db"`           // 单数据库配置，指向单个数据库实例
 	Etcd         *EtcdInfo        `yaml:"etcd"`         // Etcd配置，用于服务发现和配置管理
 	DbList       []DbInfo         `yaml:"dbList"`       // 多数据库列表配置，支持分库分表
