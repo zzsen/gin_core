@@ -104,6 +104,11 @@ gin_core
 │   ├── redis.go                            #   ├ Redis 限流器实现
 │   ├── redis_test.go                       #   ├ (单元测试) Redis 限流器
 │   └── redis_integration_test.go           #   └ (集成测试) Redis 限流器
+├── circuitbreaker                          # 熔断器
+│   ├── breaker.go                          #   ├ 熔断器核心实现
+│   ├── breaker_test.go                     #   ├ (测试) 熔断器
+│   ├── config.go                           #   ├ 熔断器配置
+│   └── registry.go                         #   └ 熔断器注册中心
 ├── initialize                              # 初始化
 │   ├── elasticsearch.go                    #   ├ 初始化es
 │   ├── etcd.go                             #   ├ 初始化etcd
@@ -169,6 +174,7 @@ gin_core
 │   ├── middleware.md                       #   ├ 中间件文档
 │   ├── router.md                           #   ├ 路由文档
 │   ├── ratelimit.md                        #   ├ 限流文档
+│   ├── circuitbreaker.md                   #   ├ 熔断器文档
 │   ├── schedule.md                         #   ├ 定时任务文档
 │   ├── service.md                          #   ├ 服务文档
 │   ├── service_register.md                 #   ├ 服务注册文档
