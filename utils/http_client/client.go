@@ -1,14 +1,16 @@
 // Package http_client 提供高性能的 HTTP 客户端工具
-// 支持连接池复用、链路追踪、请求重试等功能
+// 支持连接池复用、链路追踪、请求重试、熔断保护等功能
 package http_client
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/zzsen/gin_core/circuitbreaker"
 	"github.com/zzsen/gin_core/tracing"
 )
 
@@ -30,30 +32,41 @@ type ClientConfig struct {
 	RetryInterval time.Duration // 重试间隔，默认 100ms
 
 	// 功能开关
-	EnableTracing bool // 是否启用链路追踪，默认 true
+	EnableTracing        bool // 是否启用链路追踪，默认 true
+	EnableCircuitBreaker bool // 是否启用熔断器，默认 false
+
+	// 熔断器配置（EnableCircuitBreaker=true 时生效）
+	CircuitBreakerFailureThreshold uint32        // 连续失败阈值，默认 5
+	CircuitBreakerTimeout          time.Duration // 熔断超时时间，默认 30s
+	CircuitBreakerMaxRequests      uint32        // 半开状态最大请求数，默认 3
 }
 
 // DefaultClientConfig 返回默认的客户端配置
 func DefaultClientConfig() *ClientConfig {
 	return &ClientConfig{
-		MaxIdleConns:        100,
-		MaxIdleConnsPerHost: 10,
-		MaxConnsPerHost:     100,
-		IdleConnTimeout:     90 * time.Second,
-		DialTimeout:         30 * time.Second,
-		TLSHandshakeTimeout: 10 * time.Second,
-		ResponseTimeout:     30 * time.Second,
-		MaxRetries:          3,
-		RetryInterval:       100 * time.Millisecond,
-		EnableTracing:       true,
+		MaxIdleConns:                   100,
+		MaxIdleConnsPerHost:            10,
+		MaxConnsPerHost:                100,
+		IdleConnTimeout:                90 * time.Second,
+		DialTimeout:                    30 * time.Second,
+		TLSHandshakeTimeout:            10 * time.Second,
+		ResponseTimeout:                30 * time.Second,
+		MaxRetries:                     3,
+		RetryInterval:                  100 * time.Millisecond,
+		EnableTracing:                  true,
+		EnableCircuitBreaker:           false,
+		CircuitBreakerFailureThreshold: 5,
+		CircuitBreakerTimeout:          30 * time.Second,
+		CircuitBreakerMaxRequests:      3,
 	}
 }
 
 // Client 高性能 HTTP 客户端
-// 支持连接池复用、链路追踪、请求重试
+// 支持连接池复用、链路追踪、请求重试、熔断保护
 type Client struct {
-	httpClient *http.Client
-	config     *ClientConfig
+	httpClient      *http.Client
+	config          *ClientConfig
+	breakerRegistry *circuitbreaker.Registry // 熔断器注册中心
 }
 
 var (
@@ -108,26 +121,101 @@ func NewClient(config *ClientConfig) *Client {
 		httpClient = tracing.WrapHTTPClient(httpClient)
 	}
 
-	return &Client{
+	client := &Client{
 		httpClient: httpClient,
 		config:     config,
 	}
+
+	// 如果启用熔断器，创建熔断器注册中心
+	if config.EnableCircuitBreaker {
+		client.breakerRegistry = circuitbreaker.NewRegistry(func(name string) *circuitbreaker.Config {
+			return circuitbreaker.NewConfig(name,
+				circuitbreaker.WithFailureThreshold(config.CircuitBreakerFailureThreshold),
+				circuitbreaker.WithTimeout(config.CircuitBreakerTimeout),
+				circuitbreaker.WithMaxRequests(config.CircuitBreakerMaxRequests),
+			)
+		})
+	}
+
+	return client
 }
 
-// Do 执行 HTTP 请求（带重试）
+// Do 执行 HTTP 请求（带重试和熔断保护）
 // 参数：
 //   - ctx: 上下文，用于超时控制和取消
 //   - req: HTTP 请求对象
 //
 // 返回：
 //   - *http.Response: HTTP 响应
-//   - error: 错误信息
+//   - error: 错误信息（如果熔断器打开，返回 circuitbreaker.ErrCircuitOpen）
 func (c *Client) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
-	var resp *http.Response
-	var err error
-
 	// 设置请求上下文
 	req = req.WithContext(ctx)
+
+	// 如果启用熔断器，使用熔断器包装请求
+	if c.breakerRegistry != nil {
+		return c.doWithCircuitBreaker(ctx, req)
+	}
+
+	return c.doWithRetry(ctx, req)
+}
+
+// doWithCircuitBreaker 使用熔断器执行请求
+func (c *Client) doWithCircuitBreaker(ctx context.Context, req *http.Request) (*http.Response, error) {
+	// 使用请求的 Host 作为熔断器名称
+	breakerName := req.URL.Host
+	if breakerName == "" {
+		breakerName = "default"
+	}
+
+	cb := c.breakerRegistry.Get(breakerName)
+
+	var resp *http.Response
+	var execErr error
+
+	err := cb.Execute(ctx, func() error {
+		var err error
+		resp, err = c.doWithRetry(ctx, req)
+		if err != nil {
+			return err
+		}
+
+		// 5xx 错误视为失败，触发熔断
+		if resp.StatusCode >= 500 {
+			execErr = &ServerError{StatusCode: resp.StatusCode}
+			return execErr
+		}
+
+		return nil
+	})
+
+	// 如果是熔断错误，直接返回
+	if errors.Is(err, circuitbreaker.ErrCircuitOpen) ||
+		errors.Is(err, circuitbreaker.ErrTooManyRequests) {
+		return nil, err
+	}
+
+	// 如果是服务端错误，仍然返回响应（让调用方处理）
+	if execErr != nil {
+		return resp, nil
+	}
+
+	return resp, err
+}
+
+// ServerError 服务端错误（5xx）
+type ServerError struct {
+	StatusCode int
+}
+
+func (e *ServerError) Error() string {
+	return "server error: " + http.StatusText(e.StatusCode)
+}
+
+// doWithRetry 带重试的请求执行
+func (c *Client) doWithRetry(ctx context.Context, req *http.Request) (*http.Response, error) {
+	var resp *http.Response
+	var err error
 
 	// 重试逻辑
 	for attempt := 0; attempt <= c.config.MaxRetries; attempt++ {
@@ -190,4 +278,45 @@ func isRetryableError(err error) bool {
 // 用于优雅关闭时释放资源
 func (c *Client) CloseIdleConnections() {
 	c.httpClient.CloseIdleConnections()
+}
+
+// GetBreakerStats 获取所有熔断器的统计信息
+// 返回：
+//   - map[string]circuitbreaker.BreakerStats: 熔断器名称到状态的映射
+//   - 如果未启用熔断器，返回 nil
+func (c *Client) GetBreakerStats() map[string]circuitbreaker.BreakerStats {
+	if c.breakerRegistry == nil {
+		return nil
+	}
+	return c.breakerRegistry.Stats()
+}
+
+// ResetBreaker 重置指定主机的熔断器
+// 参数：
+//   - host: 主机名（如 api.example.com:8080）
+func (c *Client) ResetBreaker(host string) {
+	if c.breakerRegistry != nil {
+		c.breakerRegistry.Reset(host)
+	}
+}
+
+// ResetAllBreakers 重置所有熔断器
+func (c *Client) ResetAllBreakers() {
+	if c.breakerRegistry != nil {
+		c.breakerRegistry.ResetAll()
+	}
+}
+
+// IsCircuitOpen 检查指定主机的熔断器是否打开
+// 参数：
+//   - host: 主机名
+//
+// 返回：
+//   - bool: 熔断器是否打开
+func (c *Client) IsCircuitOpen(host string) bool {
+	if c.breakerRegistry == nil {
+		return false
+	}
+	cb := c.breakerRegistry.Get(host)
+	return cb.State() == circuitbreaker.StateOpen
 }

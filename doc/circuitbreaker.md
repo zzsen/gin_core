@@ -290,7 +290,39 @@ registry.Register(cb)
 
 ## 使用场景
 
-### HTTP 客户端调用
+### HTTP 客户端调用（推荐：内置熔断）
+
+框架的 HTTP 客户端已内置熔断器支持，只需启用即可：
+
+```go
+import "github.com/zzsen/gin_core/utils/http_client"
+
+// 创建带熔断器的 HTTP 客户端
+config := http_client.DefaultClientConfig()
+config.EnableCircuitBreaker = true                    // 启用熔断器
+config.CircuitBreakerFailureThreshold = 5             // 连续失败 5 次触发熔断
+config.CircuitBreakerTimeout = 30 * time.Second       // 30 秒后尝试恢复
+
+client := http_client.NewClient(config)
+
+// 正常使用，熔断器自动按目标 Host 管理
+resp, err := client.Do(ctx, req)
+if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
+    // 熔断器打开，执行降级
+    return getCachedData()
+}
+
+// 查看熔断器状态
+stats := client.GetBreakerStats()
+for host, stat := range stats {
+    fmt.Printf("%s: state=%s\n", host, stat.State)
+}
+
+// 手动重置熔断器
+client.ResetBreaker("api.example.com")
+```
+
+### HTTP 客户端调用（手动包装）
 
 ```go
 func CallExternalAPI(ctx context.Context, url string) ([]byte, error) {
