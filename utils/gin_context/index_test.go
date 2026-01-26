@@ -1,4 +1,22 @@
 // Package ginContext Gin上下文工具功能测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含 Gin 上下文工具函数的单元测试。
+//
+// 测试覆盖内容：
+// 1. Get - 统一获取请求参数（Query/Form/Body/Header）
+// 2. GetInt/GetInt64 - 获取整数类型参数
+// 3. GetFloat64 - 获取浮点数类型参数
+// 4. GetBool - 获取布尔类型参数
+// 5. BindJSON - 绑定JSON请求体到结构体
+// 6. GetClientIP - 获取客户端IP（支持代理）
+// 7. GetHeader - 获取请求头
+// 8. SetHeader - 设置响应头
+//
+// 参数优先级：Query > Form > Body > Header
+//
+// 运行测试：go test -v ./utils/gin_context/...
+// ==================================================
 package ginContext
 
 import (
@@ -13,7 +31,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// ==================== Get 函数测试 ====================
+
 // TestGet_QueryParam 测试从URL查询参数获取值
+//
+// 【功能点】验证从 URL Query 参数获取值
+// 【测试流程】
+//  1. 构造带有 Query 参数的请求
+//  2. 调用 Get 函数获取参数值
+//  3. 验证返回值与期望一致
 func TestGet_QueryParam(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -97,6 +123,13 @@ func TestGet_QueryParam(t *testing.T) {
 }
 
 // TestGet_PostForm 测试从POST表单数据获取值
+//
+// 【功能点】验证从 POST Form 表单获取参数值
+// 【测试流程】
+//  1. 构造带有 Form 数据的 POST 请求
+//  2. 调用 Get 函数获取参数值
+//  3. 验证返回值与期望一致
+//  4. 验证原始 PostForm 方法仍可正常工作
 func TestGet_PostForm(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -188,6 +221,13 @@ func TestGet_PostForm(t *testing.T) {
 }
 
 // TestGet_JSONBody 测试从JSON请求体获取值
+//
+// 【功能点】验证从 JSON 请求体获取参数值
+// 【测试流程】
+//  1. 构造带有 JSON Body 的请求
+//  2. 调用 Get 函数获取参数值
+//  3. 验证支持简单类型、数字、布尔值转换
+//  4. 验证嵌套 JSON 不支持直接获取
 func TestGet_JSONBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -308,6 +348,13 @@ func TestGet_JSONBody(t *testing.T) {
 }
 
 // TestGet_URLParam 测试从URL路径参数获取值
+//
+// 【功能点】验证从 URL 路径参数（:param）获取值
+// 【测试流程】
+//  1. 定义带路径参数的路由（如 /user/:id）
+//  2. 发送匹配路由的请求
+//  3. 调用 Get 函数获取路径参数值
+//  4. 验证返回值与期望一致
 func TestGet_URLParam(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -398,6 +445,12 @@ func TestGet_URLParam(t *testing.T) {
 }
 
 // TestGet_Priority 测试获取值的优先级顺序
+//
+// 【功能点】验证多来源参数的获取优先级
+// 【测试流程】
+//  1. 同时提供 Query、Form、JSON Body、URL Param 中的同名参数
+//  2. 调用 Get 函数获取参数值
+//  3. 验证优先级：Query > Form > JSON Body > URL Param
 func TestGet_Priority(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -558,6 +611,13 @@ func TestGet_Priority(t *testing.T) {
 }
 
 // TestGet_EdgeCases 测试边界情况
+//
+// 【功能点】验证各种边界情况的处理
+// 【测试流程】
+//  1. 测试空 key - 验证返回空字符串
+//  2. 测试无效 JSON - 验证不会 panic
+//  3. 测试空请求体 - 验证正常返回
+//  4. 测试多值参数 - 验证只返回第一个值
 func TestGet_EdgeCases(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -692,6 +752,13 @@ func TestGet_EdgeCases(t *testing.T) {
 }
 
 // TestGet_Concurrent 测试并发安全性
+//
+// 【功能点】验证 Get 函数在并发环境下的安全性
+// 【测试流程】
+//  1. 启动 10 个协程并发发送请求
+//  2. 每个请求携带不同的参数值
+//  3. 验证每个请求获取到正确的对应值
+//  4. 验证无数据竞争或混乱
 func TestGet_Concurrent(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

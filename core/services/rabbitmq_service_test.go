@@ -1,3 +1,22 @@
+// Package services RabbitMQ 服务功能测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含 RabbitMQ 服务的单元测试，不需要真实 RabbitMQ 连接。
+//
+// 测试覆盖内容：
+// 1. NewRabbitMQService - 服务创建（空列表、非空列表）
+// 2. Name/Priority/Dependencies - 服务元数据方法
+// 3. ShouldInit - 初始化条件判断
+// 4. Init - 服务初始化（消费者和生产者）
+// 5. Close - 服务关闭
+// 6. SetConsumerList/SetProducerList - 动态设置列表
+// 7. 接口完整性 - 验证实现了完整的服务接口
+// 8. 基准测试 - 各方法性能测试
+//
+// 注意：由于无法连接真实 RabbitMQ，部分测试仅验证逻辑正确性
+//
+// 运行测试：go test -v ./core/services/...
+// ==================================================
 package services
 
 import (
@@ -83,6 +102,9 @@ func TestNewRabbitMQService(t *testing.T) {
 }
 
 // TestNewRabbitMQService_EmptyLists 测试使用空列表创建服务
+//
+// 【功能点】验证空列表参数时的服务创建
+// 【测试流程】使用 nil 参数创建服务，验证实例非空但列表为 nil
 // 不需要 RabbitMQ 连接：仅验证服务实例化逻辑
 func TestNewRabbitMQService_EmptyLists(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
@@ -104,7 +126,9 @@ func TestNewRabbitMQService_EmptyLists(t *testing.T) {
 // 测试点：验证服务名称返回
 
 // TestRabbitMQService_Name 测试获取服务名称
-// 不需要 RabbitMQ 连接：仅验证返回值
+//
+// 【功能点】验证 Name() 方法返回正确的服务名
+// 【测试流程】调用 Name() 并验证返回 "rabbitmq"
 func TestRabbitMQService_Name(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
 
@@ -120,7 +144,9 @@ func TestRabbitMQService_Name(t *testing.T) {
 // 测试点：验证服务优先级返回
 
 // TestRabbitMQService_Priority 测试获取服务优先级
-// 不需要 RabbitMQ 连接：仅验证返回值
+//
+// 【功能点】验证 Priority() 方法返回正确的优先级
+// 【测试流程】调用 Priority() 并验证返回 30
 func TestRabbitMQService_Priority(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
 
@@ -136,7 +162,9 @@ func TestRabbitMQService_Priority(t *testing.T) {
 // 测试点：验证服务依赖返回
 
 // TestRabbitMQService_Dependencies 测试获取服务依赖
-// 不需要 RabbitMQ 连接：仅验证返回值
+//
+// 【功能点】验证 Dependencies() 方法返回正确的依赖列表
+// 【测试流程】调用 Dependencies() 并验证返回 ["logger"]
 func TestRabbitMQService_Dependencies(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
 
@@ -155,7 +183,9 @@ func TestRabbitMQService_Dependencies(t *testing.T) {
 // 测试点：验证服务初始化条件判断
 
 // TestRabbitMQService_ShouldInit_True 测试 UseRabbitMQ=true 时应初始化
-// 不需要 RabbitMQ 连接：仅验证条件判断逻辑
+//
+// 【功能点】验证配置启用时 ShouldInit() 返回 true
+// 【测试流程】设置 UseRabbitMQ=true，调用 ShouldInit() 验证返回 true
 func TestRabbitMQService_ShouldInit_True(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
 
@@ -171,7 +201,9 @@ func TestRabbitMQService_ShouldInit_True(t *testing.T) {
 }
 
 // TestRabbitMQService_ShouldInit_False 测试 UseRabbitMQ=false 时不应初始化
-// 不需要 RabbitMQ 连接：仅验证条件判断逻辑
+//
+// 【功能点】验证配置禁用时 ShouldInit() 返回 false
+// 【测试流程】设置 UseRabbitMQ=false，调用 ShouldInit() 验证返回 false
 func TestRabbitMQService_ShouldInit_False(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
 
@@ -187,7 +219,9 @@ func TestRabbitMQService_ShouldInit_False(t *testing.T) {
 }
 
 // TestRabbitMQService_ShouldInit_DefaultConfig 测试默认配置时不应初始化
-// 不需要 RabbitMQ 连接：仅验证条件判断逻辑
+//
+// 【功能点】验证默认配置时 ShouldInit() 返回 false
+// 【测试流程】使用空配置，调用 ShouldInit() 验证返回 false
 func TestRabbitMQService_ShouldInit_DefaultConfig(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
 
@@ -202,7 +236,9 @@ func TestRabbitMQService_ShouldInit_DefaultConfig(t *testing.T) {
 // 测试点：验证服务初始化逻辑（会因无法连接而失败，但不应返回错误）
 
 // TestRabbitMQService_Init_EmptyLists 测试空列表时的初始化
-// 不需要 RabbitMQ 连接：仅验证空列表处理逻辑
+//
+// 【功能点】验证空列表时的初始化不会出错
+// 【测试流程】使用空列表创建服务并调用 Init()，验证返回 nil
 func TestRabbitMQService_Init_EmptyLists(t *testing.T) {
 	cleanup := setupRabbitMQServiceTestConfig()
 	defer cleanup()
@@ -218,7 +254,9 @@ func TestRabbitMQService_Init_EmptyLists(t *testing.T) {
 }
 
 // TestRabbitMQService_Init_WithProducers 测试包含生产者时的初始化
-// 不需要 RabbitMQ 连接：验证初始化逻辑（会因无法连接而失败，但不应返回错误）
+//
+// 【功能点】验证包含生产者时的初始化流程
+// 【测试流程】设置生产者配置并调用 Init()，验证不返回错误
 func TestRabbitMQService_Init_WithProducers(t *testing.T) {
 	cleanup := setupRabbitMQServiceTestConfig()
 	defer cleanup()
@@ -246,7 +284,9 @@ func TestRabbitMQService_Init_WithProducers(t *testing.T) {
 }
 
 // TestRabbitMQService_Init_WithConsumers 测试包含消费者时的初始化
-// 不需要 RabbitMQ 连接：验证初始化逻辑（消费者在协程中启动，不会阻塞）
+//
+// 【功能点】验证包含消费者时的初始化流程
+// 【测试流程】设置消费者配置并调用 Init()，验证消费者在协程中启动
 func TestRabbitMQService_Init_WithConsumers(t *testing.T) {
 	cleanup := setupRabbitMQServiceTestConfig()
 	defer cleanup()
@@ -276,7 +316,9 @@ func TestRabbitMQService_Init_WithConsumers(t *testing.T) {
 }
 
 // TestRabbitMQService_Init_Full 测试完整初始化（消费者和生产者）
-// 不需要 RabbitMQ 连接：验证初始化逻辑（会因无法连接而失败，但不应返回错误）
+//
+// 【功能点】验证同时包含消费者和生产者时的完整初始化
+// 【测试流程】设置消费者和生产者配置，调用 Init() 验证完整流程
 func TestRabbitMQService_Init_Full(t *testing.T) {
 	cleanup := setupRabbitMQServiceTestConfig()
 	defer cleanup()
@@ -316,7 +358,9 @@ func TestRabbitMQService_Init_Full(t *testing.T) {
 // 测试点：验证服务关闭逻辑
 
 // TestRabbitMQService_Close_EmptyProducerList 测试空生产者列表时的关闭
-// 不需要 RabbitMQ 连接：仅验证关闭逻辑
+//
+// 【功能点】验证空生产者列表时 Close() 不会 panic
+// 【测试流程】创建空服务并调用 Close()，验证正常返回
 func TestRabbitMQService_Close_EmptyProducerList(t *testing.T) {
 	cleanup := setupRabbitMQServiceTestConfig()
 	defer cleanup()
@@ -332,7 +376,9 @@ func TestRabbitMQService_Close_EmptyProducerList(t *testing.T) {
 }
 
 // TestRabbitMQService_Close_WithProducers 测试包含生产者时的关闭
-// 不需要 RabbitMQ 连接：仅验证关闭逻辑
+//
+// 【功能点】验证包含生产者时的关闭流程
+// 【测试流程】初始化带生产者的服务，调用 Close() 验证资源释放
 func TestRabbitMQService_Close_WithProducers(t *testing.T) {
 	cleanup := setupRabbitMQServiceTestConfig()
 	defer cleanup()
@@ -360,7 +406,9 @@ func TestRabbitMQService_Close_WithProducers(t *testing.T) {
 // 测试点：验证设置消费者列表逻辑
 
 // TestRabbitMQService_SetConsumerList 测试设置消费者列表
-// 不需要 RabbitMQ 连接：仅验证列表设置逻辑
+//
+// 【功能点】验证 SetConsumerList() 方法正确设置列表
+// 【测试流程】创建服务并调用 SetConsumerList()，验证列表被正确设置
 func TestRabbitMQService_SetConsumerList(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
 
@@ -382,7 +430,9 @@ func TestRabbitMQService_SetConsumerList(t *testing.T) {
 }
 
 // TestRabbitMQService_SetConsumerList_Replace 测试替换消费者列表
-// 不需要 RabbitMQ 连接：仅验证列表替换逻辑
+//
+// 【功能点】验证多次调用 SetConsumerList() 会替换而非追加
+// 【测试流程】调用两次 SetConsumerList()，验证第二次调用覆盖第一次
 func TestRabbitMQService_SetConsumerList_Replace(t *testing.T) {
 	initial := []*config.MessageQueue{
 		{QueueName: "initial-queue"},
@@ -414,7 +464,9 @@ func TestRabbitMQService_SetConsumerList_Replace(t *testing.T) {
 // 测试点：验证设置生产者列表逻辑
 
 // TestRabbitMQService_SetProducerList 测试设置生产者列表
-// 不需要 RabbitMQ 连接：仅验证列表设置逻辑
+//
+// 【功能点】验证 SetProducerList() 方法正确设置列表
+// 【测试流程】创建服务并调用 SetProducerList()，验证列表被正确设置
 func TestRabbitMQService_SetProducerList(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
 
@@ -435,7 +487,9 @@ func TestRabbitMQService_SetProducerList(t *testing.T) {
 }
 
 // TestRabbitMQService_SetProducerList_Replace 测试替换生产者列表
-// 不需要 RabbitMQ 连接：仅验证列表替换逻辑
+//
+// 【功能点】验证多次调用 SetProducerList() 会替换而非追加
+// 【测试流程】调用两次 SetProducerList()，验证第二次调用覆盖第一次
 func TestRabbitMQService_SetProducerList_Replace(t *testing.T) {
 	initial := []*config.MessageQueue{
 		{QueueName: "initial-producer"},
@@ -464,7 +518,9 @@ func TestRabbitMQService_SetProducerList_Replace(t *testing.T) {
 // 测试点：验证服务实现了所有必需的接口方法
 
 // TestRabbitMQService_ImplementsServiceInterface 测试服务实现了完整的服务接口
-// 不需要 RabbitMQ 连接：仅验证接口实现
+//
+// 【功能点】验证 RabbitMQService 完整实现 Service 接口
+// 【测试流程】通过类型断言验证接口实现完整性
 func TestRabbitMQService_ImplementsServiceInterface(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
 

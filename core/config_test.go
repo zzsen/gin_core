@@ -1,4 +1,20 @@
 // Package core 配置加载功能测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含配置加载相关功能的单元测试。
+//
+// 测试覆盖内容：
+// 1. InitCustomConfig - 自定义配置初始化
+// 2. getEnvFromFile - 从env文件读取环境标识
+// 3. initConfig - 配置文件加载（YAML/JSON支持）
+// 4. loadDecryptKey - 加载解密密钥
+// 5. 配置解密 - 加密配置的自动解密
+// 6. 配置合并 - 基础配置与自定义配置合并
+// 7. 配置验证 - 必填项和格式校验
+// 8. 配置热更新 - 配置文件监听和热重载（如支持）
+//
+// 运行测试：go test -v ./core/... -run Config
+// ==================================================
 package core
 
 import (
@@ -11,7 +27,16 @@ import (
 	"github.com/zzsen/gin_core/constant"
 )
 
+// ==================== InitCustomConfig 测试 ====================
+
 // TestInitCustomConfig 测试InitCustomConfig函数
+//
+// 【功能点】验证自定义配置的正确设置
+// 【测试流程】
+//  1. 备份原始配置
+//  2. 创建测试配置结构体
+//  3. 调用 InitCustomConfig 设置配置
+//  4. 验证 app.Config 已更新为测试配置
 func TestInitCustomConfig(t *testing.T) {
 	t.Run("set custom config", func(t *testing.T) {
 		// 保存原始配置
@@ -35,7 +60,19 @@ func TestInitCustomConfig(t *testing.T) {
 	})
 }
 
+// ==================== getEnvFromFile 测试 ====================
+
 // TestGetEnvFromFile 测试getEnvFromFile函数
+//
+// 【功能点】验证从 env 文件读取环境标识
+// 【测试流程】
+//  1. 测试有效env文件 - 正确读取首行内容
+//  2. 测试多行文件 - 只读取第一行
+//  3. 测试特殊字符 - 支持下划线、数字
+//  4. 测试文件不存在 - 返回错误
+//  5. 测试空文件 - 返回错误
+//  6. 测试无效内容 - 返回错误
+//  7. 测试带空格内容 - 自动trim
 func TestGetEnvFromFile(t *testing.T) {
 	t.Run("valid env file", func(t *testing.T) {
 		// 创建临时env文件
@@ -134,7 +171,15 @@ func TestGetEnvFromFile(t *testing.T) {
 	})
 }
 
+// ==================== getDateTime 测试 ====================
+
 // TestGetDateTime 测试getDateTime函数
+//
+// 【功能点】验证获取当前日期时间字符串
+// 【测试流程】
+//  1. 调用 getDateTime 获取时间字符串
+//  2. 验证格式为 YYYY-MM-DD HH:MM:SS
+//  3. 验证长度为 19 字符
 func TestGetDateTime(t *testing.T) {
 	t.Run("get current datetime", func(t *testing.T) {
 		datetime := getDateTime()
@@ -145,7 +190,16 @@ func TestGetDateTime(t *testing.T) {
 	})
 }
 
+// ==================== checkConfType 测试 ====================
+
 // TestCheckConfType 测试checkConfType函数
+//
+// 【功能点】验证配置文件类型检测
+// 【测试流程】
+//  1. 测试 YAML 文件 - 返回 constant.ConfTypeYaml
+//  2. 测试 YML 文件 - 返回 constant.ConfTypeYaml
+//  3. 测试 JSON 文件 - 返回 constant.ConfTypeJson
+//  4. 测试不支持的类型 - 返回 constant.ConfTypeUnknown
 func TestCheckConfType(t *testing.T) {
 	t.Run("valid struct pointer", func(t *testing.T) {
 		type TestConfig struct {
@@ -184,7 +238,16 @@ func TestCheckConfType(t *testing.T) {
 	})
 }
 
+// ==================== loadYamlFile 测试 ====================
+
 // TestLoadYamlFile 测试loadYamlFile函数
+//
+// 【功能点】验证 YAML 文件加载功能
+// 【测试流程】
+//  1. 测试有效 YAML 文件 - 正确解析到结构体
+//  2. 测试无效 YAML 语法 - 返回错误
+//  3. 测试文件不存在 - 返回错误
+//  4. 测试空文件 - 正确处理
 func TestLoadYamlFile(t *testing.T) {
 	t.Run("valid yaml file", func(t *testing.T) {
 		// 创建临时YAML文件
@@ -235,7 +298,16 @@ func TestLoadYamlFile(t *testing.T) {
 	})
 }
 
+// ==================== replaceWithEvn 测试 ====================
+
 // TestReplaceWithEvn 测试replaceWithEvn函数
+//
+// 【功能点】验证配置值中的环境变量替换
+// 【测试流程】
+//  1. 测试 ${ENV_VAR} 格式替换
+//  2. 测试多个环境变量替换
+//  3. 测试未设置的环境变量 - 保持原样
+//  4. 测试无环境变量的字符串 - 不变
 func TestReplaceWithEvn(t *testing.T) {
 	t.Run("no placeholders", func(t *testing.T) {
 		yamlData := []byte("name: test\nport: 8080\n")
@@ -310,7 +382,15 @@ database:
 	})
 }
 
+// ==================== loadEvnValue 测试 ====================
+
 // TestLoadEvnValue 测试loadEvnValue函数
+//
+// 【功能点】验证配置中环境变量的批量加载
+// 【测试流程】
+//  1. 遍历配置结构体字段
+//  2. 替换所有字符串字段中的环境变量
+//  3. 递归处理嵌套结构体
 func TestLoadEvnValue(t *testing.T) {
 	t.Run("valid environment variables", func(t *testing.T) {
 		// 设置环境变量
@@ -378,7 +458,15 @@ func TestLoadEvnValue(t *testing.T) {
 	})
 }
 
+// ==================== decryptConfig 测试 ====================
+
 // TestDecryptConfig 测试decryptConfig函数
+//
+// 【功能点】验证加密配置的解密功能
+// 【测试流程】
+//  1. 测试包含 ENC() 标记的字段 - 正确解密
+//  2. 测试无加密标记的字段 - 保持不变
+//  3. 测试无效密钥 - 返回错误
 func TestDecryptConfig(t *testing.T) {
 	t.Run("no encrypted content", func(t *testing.T) {
 		yamlData := []byte("name: test\nport: 8080\n")
@@ -434,7 +522,16 @@ password2: CIPHER(encrypted2)
 	})
 }
 
+// ==================== loadYamlConfig 测试 ====================
+
 // TestLoadYamlConfig 测试loadYamlConfig函数
+//
+// 【功能点】验证完整的 YAML 配置加载流程
+// 【测试流程】
+//  1. 加载 YAML 文件
+//  2. 替换环境变量
+//  3. 解密加密字段
+//  4. 返回完整配置对象
 func TestLoadYamlConfig(t *testing.T) {
 	t.Run("valid yaml config", func(t *testing.T) {
 		// 创建临时YAML文件
@@ -511,7 +608,16 @@ database:
 	})
 }
 
+// ==================== loadConfig 测试 ====================
+
 // TestLoadConfig 测试loadConfig函数
+//
+// 【功能点】验证配置加载主函数
+// 【测试流程】
+//  1. 根据配置目录和环境标识定位配置文件
+//  2. 检测配置文件类型（YAML/JSON）
+//  3. 调用对应的加载函数
+//  4. 设置全局配置变量
 func TestLoadConfig(t *testing.T) {
 	// 保存原始状态
 	originalArgs := os.Args
@@ -656,7 +762,15 @@ port: 8080
 	})
 }
 
+// ==================== 并发安全测试 ====================
+
 // TestConcurrent 测试并发安全性
+//
+// 【功能点】验证配置加载函数的并发安全性
+// 【测试流程】
+//  1. 启动多个协程并发加载配置
+//  2. 验证无数据竞争
+//  3. 验证所有协程都能正确完成
 func TestConcurrent(t *testing.T) {
 	t.Run("concurrent getEnvFromFile", func(t *testing.T) {
 		// 创建env文件

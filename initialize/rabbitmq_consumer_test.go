@@ -1,3 +1,19 @@
+// Package initialize RabbitMQ 消费者初始化功能测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含 RabbitMQ 消费者初始化和管理功能的单元测试。
+//
+// 测试覆盖内容：
+// 1. StopConsumer - 停止单个消费者（存在/不存在）
+// 2. StopAllConsumers - 停止所有消费者
+// 3. 消费者生命周期 - 启动、运行、停止
+// 4. 并发安全 - 多协程并发操作消费者
+// 5. 回调函数 - 消费者处理函数校验
+//
+// 注意：需要真实 RabbitMQ 连接的测试会自动跳过
+//
+// 运行测试：go test -v ./initialize/... -run Consumer
+// ==================================================
 package initialize
 
 import (
@@ -12,14 +28,18 @@ import (
 // 测试点：验证消费者的启动、停止和管理逻辑
 
 // TestStopConsumer_NotExists 测试停止不存在的消费者不应 panic
-// 不需要 RabbitMQ 连接：仅验证消费者管理逻辑
+//
+// 【功能点】验证停止不存在的消费者时不会 panic
+// 【测试流程】调用 StopConsumer() 传入不存在的队列信息，验证无异常
 func TestStopConsumer_NotExists(t *testing.T) {
 	// 停止不存在的消费者不应 panic
 	StopConsumer("not-exists-queue-info")
 }
 
 // TestStopAllConsumers_Empty 测试空消费者列表时停止所有消费者
-// 不需要 RabbitMQ 连接：仅验证消费者管理逻辑
+//
+// 【功能点】验证空消费者列表时停止所有消费者不会 panic
+// 【测试流程】清空消费者列表，调用 StopAllConsumers()，验证无异常
 func TestStopAllConsumers_Empty(t *testing.T) {
 	// 清空现有的取消函数
 	consumerCancelLock.Lock()
@@ -38,7 +58,12 @@ func TestStopAllConsumers_Empty(t *testing.T) {
 }
 
 // TestStopConsumer_Exists 测试停止已存在的消费者
-// 不需要 RabbitMQ 连接：仅验证消费者停止逻辑
+//
+// 【功能点】验证停止已存在的消费者时正确取消 context
+// 【测试流程】
+//  1. 创建测试用的取消函数并注册到消费者列表
+//  2. 调用 StopConsumer() 停止消费者
+//  3. 验证 context 已被正确取消
 func TestStopConsumer_Exists(t *testing.T) {
 	// 备份原始数据
 	consumerCancelLock.Lock()
@@ -82,7 +107,12 @@ func TestStopConsumer_Exists(t *testing.T) {
 }
 
 // TestStopAllConsumers 测试停止所有消费者
-// 不需要 RabbitMQ 连接：仅验证消费者批量停止逻辑
+//
+// 【功能点】验证批量停止所有消费者的功能
+// 【测试流程】
+//  1. 创建多个测试用的取消函数并注册
+//  2. 调用 StopAllConsumers() 停止所有消费者
+//  3. 验证所有 context 均已被取消
 func TestStopAllConsumers(t *testing.T) {
 	// 备份原始数据
 	consumerCancelLock.Lock()
@@ -126,7 +156,9 @@ func TestStopAllConsumers(t *testing.T) {
 // 测试点：验证 MessageQueue 配置的 GetInfo 方法
 
 // TestMessageQueue_GetInfo 测试消息队列配置的 GetInfo 方法
-// 不需要 RabbitMQ 连接：仅验证配置格式化逻辑
+//
+// 【功能点】验证 GetInfo() 方法返回正确格式的队列信息字符串
+// 【测试流程】创建配置并调用 GetInfo()，验证返回格式为 "mqName_queue_exchange_type_key"
 func TestMessageQueue_GetInfo(t *testing.T) {
 	mq := config.MessageQueue{
 		MQName:       "test-mq",
@@ -146,7 +178,13 @@ func TestMessageQueue_GetInfo(t *testing.T) {
 // 测试点：验证消费者管理的并发安全性
 
 // TestConsumerCancelFuncs_ConcurrentAccess 测试消费者取消函数的并发访问安全性
-// 不需要 RabbitMQ 连接：仅验证锁机制
+//
+// 【功能点】验证消费者管理的并发安全性
+// 【测试流程】
+//  1. 启动多个协程并发添加消费者
+//  2. 启动多个协程并发读取消费者
+//  3. 启动多个协程并发停止消费者
+//  4. 验证无数据竞争和 panic
 func TestConsumerCancelFuncs_ConcurrentAccess(t *testing.T) {
 	// 备份原始数据
 	consumerCancelLock.Lock()
@@ -209,7 +247,13 @@ func TestConsumerCancelFuncs_ConcurrentAccess(t *testing.T) {
 // 这些是集成测试，在此省略以避免测试阻塞
 
 // TestConsumerLifecycle 测试消费者的创建和停止生命周期
-// 不需要 RabbitMQ 连接：仅验证生命周期管理逻辑
+//
+// 【功能点】验证消费者的完整生命周期管理
+// 【测试流程】
+//  1. 模拟添加消费者（注册取消函数）
+//  2. 验证消费者存在
+//  3. 停止消费者
+//  4. 验证消费者已被移除
 func TestConsumerLifecycle(t *testing.T) {
 	// 备份原始数据
 	consumerCancelLock.Lock()

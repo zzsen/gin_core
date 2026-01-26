@@ -28,10 +28,9 @@ import (
 // ==================== MemoryLimiter 单元测试 ====================
 
 // TestNewMemoryLimiter 测试内存限流器的创建
-// 验证点：
-// - 返回非空实例
-// - stopCh 通道已初始化（用于停止清理协程）
-// - interval 正确设置（清理间隔）
+//
+// 【功能点】验证内存限流器的创建和初始化
+// 【测试流程】创建限流器，验证实例非空、stopCh 已初始化、interval 正确设置
 func TestNewMemoryLimiter(t *testing.T) {
 	limiter := NewMemoryLimiter(time.Second)
 	defer limiter.Close()
@@ -50,10 +49,9 @@ func TestNewMemoryLimiter(t *testing.T) {
 }
 
 // TestMemoryLimiter_Allow_Basic 测试基础限流功能
-// 验证点：
-// - 令牌桶初始容量为 burst 值
-// - 消耗完所有令牌后，请求被拒绝
-// - Allow 方法不返回错误
+//
+// 【功能点】验证令牌桶基础限流：初始 burst 个令牌，用完后拒绝
+// 【测试流程】发送 burst+1 个请求，验证前 burst 个成功，最后 1 个被拒绝
 func TestMemoryLimiter_Allow_Basic(t *testing.T) {
 	limiter := NewMemoryLimiter(time.Minute)
 	defer limiter.Close()
@@ -85,10 +83,9 @@ func TestMemoryLimiter_Allow_Basic(t *testing.T) {
 }
 
 // TestMemoryLimiter_Allow_DifferentKeys 测试不同 key 的独立限流
-// 验证点：
-// - 每个 key 有独立的令牌桶
-// - 一个 key 的限流不影响其他 key
-// - 适用于按 IP、用户等维度的独立限流场景
+//
+// 【功能点】验证每个 key 有独立的令牌桶，互不影响
+// 【测试流程】对 10 个不同 key 各发送 1 次请求，验证全部成功
 func TestMemoryLimiter_Allow_DifferentKeys(t *testing.T) {
 	limiter := NewMemoryLimiter(time.Minute)
 	defer limiter.Close()
@@ -111,10 +108,9 @@ func TestMemoryLimiter_Allow_DifferentKeys(t *testing.T) {
 }
 
 // TestMemoryLimiter_Allow_RateRecovery 测试令牌恢复机制
-// 验证点：
-// - 令牌用完后，等待一段时间后可恢复
-// - 恢复速率与配置的 rate 一致
-// - 令牌桶算法的时间补充特性
+//
+// 【功能点】验证令牌用完后等待一段时间可恢复
+// 【测试流程】消耗所有令牌，等待 150ms，验证有新令牌可用
 func TestMemoryLimiter_Allow_RateRecovery(t *testing.T) {
 	limiter := NewMemoryLimiter(time.Minute)
 	defer limiter.Close()
@@ -149,10 +145,9 @@ func TestMemoryLimiter_Allow_RateRecovery(t *testing.T) {
 }
 
 // TestMemoryLimiter_Allow_Concurrent 测试并发安全性
-// 验证点：
-// - 多个 goroutine 同时访问同一个 key 不会 panic
-// - 并发情况下允许的请求数不超过 burst
-// - sync.Map 和 sync.Mutex 的正确使用
+//
+// 【功能点】验证多协程并发访问同一 key 不会 panic 且限流正确
+// 【测试流程】50 个协程各发 10 次请求，验证总允许数不超过 burst
 func TestMemoryLimiter_Allow_Concurrent(t *testing.T) {
 	limiter := NewMemoryLimiter(time.Minute)
 	defer limiter.Close()
@@ -195,10 +190,9 @@ func TestMemoryLimiter_Allow_Concurrent(t *testing.T) {
 }
 
 // TestMemoryLimiter_RateChange 测试速率动态变更
-// 验证点：
-// - 同一个 key 的速率配置变更后，限流器会重新创建
-// - 新配置立即生效
-// - 支持运行时动态调整限流参数
+//
+// 【功能点】验证速率配置变更后限流器重新创建，新配置立即生效
+// 【测试流程】先用低速率消耗令牌，再切换高速率，验证请求被允许
 func TestMemoryLimiter_RateChange(t *testing.T) {
 	limiter := NewMemoryLimiter(time.Minute)
 	defer limiter.Close()
@@ -226,10 +220,9 @@ func TestMemoryLimiter_RateChange(t *testing.T) {
 }
 
 // TestMemoryLimiter_Stats 测试统计信息获取
-// 验证点：
-// - Stats 返回正确的限流器类型
-// - Stats 返回正确的活跃限流器数量
-// - 用于监控和调试目的
+//
+// 【功能点】验证 Stats 返回正确的限流器类型和活跃数量
+// 【测试流程】创建 5 个不同 key 的限流器，验证 stats 返回 type=memory, count=5
 func TestMemoryLimiter_Stats(t *testing.T) {
 	limiter := NewMemoryLimiter(time.Minute)
 	defer limiter.Close()
@@ -255,10 +248,9 @@ func TestMemoryLimiter_Stats(t *testing.T) {
 }
 
 // TestMemoryLimiter_Close 测试限流器关闭
-// 验证点：
-// - Close 正常返回，不 panic
-// - 停止清理协程
-// - 释放相关资源
+//
+// 【功能点】验证 Close 正常返回不 panic，停止清理协程
+// 【测试流程】创建限流器后调用 Close，验证无错误返回
 func TestMemoryLimiter_Close(t *testing.T) {
 	limiter := NewMemoryLimiter(time.Millisecond * 100)
 
@@ -270,10 +262,9 @@ func TestMemoryLimiter_Close(t *testing.T) {
 }
 
 // TestMemoryLimiter_Cleanup 测试过期条目清理机制
-// 验证点：
-// - 清理协程正常运行，不崩溃
-// - 清理间隔正确触发
-// - 注意：实际清理只发生在条目超过 10 分钟未访问时
+//
+// 【功能点】验证清理协程正常运行不崩溃
+// 【测试流程】创建限流器后等待清理协程执行，验证无异常
 func TestMemoryLimiter_Cleanup(t *testing.T) {
 	// 使用较短的清理间隔进行测试
 	limiter := NewMemoryLimiter(time.Millisecond * 50)

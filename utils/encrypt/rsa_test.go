@@ -1,4 +1,23 @@
 // Package encrypt RSA非对称加密解密和数字签名功能测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含 RSA 非对称加密解密和数字签名功能的单元测试。
+//
+// 测试覆盖内容：
+// 1. 密钥生成 - 生成指定位数的RSA私钥
+// 2. 密钥保存 - 保存私钥/公钥到PEM文件
+// 3. 密钥读取 - 从PEM文件读取私钥/公钥
+// 4. 数字签名 - 使用私钥签名数据
+// 5. 签名验证 - 使用公钥验证签名
+// 6. 加密解密 - 公钥加密、私钥解密
+// 7. 完整流程 - 签名验证、加解密的完整循环
+//
+// 密钥长度支持：1024、2048、4096 位
+// 签名算法：SHA256withRSA
+// 填充方式：PKCS1v15
+//
+// 运行测试：go test -v ./utils/encrypt/... -run RSA
+// ==================================================
 package encrypt
 
 import (
@@ -11,7 +30,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// ==================== RSA 密钥生成测试 ====================
+
 // TestRsaGeneratePrivateKey 测试RSA私钥生成功能
+//
+// 【功能点】验证 RSA 私钥的正确生成
+// 【测试流程】
+//  1. 调用 RsaGeneratePrivateKey 生成 2048 位私钥
+//  2. 验证不返回错误
 func TestRsaGeneratePrivateKey(t *testing.T) {
 	t.Run("rsa generate private key", func(t *testing.T) {
 		// 生成2048位RSA私钥
@@ -21,6 +47,13 @@ func TestRsaGeneratePrivateKey(t *testing.T) {
 }
 
 // TestRsaSavePrivatePem 测试RSA私钥保存为PEM格式文件功能
+//
+// 【功能点】验证 RSA 私钥保存到 PEM 文件
+// 【测试流程】
+//  1. 生成 2048 位 RSA 私钥
+//  2. 调用 RsaSavePrivatePem 保存到文件
+//  3. 验证文件存在
+//  4. 清理测试文件
 func TestRsaSavePrivatePem(t *testing.T) {
 	t.Run("rsa save private pem", func(t *testing.T) {
 		// 生成带时间戳的文件名，避免测试冲突
@@ -44,6 +77,13 @@ func TestRsaSavePrivatePem(t *testing.T) {
 }
 
 // TestRsaSavePublicPem 测试RSA公钥保存为PEM格式文件功能
+//
+// 【功能点】验证 RSA 公钥保存到 PEM 文件
+// 【测试流程】
+//  1. 生成 2048 位 RSA 私钥
+//  2. 从私钥提取公钥并保存到文件
+//  3. 验证文件存在
+//  4. 清理测试文件
 func TestRsaSavePublicPem(t *testing.T) {
 	t.Run("rsa save public pem", func(t *testing.T) {
 		// 生成带时间戳的文件名，避免测试冲突
@@ -67,6 +107,13 @@ func TestRsaSavePublicPem(t *testing.T) {
 }
 
 // TestRsaReadPrivatePem 测试从PEM文件读取RSA私钥功能
+//
+// 【功能点】验证从 PEM 文件读取 RSA 私钥
+// 【测试流程】
+//  1. 生成私钥并保存到 PEM 文件
+//  2. 调用 RsaReadPrivatePem 读取私钥
+//  3. 验证读取成功
+//  4. 清理测试文件
 func TestRsaReadPrivatePem(t *testing.T) {
 	t.Run("rsa read private pem", func(t *testing.T) {
 		// 生成带时间戳的文件名，避免测试冲突
@@ -93,6 +140,13 @@ func TestRsaReadPrivatePem(t *testing.T) {
 }
 
 // TestRsaReadPublicPem 测试从PEM文件读取RSA公钥功能
+//
+// 【功能点】验证从 PEM 文件读取 RSA 公钥
+// 【测试流程】
+//  1. 生成公钥并保存到 PEM 文件
+//  2. 调用 RsaReadPublicPem 读取公钥
+//  3. 验证读取成功
+//  4. 清理测试文件
 func TestRsaReadPublicPem(t *testing.T) {
 	t.Run("rsa read public pem", func(t *testing.T) {
 		// 生成带时间戳的文件名，避免测试冲突
@@ -168,7 +222,15 @@ const cipherText = "qu8QSBqJiYuJ84z3cDLJ4VfOUeaVw2XjRp4jkrbguAy7X/xKh+o1MWaQmiGl
 // 测试用的签名（base64编码）
 const signText = "t5shPK2KELo8cB49Gtz8IMLkgBi903sVNBFVPGYRaoFXkk4dlx0zbi3qsJ6LDd4qJSwBIx8FpLu1u2zJXFk/iNIhQmG7KSMX5WlzJwgbl956jD2VP8b0lSqLZzO2CPL5WV0JbEcXe08EIlQwdPQRs10tyj7WhmQXmxBxT4CkD0q+1vRLHYAE9yU7K51TezjHdbIqrZC3MpkW8m/ptr7aO4AC/q8x5puqeVEC4OMJKZGxyhXiS+OYkT5cCIpCTo5oHnMZNutfZFM3bmvR64054h6DJk9b2ZJ0KbUFp9HfjzmEDsL74iloTSCe7DBqMik8cSlSf/+DOCShSliXwlJe2Q=="
 
+// ==================== RSA 加密解密测试 ====================
+
 // TestRsaEncrypt 测试RSA公钥加密功能
+//
+// 【功能点】验证使用公钥加密明文
+// 【测试流程】
+//  1. 从 PEM 字符串解析公钥
+//  2. 使用公钥加密明文
+//  3. 验证返回非空密文
 func TestRsaEncrypt(t *testing.T) {
 	t.Run("rsa encrypt", func(t *testing.T) {
 		// 从PEM字符串解析公钥
@@ -183,6 +245,12 @@ func TestRsaEncrypt(t *testing.T) {
 }
 
 // TestRsaEncrypt2Base64 测试RSA公钥加密并返回base64编码功能
+//
+// 【功能点】验证公钥加密并返回 Base64 编码结果
+// 【测试流程】
+//  1. 从 PEM 字符串解析公钥
+//  2. 调用 RsaEncrypt2Base64 加密明文
+//  3. 验证返回非空 Base64 字符串
 func TestRsaEncrypt2Base64(t *testing.T) {
 	t.Run("rsa encrypt", func(t *testing.T) {
 		// 从PEM字符串解析公钥
@@ -197,6 +265,13 @@ func TestRsaEncrypt2Base64(t *testing.T) {
 }
 
 // TestRsaDecrypt 测试RSA私钥解密功能
+//
+// 【功能点】验证使用私钥解密密文
+// 【测试流程】
+//  1. 从 PEM 字符串解析私钥
+//  2. 解码 Base64 密文
+//  3. 使用私钥解密
+//  4. 验证解密成功
 func TestRsaDecrypt(t *testing.T) {
 	t.Run("rsa decrypt", func(t *testing.T) {
 		// 从PEM字符串解析私钥
@@ -215,6 +290,12 @@ func TestRsaDecrypt(t *testing.T) {
 }
 
 // TestRsaDecryptFromBase64 测试RSA私钥解密base64编码密文功能
+//
+// 【功能点】验证私钥解密 Base64 编码的密文
+// 【测试流程】
+//  1. 从 PEM 字符串解析私钥
+//  2. 调用 RsaDecryptFromBase64 解密
+//  3. 验证解密结果与原始明文一致
 func TestRsaDecryptFromBase64(t *testing.T) {
 	t.Run("rsa decrypt", func(t *testing.T) {
 		// 从PEM字符串解析私钥
@@ -229,6 +310,13 @@ func TestRsaDecryptFromBase64(t *testing.T) {
 }
 
 // TestRsaCrypt 测试RSA加密解密的完整流程
+//
+// 【功能点】验证加密→解密的完整循环
+// 【测试流程】
+//  1. 解析公钥和私钥
+//  2. 使用公钥加密明文
+//  3. 使用私钥解密密文
+//  4. 验证解密结果与原始明文一致
 func TestRsaCrypt(t *testing.T) {
 	t.Run("rsa crypt", func(t *testing.T) {
 		// 从PEM字符串解析公钥
@@ -251,7 +339,15 @@ func TestRsaCrypt(t *testing.T) {
 	})
 }
 
+// ==================== RSA 数字签名测试 ====================
+
 // TestRsaSign 测试RSA私钥数字签名功能
+//
+// 【功能点】验证使用私钥对数据进行签名
+// 【测试流程】
+//  1. 从 PEM 字符串解析私钥
+//  2. 使用私钥对明文签名
+//  3. 验证返回非空签名
 func TestRsaSign(t *testing.T) {
 	t.Run("rsa sign", func(t *testing.T) {
 		// 从PEM字符串解析私钥
@@ -266,6 +362,12 @@ func TestRsaSign(t *testing.T) {
 }
 
 // TestRsaSign2Base64 测试RSA私钥数字签名并返回base64编码功能
+//
+// 【功能点】验证私钥签名并返回 Base64 编码结果
+// 【测试流程】
+//  1. 从 PEM 字符串解析私钥
+//  2. 调用 RsaSign2Base64 签名
+//  3. 验证返回非空 Base64 字符串
 func TestRsaSign2Base64(t *testing.T) {
 	t.Run("rsa sign", func(t *testing.T) {
 		// 从PEM字符串解析私钥
@@ -280,6 +382,13 @@ func TestRsaSign2Base64(t *testing.T) {
 }
 
 // TestRsaValidSign 测试RSA公钥验证数字签名功能
+//
+// 【功能点】验证使用公钥验证签名的正确性
+// 【测试流程】
+//  1. 从 PEM 字符串解析公钥
+//  2. 解码 Base64 签名
+//  3. 使用公钥验证签名
+//  4. 验证签名有效（无错误返回）
 func TestRsaValidSign(t *testing.T) {
 	t.Run("rsa sign", func(t *testing.T) {
 		// 从PEM字符串解析公钥
@@ -297,6 +406,12 @@ func TestRsaValidSign(t *testing.T) {
 }
 
 // TestRsaValidSignFromBase64 测试RSA公钥验证base64编码数字签名功能
+//
+// 【功能点】验证公钥验证 Base64 编码的签名
+// 【测试流程】
+//  1. 从 PEM 字符串解析公钥
+//  2. 调用 RsaValidSignFromBase64 验证签名
+//  3. 验证签名有效（无错误返回）
 func TestRsaValidSignFromBase64(t *testing.T) {
 	t.Run("rsa sign", func(t *testing.T) {
 		// 从PEM字符串解析公钥
@@ -310,6 +425,13 @@ func TestRsaValidSignFromBase64(t *testing.T) {
 }
 
 // TestRsaSignAndValid 测试RSA数字签名和验证的完整流程
+//
+// 【功能点】验证签名→验签的完整循环
+// 【测试流程】
+//  1. 解析公钥和私钥
+//  2. 使用私钥签名明文
+//  3. 使用公钥验证签名
+//  4. 验证签名有效（无错误返回）
 func TestRsaSignAndValid(t *testing.T) {
 	t.Run("rsa sign and valid", func(t *testing.T) {
 		// 从PEM字符串解析公钥

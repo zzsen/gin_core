@@ -1,4 +1,22 @@
 // Package core 中间件管理功能测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含中间件注册和管理功能的单元测试。
+//
+// 测试覆盖内容：
+// 1. RegisterMiddleware - 中间件注册（新增/重复/多个）
+// 2. getMiddleware - 获取已注册的中间件
+// 3. clearMiddlewares - 清空中间件映射表
+// 4. 并发安全 - 多协程并发注册中间件
+// 5. 中间件加载 - 从配置加载中间件
+//
+// 中间件机制：
+//   - 中间件按名称注册到全局映射表
+//   - 重复注册同名中间件会返回错误
+//   - 配置文件指定的中间件名称必须已注册
+//
+// 运行测试：go test -v ./core/... -run Middleware
+// ==================================================
 package core
 
 import (
@@ -10,7 +28,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// ==================== RegisterMiddleware 测试 ====================
+
 // TestRegisterMiddleware 测试RegisterMiddleware函数
+//
+// 【功能点】验证中间件注册功能
+// 【测试流程】
+//  1. 测试注册新中间件 - 验证注册成功且可获取
+//  2. 测试重复注册 - 验证返回错误
+//  3. 测试多中间件注册 - 验证多个中间件独立注册
 func TestRegisterMiddleware(t *testing.T) {
 	// 清空中间件映射表，确保测试环境干净
 	clearMiddlewares()
@@ -162,7 +188,16 @@ func TestRegisterMiddleware(t *testing.T) {
 	})
 }
 
+// ==================== initMiddleware 测试 ====================
+
 // TestInitMiddleware 测试initMiddleware函数
+//
+// 【功能点】验证中间件初始化流程
+// 【测试流程】
+//  1. 注册测试中间件
+//  2. 配置需要加载的中间件列表
+//  3. 调用 initMiddleware 初始化
+//  4. 验证中间件被正确应用到引擎
 func TestInitMiddleware(t *testing.T) {
 	// 清空中间件映射表
 	clearMiddlewares()
@@ -220,7 +255,15 @@ func TestInitMiddleware(t *testing.T) {
 	})
 }
 
+// ==================== 中间件映射表测试 ====================
+
 // TestMiddlewareMapAccess 测试中间件映射表的访问
+//
+// 【功能点】验证中间件映射表的读写操作
+// 【测试流程】
+//  1. 注册中间件到映射表
+//  2. 从映射表获取中间件
+//  3. 验证中间件存在性检查
 func TestMiddlewareMapAccess(t *testing.T) {
 	// 清空映射表
 	clearMiddlewares()
@@ -273,7 +316,15 @@ func TestMiddlewareMapAccess(t *testing.T) {
 	})
 }
 
+// ==================== 中间件执行测试 ====================
+
 // TestMiddlewareHandlerExecution 测试中间件处理函数的执行
+//
+// 【功能点】验证中间件处理函数被正确执行
+// 【测试流程】
+//  1. 创建带有标记的中间件
+//  2. 发送请求触发中间件
+//  3. 验证中间件被执行（检查标记）
 func TestMiddlewareHandlerExecution(t *testing.T) {
 	// 清空映射表
 	clearMiddlewares()
@@ -322,7 +373,15 @@ func TestMiddlewareHandlerExecution(t *testing.T) {
 	})
 }
 
+// ==================== 并发安全测试 ====================
+
 // TestConcurrentMiddlewareRegistration 测试并发中间件注册
+//
+// 【功能点】验证中间件注册的并发安全性
+// 【测试流程】
+//  1. 启动多个协程并发注册中间件
+//  2. 验证无数据竞争
+//  3. 验证所有注册都正确完成
 func TestConcurrentMiddlewareRegistration(t *testing.T) {
 	// 清空映射表
 	clearMiddlewares()
@@ -411,7 +470,15 @@ func TestConcurrentMiddlewareRegistration(t *testing.T) {
 	})
 }
 
+// ==================== 错误处理测试 ====================
+
 // TestMiddlewareErrorHandling 测试中间件错误处理
+//
+// 【功能点】验证中间件错误的正确处理
+// 【测试流程】
+//  1. 测试注册重复名称 - 返回错误
+//  2. 测试获取不存在的中间件 - 返回 false
+//  3. 测试 nil 处理函数 - 正确处理
 func TestMiddlewareErrorHandling(t *testing.T) {
 	// 清空映射表
 	clearMiddlewares()

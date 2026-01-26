@@ -1,4 +1,17 @@
 // Package serialize 序列化工具功能测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含序列化工具函数的单元测试。
+//
+// 测试覆盖内容：
+// 1. MapToStruct - Map转结构体（支持各种数据类型）
+// 2. StructToMap - 结构体转Map
+// 3. JSON标签处理 - 自定义标签、空标签、忽略标签
+// 4. 嵌套结构 - 嵌套结构体和嵌套Map
+// 5. 边界情况 - 空Map、空结构体、类型不匹配
+//
+// 运行测试：go test -v ./utils/serialize/...
+// ==================================================
 package serialize
 
 import (
@@ -6,6 +19,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
+
+// ==================== 测试用结构体定义 ====================
 
 // TestStruct 测试用的结构体
 type TestStruct struct {
@@ -48,7 +63,16 @@ type TestStructWithEmptyTags struct {
 	Active bool   `json:"active"`
 }
 
+// ==================== MapToStruct 测试 ====================
+
 // TestMapToStruct 测试MapToStruct函数
+//
+// 【功能点】验证 Map 到结构体的转换功能
+// 【测试流程】
+//  1. 准备各种类型的测试用例（简单结构体、自定义标签、无标签、空Map等）
+//  2. 调用 MapToStruct 进行转换
+//  3. 验证转换结果与期望一致
+//  4. 验证错误情况的正确处理
 func TestMapToStruct(t *testing.T) {
 	tests := []struct {
 		name     string         // 测试用例名称
@@ -208,6 +232,11 @@ func TestMapToStruct(t *testing.T) {
 }
 
 // TestMapToStruct_InvalidTarget 测试无效目标类型
+//
+// 【功能点】验证无效目标类型的错误处理
+// 【测试流程】
+//  1. 测试非指针目标 - 验证返回错误
+//  2. 测试 nil 目标 - 验证返回错误
 func TestMapToStruct_InvalidTarget(t *testing.T) {
 	t.Run("non-pointer target", func(t *testing.T) {
 		input := map[string]any{"name": "test"}
@@ -225,7 +254,15 @@ func TestMapToStruct_InvalidTarget(t *testing.T) {
 	})
 }
 
+// ==================== StructToMap 测试 ====================
+
 // TestStructToMap 测试StructToMap函数
+//
+// 【功能点】验证结构体到 Map 的转换功能
+// 【测试流程】
+//  1. 准备各种类型的结构体（带标签、自定义标签、无标签、零值等）
+//  2. 调用 StructToMap 进行转换
+//  3. 验证转换结果与期望一致
 func TestStructToMap(t *testing.T) {
 	tests := []struct {
 		name     string         // 测试用例名称
@@ -372,6 +409,11 @@ func TestStructToMap(t *testing.T) {
 }
 
 // TestStructToMap_EdgeCases 测试边界情况
+//
+// 【功能点】验证边界情况的错误处理
+// 【测试流程】
+//  1. 测试指针类型输入 - 验证 panic
+//  2. 测试 nil 输入 - 验证 panic
 func TestStructToMap_EdgeCases(t *testing.T) {
 	t.Run("pointer to struct", func(t *testing.T) {
 		input := &TestStruct{
@@ -395,7 +437,14 @@ func TestStructToMap_EdgeCases(t *testing.T) {
 	})
 }
 
+// ==================== 往返转换测试 ====================
+
 // TestRoundTrip 测试往返转换
+//
+// 【功能点】验证 Struct→Map→Struct 和 Map→Struct→Map 的数据一致性
+// 【测试流程】
+//  1. Struct→Map→Struct：结构体转Map再转回结构体，验证数据一致
+//  2. Map→Struct→Map：Map转结构体再转回Map，验证数据一致
 func TestRoundTrip(t *testing.T) {
 	t.Run("struct to map to struct", func(t *testing.T) {
 		original := TestStruct{
@@ -467,7 +516,15 @@ func TestRoundTrip(t *testing.T) {
 	})
 }
 
+// ==================== 并发安全测试 ====================
+
 // TestConcurrent 测试并发安全性
+//
+// 【功能点】验证转换函数在并发环境下的安全性
+// 【测试流程】
+//  1. 启动多个协程并发执行 MapToStruct
+//  2. 启动多个协程并发执行 StructToMap
+//  3. 验证所有转换结果正确，无数据竞争
 func TestConcurrent(t *testing.T) {
 	t.Run("concurrent map to struct", func(t *testing.T) {
 		input := map[string]any{

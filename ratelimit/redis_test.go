@@ -22,10 +22,9 @@ import (
 // ==================== RedisLimiter 单元测试（不需要 Redis 连接） ====================
 
 // TestNewRedisLimiter 测试 Redis 限流器的创建
-// 验证点：
-// - 空前缀时使用默认前缀 "ratelimit:"
-// - 自定义前缀正确设置
-// - 用于区分不同应用的限流键
+//
+// 【功能点】验证限流器创建和前缀设置
+// 【测试流程】测试默认前缀 "ratelimit:" 和自定义前缀的正确设置
 func TestNewRedisLimiter(t *testing.T) {
 	// 测试默认前缀
 	limiter := NewRedisLimiter(nil, "")
@@ -41,10 +40,9 @@ func TestNewRedisLimiter(t *testing.T) {
 }
 
 // TestRedisLimiter_Allow_NilClient 测试空客户端的错误处理（滑动窗口算法）
-// 验证点：
-// - Redis 客户端为 nil 时返回错误
-// - 请求被拒绝（返回 allowed = false）
-// - 不会 panic
+//
+// 【功能点】验证 Redis 客户端为 nil 时返回错误且不 panic
+// 【测试流程】使用 nil 客户端调用 Allow，验证返回 error 和 allowed=false
 func TestRedisLimiter_Allow_NilClient(t *testing.T) {
 	limiter := NewRedisLimiter(nil, "test:")
 	defer limiter.Close()
@@ -62,10 +60,9 @@ func TestRedisLimiter_Allow_NilClient(t *testing.T) {
 }
 
 // TestRedisLimiter_AllowTokenBucket_NilClient 测试空客户端的错误处理（令牌桶算法）
-// 验证点：
-// - Redis 客户端为 nil 时返回错误
-// - 请求被拒绝（返回 allowed = false）
-// - 不会 panic
+//
+// 【功能点】验证 Redis 客户端为 nil 时返回错误且不 panic
+// 【测试流程】使用 nil 客户端调用 AllowTokenBucket，验证返回 error 和 allowed=false
 func TestRedisLimiter_AllowTokenBucket_NilClient(t *testing.T) {
 	limiter := NewRedisLimiter(nil, "test:")
 	defer limiter.Close()
@@ -83,9 +80,9 @@ func TestRedisLimiter_AllowTokenBucket_NilClient(t *testing.T) {
 }
 
 // TestRedisLimiter_Close 测试限流器关闭
-// 验证点：
-// - Close 正常返回，不 panic
-// - Redis 客户端由外部管理，不在此关闭
+//
+// 【功能点】验证 Close 正常返回不 panic
+// 【测试流程】创建限流器后调用 Close，验证无错误返回
 func TestRedisLimiter_Close(t *testing.T) {
 	limiter := NewRedisLimiter(nil, "test:")
 
@@ -97,10 +94,9 @@ func TestRedisLimiter_Close(t *testing.T) {
 }
 
 // TestRedisLimiter_Stats 测试统计信息获取
-// 验证点：
-// - 返回正确的限流器类型（redis）
-// - 返回正确的键前缀
-// - 用于监控和调试
+//
+// 【功能点】验证 Stats 返回正确的类型和键前缀
+// 【测试流程】创建限流器并调用 Stats，验证 type=redis, keyPrefix 正确
 func TestRedisLimiter_Stats(t *testing.T) {
 	limiter := NewRedisLimiter(nil, "myapp:")
 
@@ -118,10 +114,9 @@ func TestRedisLimiter_Stats(t *testing.T) {
 // ==================== Lua 脚本测试 ====================
 
 // TestSlidingWindowScript_Syntax 测试滑动窗口 Lua 脚本语法
-// 验证点：
-// - 脚本非空
-// - 包含必要的 Redis 命令（ZREMRANGEBYSCORE、ZCARD、ZADD、EXPIRE）
-// - 滑动窗口算法的核心操作完整
+//
+// 【功能点】验证滑动窗口 Lua 脚本语法正确且包含必要操作
+// 【测试流程】检查脚本非空并包含 ZREMRANGEBYSCORE、ZCARD、ZADD、EXPIRE 操作
 func TestSlidingWindowScript_Syntax(t *testing.T) {
 	// 验证 Lua 脚本语法正确性（通过编译检查）
 	if slidingWindowScript == "" {
@@ -144,10 +139,9 @@ func TestSlidingWindowScript_Syntax(t *testing.T) {
 }
 
 // TestTokenBucketScript_Syntax 测试令牌桶 Lua 脚本语法
-// 验证点：
-// - 脚本非空
-// - 包含必要的 Redis 命令（HMGET、HMSET、EXPIRE）
-// - 令牌桶算法的核心操作完整
+//
+// 【功能点】验证令牌桶 Lua 脚本语法正确且包含必要操作
+// 【测试流程】检查脚本非空并包含 HMGET、HMSET、EXPIRE 操作
 func TestTokenBucketScript_Syntax(t *testing.T) {
 	// 验证 Lua 脚本语法正确性
 	if tokenBucketScript == "" {

@@ -1,4 +1,20 @@
 // Package file 文件操作工具功能测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含文件操作工具函数的单元测试。
+//
+// 测试覆盖内容：
+// 1. FileMd5 - 计算文件MD5哈希值
+// 2. FileExist - 检查文件是否存在
+// 3. DirExist - 检查目录是否存在
+// 4. CreateDir - 创建目录（递归创建）
+// 5. CopyFile - 复制文件
+// 6. ReadFile - 读取文件内容
+// 7. WriteFile - 写入文件内容
+// 8. GetFileSize - 获取文件大小
+//
+// 运行测试：go test -v ./utils/file/...
+// ==================================================
 package file
 
 import (
@@ -9,7 +25,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// ==================== FileMd5 测试 ====================
+
 // TestFileMd5 测试文件MD5计算功能
+//
+// 【功能点】验证文件MD5哈希值计算的正确性
+// 【测试流程】
+//  1. 创建临时文件并写入测试内容
+//  2. 调用 FileMd5 计算哈希值
+//  3. 验证返回的MD5与期望值一致
+//  4. 清理临时文件
 func TestFileMd5(t *testing.T) {
 	tests := []struct {
 		name     string // 测试用例名称
@@ -71,6 +96,12 @@ func TestFileMd5(t *testing.T) {
 }
 
 // TestFileMd5_NonExistentFile 测试不存在的文件的MD5计算
+//
+// 【功能点】验证不存在文件的错误处理
+// 【测试流程】
+//  1. 使用一个不存在的文件路径
+//  2. 调用 FileMd5 计算
+//  3. 验证返回空字符串（不是 panic）
 func TestFileMd5_NonExistentFile(t *testing.T) {
 	t.Run("non-existent file", func(t *testing.T) {
 		// 使用一个不存在的文件路径
@@ -85,6 +116,13 @@ func TestFileMd5_NonExistentFile(t *testing.T) {
 }
 
 // TestFileMd5_LargeFile 测试大文件的MD5计算
+//
+// 【功能点】验证大文件（1MB）的 MD5 计算性能和正确性
+// 【测试流程】
+//  1. 创建临时文件并写入 1MB 数据
+//  2. 调用 FileMd5 计算
+//  3. 验证返回 32 字符的有效 MD5 值
+//  4. 清理临时文件
 func TestFileMd5_LargeFile(t *testing.T) {
 	t.Run("large file", func(t *testing.T) {
 		// 创建临时文件
@@ -111,7 +149,16 @@ func TestFileMd5_LargeFile(t *testing.T) {
 	})
 }
 
+// ==================== PathExists 测试 ====================
+
 // TestPathExists 测试路径存在性检查功能
+//
+// 【功能点】验证文件/目录存在性检查
+// 【测试流程】
+//  1. 测试存在的文件 - 返回 true
+//  2. 测试存在的目录 - 返回 true
+//  3. 测试不存在的路径 - 返回 false
+//  4. 测试空路径 - 返回 false
 func TestPathExists(t *testing.T) {
 	tests := []struct {
 		name     string                 // 测试用例名称
@@ -184,6 +231,12 @@ func TestPathExists(t *testing.T) {
 }
 
 // TestPathExists_CurrentDirectory 测试当前目录的存在性
+//
+// 【功能点】验证当前工作目录的存在性检查
+// 【测试流程】
+//  1. 获取当前工作目录
+//  2. 调用 PathExists 检查
+//  3. 验证返回 true
 func TestPathExists_CurrentDirectory(t *testing.T) {
 	t.Run("current directory", func(t *testing.T) {
 		// 获取当前工作目录
@@ -197,6 +250,12 @@ func TestPathExists_CurrentDirectory(t *testing.T) {
 }
 
 // TestPathExists_TempDirectory 测试临时目录的存在性
+//
+// 【功能点】验证系统临时目录的存在性检查
+// 【测试流程】
+//  1. 获取系统临时目录路径
+//  2. 调用 PathExists 检查
+//  3. 验证返回 true
 func TestPathExists_TempDirectory(t *testing.T) {
 	t.Run("temp directory", func(t *testing.T) {
 		// 获取系统临时目录
@@ -209,6 +268,12 @@ func TestPathExists_TempDirectory(t *testing.T) {
 }
 
 // TestPathExists_RelativePath 测试相对路径的存在性
+//
+// 【功能点】验证相对路径的存在性检查
+// 【测试流程】
+//  1. 创建临时文件
+//  2. 获取文件的相对路径
+//  3. 调用 PathExists 检查（不会 panic）
 func TestPathExists_RelativePath(t *testing.T) {
 	t.Run("relative path", func(t *testing.T) {
 		// 创建临时文件
@@ -228,7 +293,15 @@ func TestPathExists_RelativePath(t *testing.T) {
 	})
 }
 
+// ==================== 并发安全测试 ====================
+
 // TestFileMd5_Concurrent 测试并发计算文件MD5
+//
+// 【功能点】验证 FileMd5 在并发环境下的安全性
+// 【测试流程】
+//  1. 创建临时文件
+//  2. 启动多个协程并发计算同一文件的 MD5
+//  3. 验证所有结果一致，无数据竞争
 func TestFileMd5_Concurrent(t *testing.T) {
 	t.Run("concurrent md5 calculation", func(t *testing.T) {
 		// 创建临时文件
@@ -268,6 +341,12 @@ func TestFileMd5_Concurrent(t *testing.T) {
 }
 
 // TestPathExists_Concurrent 测试并发检查路径存在性
+//
+// 【功能点】验证 PathExists 在并发环境下的安全性
+// 【测试流程】
+//  1. 创建临时文件
+//  2. 启动多个协程并发检查同一路径
+//  3. 验证所有结果一致为 true，无数据竞争
 func TestPathExists_Concurrent(t *testing.T) {
 	t.Run("concurrent path existence check", func(t *testing.T) {
 		// 创建临时文件
@@ -299,6 +378,12 @@ func TestPathExists_Concurrent(t *testing.T) {
 }
 
 // TestPathExists_InvalidPath 测试无效路径的处理
+//
+// 【功能点】验证无效路径的安全处理
+// 【测试流程】
+//  1. 测试各种无效路径（空字符串、null字符、控制字符等）
+//  2. 调用 PathExists 检查
+//  3. 验证均返回 false，不会 panic
 func TestPathExists_InvalidPath(t *testing.T) {
 	t.Run("invalid path with special characters", func(t *testing.T) {
 		// 测试包含无效字符的路径

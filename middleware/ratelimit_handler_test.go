@@ -64,10 +64,9 @@ func createTestRouter(middleware gin.HandlerFunc) *gin.Engine {
 // ==================== RateLimitHandler 单元测试 ====================
 
 // TestRateLimitHandler_Disabled 测试限流功能禁用时的行为
-// 验证点：
-// - enabled=false 时，所有请求都放行
-// - 不进行任何限流检查
-// - 中间件快速返回，不影响性能
+//
+// 【功能点】验证 enabled=false 时所有请求都放行
+// 【测试流程】设置 Enabled=false，发送 100 个请求，验证全部返回 200
 func TestRateLimitHandler_Disabled(t *testing.T) {
 	cleanup := setupRateLimitTestConfig(config.RateLimitConfig{
 		Enabled: false,
@@ -89,10 +88,12 @@ func TestRateLimitHandler_Disabled(t *testing.T) {
 }
 
 // TestRateLimitHandler_BasicRateLimit 测试基础限流功能
-// 验证点：
-// - 使用默认规则进行限流
-// - 请求数超过 burst 后返回 HTTP 429
-// - 返回自定义限流消息
+//
+// 【功能点】验证请求数超过 burst 后返回 HTTP 429
+// 【测试流程】
+//  1. 设置 DefaultBurst=5
+//  2. 发送 6 个请求
+//  3. 验证前 5 个成功，第 6 个返回 429
 func TestRateLimitHandler_BasicRateLimit(t *testing.T) {
 	cleanup := setupRateLimitTestConfig(config.RateLimitConfig{
 		Enabled:      true,
@@ -129,10 +130,9 @@ func TestRateLimitHandler_BasicRateLimit(t *testing.T) {
 }
 
 // TestRateLimitHandler_DifferentIPs 测试不同 IP 的独立限流
-// 验证点：
-// - 每个 IP 有独立的限流计数
-// - 一个 IP 被限流不影响其他 IP
-// - 适用于按 IP 限流的场景
+//
+// 【功能点】验证每个 IP 有独立的限流计数
+// 【测试流程】使用 3 个不同 IP 各发送 3 个请求，验证全部成功（共 9 个）
 func TestRateLimitHandler_DifferentIPs(t *testing.T) {
 	cleanup := setupRateLimitTestConfig(config.RateLimitConfig{
 		Enabled:      true,
@@ -162,10 +162,12 @@ func TestRateLimitHandler_DifferentIPs(t *testing.T) {
 }
 
 // TestRateLimitHandler_PathRule 测试路径规则精确匹配
-// 验证点：
-// - 特定路径使用特定规则
-// - 未匹配规则的路径使用默认规则
-// - 支持按 HTTP 方法过滤
+//
+// 【功能点】验证特定路径使用特定规则，其他路径使用默认规则
+// 【测试流程】
+//  1. 配置 /api/login 限制为 2 次
+//  2. 验证 /api/test 使用默认规则（允许 10 次）
+//  3. 验证 /api/login 第 3 次返回 429
 func TestRateLimitHandler_PathRule(t *testing.T) {
 	cleanup := setupRateLimitTestConfig(config.RateLimitConfig{
 		Enabled:      true,
@@ -223,10 +225,9 @@ func TestRateLimitHandler_PathRule(t *testing.T) {
 }
 
 // TestRateLimitHandler_GlobalKeyType 测试全局限流键类型
-// 验证点：
-// - keyType="global" 时，所有请求共享同一个配额
-// - 不同 IP 的请求一起计数
-// - 适用于保护后端服务整体负载的场景
+//
+// 【功能点】验证 keyType="global" 时所有请求共享同一个配额
+// 【测试流程】配置全局限制为 3，使用 3 个不同 IP 发送请求，验证总共最多 3 次成功
 func TestRateLimitHandler_GlobalKeyType(t *testing.T) {
 	cleanup := setupRateLimitTestConfig(config.RateLimitConfig{
 		Enabled:      true,
@@ -270,10 +271,9 @@ func TestRateLimitHandler_GlobalKeyType(t *testing.T) {
 }
 
 // TestRateLimitHandler_WildcardPath 测试路径通配符匹配
-// 验证点：
-// - path="/api/*" 匹配所有 /api/ 开头的路径
-// - 通配符规则正确应用
-// - 支持路径模式匹配
+//
+// 【功能点】验证 path="/api/*" 匹配所有 /api/ 开头的路径
+// 【测试流程】配置通配符规则限制为 2，验证第 3 次请求返回 429
 func TestRateLimitHandler_WildcardPath(t *testing.T) {
 	cleanup := setupRateLimitTestConfig(config.RateLimitConfig{
 		Enabled:      true,
@@ -317,10 +317,9 @@ func TestRateLimitHandler_WildcardPath(t *testing.T) {
 }
 
 // TestRateLimitHandler_XForwardedFor 测试 X-Forwarded-For 头的 IP 获取
-// 验证点：
-// - 代理场景下从 X-Forwarded-For 头获取真实 IP
-// - 正确识别客户端 IP 进行限流
-// - 适用于 nginx/负载均衡器 代理场景
+//
+// 【功能点】验证代理场景下从 X-Forwarded-For 头获取真实 IP 进行限流
+// 【测试流程】设置 X-Forwarded-For 头发送请求，验证按该 IP 限流
 func TestRateLimitHandler_XForwardedFor(t *testing.T) {
 	cleanup := setupRateLimitTestConfig(config.RateLimitConfig{
 		Enabled:      true,
@@ -358,10 +357,9 @@ func TestRateLimitHandler_XForwardedFor(t *testing.T) {
 }
 
 // TestRateLimitHandler_XRealIP 测试 X-Real-IP 头的 IP 获取
-// 验证点：
-// - 从 X-Real-IP 头获取真实 IP
-// - 正确识别客户端 IP 进行限流
-// - 适用于 nginx realip 模块场景
+//
+// 【功能点】验证从 X-Real-IP 头获取真实 IP 进行限流
+// 【测试流程】设置 X-Real-IP 头发送请求，验证按该 IP 限流
 func TestRateLimitHandler_XRealIP(t *testing.T) {
 	cleanup := setupRateLimitTestConfig(config.RateLimitConfig{
 		Enabled:      true,
@@ -401,11 +399,13 @@ func TestRateLimitHandler_XRealIP(t *testing.T) {
 // ==================== 辅助函数测试 ====================
 
 // TestFindMatchingRule 测试规则匹配函数
-// 验证点：
-// - 精确路径匹配优先
-// - HTTP 方法过滤正确
-// - 通配符匹配（/api/users/*、/api/*）
-// - 无匹配时返回 nil
+//
+// 【功能点】验证规则匹配逻辑（精确匹配优先、方法过滤、通配符）
+// 【测试流程】
+//  1. 测试精确路径匹配
+//  2. 测试 HTTP 方法过滤
+//  3. 测试通配符匹配
+//  4. 测试无匹配返回 nil
 func TestFindMatchingRule(t *testing.T) {
 	rules := []config.RateLimitRule{
 		{Path: "/api/login", Method: "POST", Rate: 5},
@@ -446,11 +446,13 @@ func TestFindMatchingRule(t *testing.T) {
 }
 
 // TestGenerateRateLimitKey 测试限流键生成函数
-// 验证点：
-// - keyType="ip" 生成 "ip:{clientIP}:{path}" 格式
-// - keyType="user" 生成 "user:{userID}:{path}" 格式，无用户时降级为 IP
-// - keyType="global" 生成 "global:{path}" 格式
-// - 默认使用 IP 类型
+//
+// 【功能点】验证不同 keyType 生成正确格式的限流键
+// 【测试流程】
+//  1. 测试 keyType="ip" → "ip:{IP}:{path}"
+//  2. 测试 keyType="user" → "user:{userID}:{path}"
+//  3. 测试 keyType="global" → "global:{path}"
+//  4. 测试默认类型降级为 IP
 func TestGenerateRateLimitKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

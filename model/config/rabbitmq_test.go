@@ -24,7 +24,12 @@ import (
 // 测试点：验证 RabbitMQInfo 结构的 Url 方法
 
 // TestRabbitMQInfo_Url 测试 RabbitMQInfo 的 URL 生成
-// 不需要 RabbitMQ 连接：仅验证字符串格式化逻辑
+//
+// 【功能点】验证 Url() 方法生成正确的 AMQP URL
+// 【测试流程】
+//  1. 测试正常配置 → "amqp://user:pass@host:port/"
+//  2. 测试自定义端口
+//  3. 测试带别名配置
 func TestRabbitMQInfo_Url(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -78,7 +83,11 @@ func TestRabbitMQInfo_Url(t *testing.T) {
 // 测试点：验证 RabbitMqListInfo 的按别名查找 URL 功能
 
 // TestRabbitMqListInfo_Url 测试 RabbitMqListInfo 的按别名查找 URL
-// 不需要 RabbitMQ 连接：仅验证列表查找逻辑
+//
+// 【功能点】验证按别名查找 URL 的功能
+// 【测试流程】
+//  1. 测试查找存在的别名 → 返回对应 URL
+//  2. 测试查找不存在的别名 → 返回空字符串
 func TestRabbitMqListInfo_Url(t *testing.T) {
 	list := RabbitMqListInfo{
 		{AliasName: "primary", Host: "localhost", Port: 5672, Username: "guest", Password: "guest"},
@@ -126,7 +135,9 @@ func TestRabbitMqListInfo_Url(t *testing.T) {
 // 测试点：验证 MessageQueue 的 GetInfo 和 GetFuncInfo 方法
 
 // TestMessageQueue_GetInfo 测试 MessageQueue 的 GetInfo 方法
-// 不需要 RabbitMQ 连接：仅验证字符串格式化逻辑
+//
+// 【功能点】验证 GetInfo() 返回正确格式的队列信息字符串
+// 【测试流程】测试完整配置、空 MQName、全空等场景
 func TestMessageQueue_GetInfo(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -173,7 +184,9 @@ func TestMessageQueue_GetInfo(t *testing.T) {
 }
 
 // TestMessageQueue_GetFuncInfo 测试 MessageQueue 的 GetFuncInfo 方法
-// 不需要 RabbitMQ 连接：仅验证函数信息获取逻辑
+//
+// 【功能点】验证 GetFuncInfo() 返回处理函数名称
+// 【测试流程】测试有处理函数和无处理函数两种情况
 func TestMessageQueue_GetFuncInfo(t *testing.T) {
 	// 测试有处理函数的情况
 	mq := MessageQueue{
@@ -196,7 +209,12 @@ func TestMessageQueue_GetFuncInfo(t *testing.T) {
 // 测试点：验证死信队列相关配置方法
 
 // TestMessageQueue_getDeadLetterExchange 测试获取死信交换机名称
-// 不需要 RabbitMQ 连接：仅验证名称生成逻辑
+//
+// 【功能点】验证死信交换机名称生成逻辑
+// 【测试流程】
+//  1. 测试自定义死信交换机名称
+//  2. 测试基于交换机名称自动生成
+//  3. 测试基于队列名称自动生成
 func TestMessageQueue_getDeadLetterExchange(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -243,7 +261,9 @@ func TestMessageQueue_getDeadLetterExchange(t *testing.T) {
 }
 
 // TestMessageQueue_getDeadLetterQueue 测试获取死信队列名称
-// 不需要 RabbitMQ 连接：仅验证名称生成逻辑
+//
+// 【功能点】验证死信队列名称生成逻辑
+// 【测试流程】测试自定义名称和自动生成名称两种情况
 func TestMessageQueue_getDeadLetterQueue(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -282,7 +302,9 @@ func TestMessageQueue_getDeadLetterQueue(t *testing.T) {
 }
 
 // TestMessageQueue_getDeadLetterRoutingKey 测试获取死信路由键
-// 不需要 RabbitMQ 连接：仅验证路由键获取逻辑
+//
+// 【功能点】验证死信路由键获取逻辑
+// 【测试流程】测试自定义路由键、使用原路由键、空路由键三种情况
 func TestMessageQueue_getDeadLetterRoutingKey(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -331,7 +353,9 @@ func TestMessageQueue_getDeadLetterRoutingKey(t *testing.T) {
 // 测试点：验证 ConsumeConfig 结构的默认值和自定义值
 
 // TestConsumeConfig_Defaults 测试 ConsumeConfig 的默认值
-// 不需要 RabbitMQ 连接：仅验证默认值
+//
+// 【功能点】验证 ConsumeConfig 结构的默认值
+// 【测试流程】创建空配置并验证各字段默认值为零值
 func TestConsumeConfig_Defaults(t *testing.T) {
 	config := ConsumeConfig{}
 
@@ -348,7 +372,9 @@ func TestConsumeConfig_Defaults(t *testing.T) {
 }
 
 // TestConsumeConfig_Custom 测试 ConsumeConfig 的自定义值
-// 不需要 RabbitMQ 连接：仅验证配置值设置
+//
+// 【功能点】验证 ConsumeConfig 的自定义配置值
+// 【测试流程】设置自定义配置值并验证正确设置
 func TestConsumeConfig_Custom(t *testing.T) {
 	config := ConsumeConfig{
 		PrefetchCount: 10,
@@ -371,7 +397,9 @@ func TestConsumeConfig_Custom(t *testing.T) {
 // 测试点：验证 PublishConfirmConfig 结构
 
 // TestPublishConfirmConfig 测试 PublishConfirmConfig 配置
-// 不需要 RabbitMQ 连接：仅验证配置值
+//
+// 【功能点】验证 PublishConfirmConfig 的配置值
+// 【测试流程】测试默认配置和启用确认模式两种情况
 func TestPublishConfirmConfig(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -413,7 +441,12 @@ func TestPublishConfirmConfig(t *testing.T) {
 // 测试点：验证从消息 header 中获取重试次数
 
 // TestMessageQueue_getRetryCount 测试从消息 header 获取重试次数
-// 不需要 RabbitMQ 连接：仅验证 header 解析逻辑
+//
+// 【功能点】验证从消息 x-death header 解析重试次数
+// 【测试流程】
+//  1. 测试无 headers - 返回 0
+//  2. 测试有 x-death header - 返回正确 count
+//  3. 测试 x-death 格式错误 - 返回 0
 func TestMessageQueue_getRetryCount(t *testing.T) {
 	mq := MessageQueue{}
 
@@ -495,7 +528,9 @@ func TestMessageQueue_getRetryCount(t *testing.T) {
 // 测试点：验证 DeadLetterConfig 的完整配置
 
 // TestDeadLetterConfig_Complete 测试 DeadLetterConfig 完整配置
-// 不需要 RabbitMQ 连接：仅验证配置值
+//
+// 【功能点】验证 DeadLetterConfig 的完整配置值
+// 【测试流程】设置所有配置字段并验证正确设置
 func TestDeadLetterConfig_Complete(t *testing.T) {
 	config := DeadLetterConfig{
 		Enabled:    true,
@@ -526,7 +561,9 @@ func TestDeadLetterConfig_Complete(t *testing.T) {
 // 测试点：验证 MessageQueue 的完整配置
 
 // TestMessageQueue_CompleteConfig 测试 MessageQueue 完整配置
-// 不需要 RabbitMQ 连接：仅验证配置值
+//
+// 【功能点】验证 MessageQueue 的完整配置值
+// 【测试流程】设置所有配置字段并验证正确设置
 func TestMessageQueue_CompleteConfig(t *testing.T) {
 	handler := func(ctx context.Context, msg string) error {
 		return nil
@@ -586,7 +623,9 @@ func TestMessageQueue_CompleteConfig(t *testing.T) {
 // 测试点：验证批量发布空消息列表的快速返回
 
 // TestMessageQueue_PublishBatch_EmptyMessages 测试批量发布空消息列表
-// 不需要 RabbitMQ 连接：仅验证空列表快速返回逻辑
+//
+// 【功能点】验证空消息列表时快速返回 nil
+// 【测试流程】分别传入 nil 和空数组，验证都返回 nil
 func TestMessageQueue_PublishBatch_EmptyMessages(t *testing.T) {
 	mq := MessageQueue{
 		QueueName:    "test-queue",
@@ -608,7 +647,9 @@ func TestMessageQueue_PublishBatch_EmptyMessages(t *testing.T) {
 }
 
 // TestMessageQueue_PublishBatchWithContext_EmptyMessages 测试带 Context 的批量发布空消息列表
-// 不需要 RabbitMQ 连接：仅验证空列表快速返回逻辑
+//
+// 【功能点】验证带 Context 的空消息列表时快速返回 nil
+// 【测试流程】分别传入 nil 和空数组，验证都返回 nil
 func TestMessageQueue_PublishBatchWithContext_EmptyMessages(t *testing.T) {
 	mq := MessageQueue{
 		QueueName:    "test-queue",
@@ -635,7 +676,9 @@ func TestMessageQueue_PublishBatchWithContext_EmptyMessages(t *testing.T) {
 // 测试点：验证消费者处理函数的调用
 
 // TestMessageQueue_HandlerFunctions 测试处理函数的调用
-// 不需要 RabbitMQ 连接：仅验证函数调用逻辑
+//
+// 【功能点】验证 Fun 和 FunWithCtx 处理函数被正确调用
+// 【测试流程】分别测试旧版 Fun 和新版 FunWithCtx 的调用和参数传递
 func TestMessageQueue_HandlerFunctions(t *testing.T) {
 	var called bool
 	var receivedMsg string
@@ -686,7 +729,9 @@ func TestMessageQueue_HandlerFunctions(t *testing.T) {
 }
 
 // TestMessageQueue_HandlerWithError 测试处理函数返回错误
-// 不需要 RabbitMQ 连接：仅验证错误返回逻辑
+//
+// 【功能点】验证处理函数返回错误时正确传递
+// 【测试流程】设置返回错误的处理函数，验证错误正确返回
 func TestMessageQueue_HandlerWithError(t *testing.T) {
 	expectedErr := errors.New("处理失败")
 
@@ -717,7 +762,9 @@ func TestMessageQueue_HandlerWithError(t *testing.T) {
 // 测试点：验证 Context 取消时的行为
 
 // TestMessageQueue_ContextCancellation 测试 Context 取消时的处理
-// 不需要 RabbitMQ 连接：仅验证 Context 处理逻辑
+//
+// 【功能点】验证 Context 取消时处理函数正确响应
+// 【测试流程】先测试未取消时正常返回，再测试取消后返回 context.Canceled
 func TestMessageQueue_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -752,7 +799,9 @@ func TestMessageQueue_ContextCancellation(t *testing.T) {
 // 测试点：验证 Close 方法对 nil 连接和通道的处理
 
 // TestMessageQueue_Close_NilConnAndChannel 测试关闭 nil 连接和通道
-// 不需要 RabbitMQ 连接：仅验证 nil 处理逻辑
+//
+// 【功能点】验证 Close() 对 nil 连接和通道的安全处理
+// 【测试流程】创建空 MessageQueue 并调用 Close()，验证不会 panic
 func TestMessageQueue_Close_NilConnAndChannel(t *testing.T) {
 	mq := MessageQueue{}
 
@@ -764,7 +813,9 @@ func TestMessageQueue_Close_NilConnAndChannel(t *testing.T) {
 // 测试点：验证消息处理函数的调用逻辑
 
 // TestMessageQueue_HandleMessage_WithFunWithCtx 测试使用 FunWithCtx 处理消息
-// 不需要 RabbitMQ 连接：仅验证处理函数调用逻辑
+//
+// 【功能点】验证 FunWithCtx 处理函数被正确调用
+// 【测试流程】设置处理函数并模拟调用，验证消息正确传递
 func TestMessageQueue_HandleMessage_WithFunWithCtx(t *testing.T) {
 	var receivedMsg string
 	var handlerCalled bool
@@ -802,7 +853,9 @@ func TestMessageQueue_HandleMessage_WithFunWithCtx(t *testing.T) {
 }
 
 // TestMessageQueue_HandleMessage_WithFun 测试使用 Fun 处理消息
-// 不需要 RabbitMQ 连接：仅验证处理函数调用逻辑
+//
+// 【功能点】验证旧版 Fun 处理函数被正确调用
+// 【测试流程】设置处理函数并模拟调用，验证消息正确传递
 func TestMessageQueue_HandleMessage_WithFun(t *testing.T) {
 	var receivedMsg string
 	var handlerCalled bool
@@ -835,7 +888,9 @@ func TestMessageQueue_HandleMessage_WithFun(t *testing.T) {
 }
 
 // TestMessageQueue_HandleMessage_Error 测试处理消息时返回错误
-// 不需要 RabbitMQ 连接：仅验证错误返回逻辑
+//
+// 【功能点】验证处理函数返回错误时正确传递
+// 【测试流程】设置返回错误的处理函数，验证错误正确返回
 func TestMessageQueue_HandleMessage_Error(t *testing.T) {
 	expectedErr := errors.New("处理失败")
 
@@ -860,7 +915,9 @@ func TestMessageQueue_HandleMessage_Error(t *testing.T) {
 // 测试点：验证无效连接时 Consume 方法返回错误
 
 // TestMessageQueue_Consume_NoConnection 测试无效连接时 Consume 返回错误
-// 不需要 RabbitMQ 连接：使用无效连接字符串验证错误返回
+//
+// 【功能点】验证无效连接时 Consume() 返回连接错误
+// 【测试流程】设置无效连接字符串，调用 Consume()，验证返回错误
 func TestMessageQueue_Consume_NoConnection(t *testing.T) {
 	mq := MessageQueue{
 		QueueName:    "test-queue",
@@ -879,7 +936,9 @@ func TestMessageQueue_Consume_NoConnection(t *testing.T) {
 }
 
 // TestMessageQueue_ConsumeWithContext_NoConnection 测试无效连接时 ConsumeWithContext 返回错误
-// 不需要 RabbitMQ 连接：使用无效连接字符串验证错误返回
+//
+// 【功能点】验证无效连接时 ConsumeWithContext() 返回连接错误
+// 【测试流程】设置无效连接字符串，调用 ConsumeWithContext()，验证返回错误
 func TestMessageQueue_ConsumeWithContext_NoConnection(t *testing.T) {
 	mq := MessageQueue{
 		QueueName:    "test-queue",
@@ -903,7 +962,9 @@ func TestMessageQueue_ConsumeWithContext_NoConnection(t *testing.T) {
 // 测试点：验证无效连接时 Publish 方法返回错误
 
 // TestMessageQueue_Publish_NoConnection 测试无效连接时 Publish 返回错误
-// 不需要 RabbitMQ 连接：使用无效连接字符串验证错误返回
+//
+// 【功能点】验证无效连接时 Publish() 返回连接错误
+// 【测试流程】设置无效连接字符串，调用 Publish()，验证返回错误
 func TestMessageQueue_Publish_NoConnection(t *testing.T) {
 	mq := MessageQueue{
 		QueueName:    "test-queue",
@@ -921,7 +982,9 @@ func TestMessageQueue_Publish_NoConnection(t *testing.T) {
 }
 
 // TestMessageQueue_PublishWithContext_NoConnection 测试无效连接时 PublishWithContext 返回错误
-// 不需要 RabbitMQ 连接：使用无效连接字符串验证错误返回
+//
+// 【功能点】验证无效连接时 PublishWithContext() 返回连接错误
+// 【测试流程】设置无效连接字符串，调用 PublishWithContext()，验证返回错误
 func TestMessageQueue_PublishWithContext_NoConnection(t *testing.T) {
 	mq := MessageQueue{
 		QueueName:    "test-queue",
@@ -941,7 +1004,9 @@ func TestMessageQueue_PublishWithContext_NoConnection(t *testing.T) {
 }
 
 // TestMessageQueue_PublishBatch_NoConnection 测试无效连接时 PublishBatch 返回错误
-// 不需要 RabbitMQ 连接：使用无效连接字符串验证错误返回
+//
+// 【功能点】验证无效连接时 PublishBatch() 返回连接错误
+// 【测试流程】设置无效连接字符串，调用 PublishBatch()，验证返回错误
 func TestMessageQueue_PublishBatch_NoConnection(t *testing.T) {
 	mq := MessageQueue{
 		QueueName:    "test-queue",
@@ -964,7 +1029,9 @@ func TestMessageQueue_PublishBatch_NoConnection(t *testing.T) {
 // 测试点：验证无效连接时 InitChannelForProducer 返回错误
 
 // TestMessageQueue_InitChannelForProducer_NoConnection 测试无效连接时返回错误
-// 不需要 RabbitMQ 连接：使用无效连接字符串验证错误返回
+//
+// 【功能点】验证无效连接时 InitChannelForProducer() 返回连接错误
+// 【测试流程】设置无效连接字符串，调用 InitChannelForProducer()，验证返回错误
 func TestMessageQueue_InitChannelForProducer_NoConnection(t *testing.T) {
 	mq := MessageQueue{
 		QueueName:    "test-queue",
@@ -982,7 +1049,9 @@ func TestMessageQueue_InitChannelForProducer_NoConnection(t *testing.T) {
 }
 
 // TestMessageQueue_InitChannelForProducer_WithConfirm 测试带确认模式的无效连接
-// 不需要 RabbitMQ 连接：使用无效连接字符串验证错误返回
+//
+// 【功能点】验证启用 Publisher Confirms 时无效连接返回错误
+// 【测试流程】启用确认模式并设置无效连接，验证返回错误
 func TestMessageQueue_InitChannelForProducer_WithConfirm(t *testing.T) {
 	mq := MessageQueue{
 		QueueName:    "test-queue",

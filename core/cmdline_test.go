@@ -1,4 +1,24 @@
 // Package core 命令行参数解析功能测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含命令行参数解析相关功能的单元测试。
+//
+// 测试覆盖内容：
+// 1. CmdArgs 结构体 - 参数存储结构
+// 2. parseCmdArgs - 命令行参数解析
+// 3. 默认值 - 未指定参数时的默认值
+// 4. 环境参数 - -env 参数解析
+// 5. 配置路径 - -config 参数解析
+// 6. 解密密钥 - -cipherKey 参数解析
+// 7. 组合参数 - 多参数组合使用
+//
+// 支持的参数：
+//   -env        环境标识（如 dev、test、prod）
+//   -config     配置文件目录路径
+//   -cipherKey  配置加密密钥
+//
+// 运行测试：go test -v ./core/... -run CmdArgs
+// ==================================================
 package core
 
 import (
@@ -8,7 +28,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// ==================== CmdArgs 结构体测试 ====================
+
 // TestCmdArgs 测试CmdArgs结构体
+//
+// 【功能点】验证 CmdArgs 结构体的字段定义
+// 【测试流程】
+//  1. 创建 CmdArgs 实例并设置各字段值
+//  2. 验证各字段值正确存储
 func TestCmdArgs(t *testing.T) {
 	t.Run("create cmd args", func(t *testing.T) {
 		args := CmdArgs{
@@ -23,7 +50,17 @@ func TestCmdArgs(t *testing.T) {
 	})
 }
 
+// ==================== parseCmdArgs 测试 ====================
+
 // TestParseCmdArgs 测试parseCmdArgs函数
+//
+// 【功能点】验证命令行参数解析功能
+// 【测试流程】
+//  1. 测试默认值 - 验证未指定参数时的默认值
+//  2. 测试 -env 参数 - 验证环境标识解析
+//  3. 测试 -config 参数 - 验证配置路径解析
+//  4. 测试 -cipherKey 参数 - 验证解密密钥解析
+//  5. 测试组合参数 - 验证多参数组合使用
 func TestParseCmdArgs(t *testing.T) {
 	// 保存原始参数
 	originalArgs := os.Args
@@ -149,6 +186,12 @@ func TestParseCmdArgs(t *testing.T) {
 }
 
 // TestParseCmdArgs_EdgeCases 测试边界情况
+//
+// 【功能点】验证命令行参数解析的边界情况
+// 【测试流程】
+//  1. 测试空字符串参数 - 验证处理空值
+//  2. 测试特殊字符参数 - 验证正确解析
+//  3. 测试路径包含空格 - 验证正确处理
 func TestParseCmdArgs_EdgeCases(t *testing.T) {
 	// 保存原始参数
 	originalArgs := os.Args
@@ -199,6 +242,12 @@ func TestParseCmdArgs_EdgeCases(t *testing.T) {
 }
 
 // TestParseCmdArgs_Concurrent 测试并发安全性
+//
+// 【功能点】验证参数解析的并发安全性
+// 【测试流程】
+//  1. 启动多个协程并发解析参数
+//  2. 验证无数据竞争
+//  3. 验证所有解析结果正确
 func TestParseCmdArgs_Concurrent(t *testing.T) {
 	// 保存原始参数
 	originalArgs := os.Args
@@ -233,6 +282,12 @@ func TestParseCmdArgs_Concurrent(t *testing.T) {
 }
 
 // TestParseCmdArgs_RealWorld 测试真实世界场景
+//
+// 【功能点】验证真实使用场景的参数解析
+// 【测试流程】
+//  1. 模拟开发环境参数组合
+//  2. 模拟生产环境参数组合
+//  3. 模拟 CI/CD 环境参数组合
 func TestParseCmdArgs_RealWorld(t *testing.T) {
 	// 保存原始参数
 	originalArgs := os.Args
@@ -311,6 +366,9 @@ func TestParseCmdArgs_RealWorld(t *testing.T) {
 }
 
 // TestParseCmdArgs_Performance 测试性能
+//
+// 【功能点】验证参数解析的性能表现
+// 【测试方法】多次解析参数，统计执行时间
 func TestParseCmdArgs_Performance(t *testing.T) {
 	// 保存原始参数
 	originalArgs := os.Args
