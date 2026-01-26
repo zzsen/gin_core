@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -100,7 +101,18 @@ type MessageQueue struct {
 }
 
 func (m *MessageQueue) GetInfo() string {
-	return fmt.Sprintf("%s_%s_%s_%s_%s", m.MQName, m.QueueName, m.ExchangeName, m.ExchangeType, m.RoutingKey)
+	var b strings.Builder
+	b.Grow(len(m.MQName) + len(m.QueueName) + len(m.ExchangeName) + len(m.ExchangeType) + len(m.RoutingKey) + 4)
+	b.WriteString(m.MQName)
+	b.WriteByte('_')
+	b.WriteString(m.QueueName)
+	b.WriteByte('_')
+	b.WriteString(m.ExchangeName)
+	b.WriteByte('_')
+	b.WriteString(m.ExchangeType)
+	b.WriteByte('_')
+	b.WriteString(m.RoutingKey)
+	return b.String()
 }
 
 func (m *MessageQueue) GetFuncInfo() string {
