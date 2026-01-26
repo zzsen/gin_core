@@ -80,7 +80,7 @@ func initSingleDB(dbConfig config.DbInfo) (*gorm.DB, error) {
 		DSN: dbConfig.Dsn(), // 数据库连接字符串
 	}), gormConfig)
 	if err != nil {
-		return nil, fmt.Errorf("初始化 mysql client 失败: %v", err)
+		return nil, fmt.Errorf("初始化 mysql client 失败: %w", err)
 	}
 
 	// 初始化数据库回调函数（如自动时间字段填充等）

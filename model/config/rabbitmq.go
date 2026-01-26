@@ -125,7 +125,7 @@ func (m *MessageQueue) initConn() error {
 	if m.Conn == nil || m.Conn.IsClosed() {
 		conn, err := amqp.Dial(m.MqConnStr)
 		if err != nil {
-			return fmt.Errorf("连接失败, queueInfo: %s, error: %v", queueInfo, err)
+			return fmt.Errorf("连接失败, queueInfo: %s, error: %w", queueInfo, err)
 		}
 		m.Conn = conn
 	}
@@ -142,7 +142,7 @@ func (m *MessageQueue) initChannel() error {
 
 		ch, err := m.Conn.Channel()
 		if err != nil {
-			return fmt.Errorf("开启通道失败: queueInfo: %s, error: %v", queueInfo, err)
+			return fmt.Errorf("开启通道失败: queueInfo: %s, error: %w", queueInfo, err)
 		}
 
 		if m.ExchangeName != "" {
@@ -156,7 +156,7 @@ func (m *MessageQueue) initChannel() error {
 				nil,            // arguments
 			)
 			if err != nil {
-				return fmt.Errorf("声明交换机失败: queueInfo: %s, error: %v", queueInfo, err)
+				return fmt.Errorf("声明交换机失败: queueInfo: %s, error: %w", queueInfo, err)
 			}
 		}
 
@@ -195,7 +195,7 @@ func (m *MessageQueue) initChannel() error {
 			argsPtr,     // arguments
 		)
 		if err != nil {
-			return fmt.Errorf("创建队列失败: queueInfo: %s, error: %v", queueInfo, err)
+			return fmt.Errorf("创建队列失败: queueInfo: %s, error: %w", queueInfo, err)
 		}
 
 		err = ch.QueueBind(
@@ -206,7 +206,7 @@ func (m *MessageQueue) initChannel() error {
 			nil,
 		)
 		if err != nil {
-			return fmt.Errorf("队列绑定失败: queueInfo: %s, error: %v", queueInfo, err)
+			return fmt.Errorf("队列绑定失败: queueInfo: %s, error: %w", queueInfo, err)
 		}
 
 		// 设置 QoS，使用配置的 PrefetchCount，默认为 1
@@ -220,7 +220,7 @@ func (m *MessageQueue) initChannel() error {
 			false,         // global
 		)
 		if err != nil {
-			return fmt.Errorf("设置QoS异常: queueInfo: %s, error: %v", queueInfo, err)
+			return fmt.Errorf("设置QoS异常: queueInfo: %s, error: %w", queueInfo, err)
 		}
 
 		m.Channel = ch
@@ -246,7 +246,7 @@ func (m *MessageQueue) initDeadLetterQueue(ch *amqp.Channel) error {
 		nil,            // arguments
 	)
 	if err != nil {
-		return fmt.Errorf("声明死信交换机失败: queueInfo: %s, error: %v", queueInfo, err)
+		return fmt.Errorf("声明死信交换机失败: queueInfo: %s, error: %w", queueInfo, err)
 	}
 
 	// 构建死信队列参数
@@ -270,7 +270,7 @@ func (m *MessageQueue) initDeadLetterQueue(ch *amqp.Channel) error {
 		dlqArgsPtr, // arguments
 	)
 	if err != nil {
-		return fmt.Errorf("创建死信队列失败: queueInfo: %s, error: %v", queueInfo, err)
+		return fmt.Errorf("创建死信队列失败: queueInfo: %s, error: %w", queueInfo, err)
 	}
 
 	// 绑定死信队列到死信交换机
@@ -282,7 +282,7 @@ func (m *MessageQueue) initDeadLetterQueue(ch *amqp.Channel) error {
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("死信队列绑定失败: queueInfo: %s, error: %v", queueInfo, err)
+		return fmt.Errorf("死信队列绑定失败: queueInfo: %s, error: %w", queueInfo, err)
 	}
 
 	return nil
@@ -330,7 +330,7 @@ func (m *MessageQueue) InitChannelForProducer() error {
 
 		ch, err := m.Conn.Channel()
 		if err != nil {
-			return fmt.Errorf("开启通道失败: queueInfo: %s, error: %v", queueInfo, err)
+			return fmt.Errorf("开启通道失败: queueInfo: %s, error: %w", queueInfo, err)
 		}
 
 		// 发送者只需要声明交换机，不需要声明队列和绑定
@@ -345,7 +345,7 @@ func (m *MessageQueue) InitChannelForProducer() error {
 				nil,            // arguments
 			)
 			if err != nil {
-				return fmt.Errorf("声明交换机失败: queueInfo: %s, error: %v", queueInfo, err)
+				return fmt.Errorf("声明交换机失败: queueInfo: %s, error: %w", queueInfo, err)
 			}
 		}
 
@@ -353,7 +353,7 @@ func (m *MessageQueue) InitChannelForProducer() error {
 		if m.PublishConfirm.Enabled {
 			err = ch.Confirm(false)
 			if err != nil {
-				return fmt.Errorf("设置确认模式失败: queueInfo: %s, error: %v", queueInfo, err)
+				return fmt.Errorf("设置确认模式失败: queueInfo: %s, error: %w", queueInfo, err)
 			}
 
 			// 初始化确认通道
@@ -404,7 +404,7 @@ func (m *MessageQueue) ConsumeWithContext(ctx context.Context) error {
 
 	queueInfo := m.GetInfo()
 	if err != nil {
-		return fmt.Errorf("注册消费者失败: queueInfo: %s, error: %v", queueInfo, err)
+		return fmt.Errorf("注册消费者失败: queueInfo: %s, error: %w", queueInfo, err)
 	}
 
 	for {
@@ -517,7 +517,7 @@ func (m *MessageQueue) PublishWithContext(ctx context.Context, message string) e
 			DeliveryMode: amqp.Persistent, // 持久化消息
 		})
 	if err != nil {
-		return fmt.Errorf("消息发布失败, queueInfo: %s, error: %v", m.GetInfo(), err)
+		return fmt.Errorf("消息发布失败, queueInfo: %s, error: %w", m.GetInfo(), err)
 	}
 
 	// 如果启用了 Publisher Confirms，等待确认
@@ -598,13 +598,13 @@ func (m *MessageQueue) PublishBatchWithContext(ctx context.Context, messages []s
 		// 等待所有消息确认
 		for i := 0; i < len(messages); i++ {
 			if err := m.waitForConfirm(pubCtx); err != nil {
-				return fmt.Errorf("批量发布确认失败, queueInfo: %s, 消息索引: %d, error: %v", m.GetInfo(), i, err)
+				return fmt.Errorf("批量发布确认失败, queueInfo: %s, 消息索引: %d: %w", m.GetInfo(), i, err)
 			}
 		}
 	}
 
 	if len(failedIndexes) > 0 {
-		return fmt.Errorf("批量发布部分失败, queueInfo: %s, 失败索引: %v, error: %v", m.GetInfo(), failedIndexes, firstErr)
+		return fmt.Errorf("批量发布部分失败, queueInfo: %s, 失败索引: %v: %w", m.GetInfo(), failedIndexes, firstErr)
 	}
 
 	return nil

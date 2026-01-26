@@ -54,7 +54,7 @@ func initMultiDB(dbResolvers config.DbResolvers) (*gorm.DB, error) {
 		DSN: defaultDBConfig.Dsn(), // 数据库连接字符串
 	}), gormConfig)
 	if err != nil {
-		return nil, fmt.Errorf("初始化 mysql client 失败: %v", err)
+		return nil, fmt.Errorf("初始化 mysql client 失败: %w", err)
 	}
 
 	// 创建数据库解析器插件
@@ -83,7 +83,7 @@ func initMultiDB(dbResolvers config.DbResolvers) (*gorm.DB, error) {
 
 	// 将解析器插件应用到数据库连接
 	if err := DB.Use(resolverPlugin); err != nil {
-		return nil, fmt.Errorf("启用db resolver plugin失败: %v", err)
+		return nil, fmt.Errorf("启用db resolver plugin失败: %w", err)
 	}
 
 	// 初始化数据库回调函数（如自动时间字段填充等）

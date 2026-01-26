@@ -52,7 +52,7 @@ func savePem(key any, filePath string, isPrivateKey bool) error {
 	// 写入文件，设置权限为600（仅所有者可读写）
 	err := os.WriteFile(filePath, pemBytes, 0600)
 	if err != nil {
-		return fmt.Errorf("save %s failed: %v", filePath, err)
+		return fmt.Errorf("save %s failed: %w", filePath, err)
 	}
 	return nil
 }
@@ -102,7 +102,7 @@ func convertStrToPrivateKey(privatekeyStr string) (*rsa.PrivateKey, error) {
 func RsaReadPrivatePem(filePath string) (*rsa.PrivateKey, error) {
 	pemBytes, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("read private key failed: %v", err)
+		return nil, fmt.Errorf("read private key failed: %w", err)
 	}
 	return convertStrToPrivateKey(string(pemBytes))
 }
@@ -136,7 +136,7 @@ func convertStrToPublicKey(publickeyStr string) (*rsa.PublicKey, error) {
 func RsaReadPublicPem(filePath string) (*rsa.PublicKey, error) {
 	pemBytes, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("read public key failed: %v", err)
+		return nil, fmt.Errorf("read public key failed: %w", err)
 	}
 	return convertStrToPublicKey(string(pemBytes))
 }

@@ -166,7 +166,7 @@ func getOrInitProducer(messageQueue *config.MessageQueue, queueInfo string) (*co
 		// 初始化连接和通道
 		err := producer.InitChannelForProducer()
 		if err != nil {
-			return nil, fmt.Errorf("初始化发送者失败, queueInfo: %s, error: %v", queueInfo, err)
+			return nil, fmt.Errorf("初始化发送者失败, queueInfo: %s, error: %w", queueInfo, err)
 		}
 		RabbitMQProducerList[queueInfo] = producer
 		logger.Info("[消息队列] 动态初始化发送者成功, queueInfo: %s", queueInfo)

@@ -87,7 +87,7 @@ func initRedisClient(redisCfg config.RedisInfo) (redis.UniversalClient, error) {
 	// 测试Redis连接，使用Ping命令验证连通性
 	pong, err := client.Ping(context.Background()).Result()
 	if err != nil {
-		return nil, fmt.Errorf("连接失败, ping failed, err: %v", err)
+		return nil, fmt.Errorf("连接失败, ping failed: %w", err)
 	}
 
 	// 记录连接成功日志，包含别名和Ping响应

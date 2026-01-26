@@ -151,7 +151,7 @@ func initDBConnConfig(gormDB *gorm.DB, dbConfig config.DbInfo) error {
 	// 获取底层的sql.DB实例以配置连接池
 	SqlDB, err := gormDB.DB()
 	if err != nil {
-		return fmt.Errorf("获取 sqlDB 失败: %v", err)
+		return fmt.Errorf("获取 sqlDB 失败: %w", err)
 	}
 
 	// 设置连接池参数，使用配置值或默认值
