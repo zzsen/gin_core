@@ -2,6 +2,7 @@ package core
 
 import (
 	"os"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zzsen/gin_core/app"
@@ -16,9 +17,14 @@ import (
 // 支持动态添加多个路由配置函数，提供灵活的路由注册机制
 var optionFuncList = make([]gin.OptionFunc, 0)
 
+// optionFuncMu 保护 optionFuncList 的互斥锁
+// 确保并发调用 AddOptionFunc 时的线程安全
+var optionFuncMu sync.Mutex
+
 // AddOptionFunc 添加路由选项函数
 // 允许用户注册自定义的路由配置函数，这些函数会在引擎初始化时被调用
 // 支持传入多个函数，函数会按照添加顺序执行
+// 该函数是线程安全的，可以在多个 goroutine 中并发调用
 // 参数 optionFunc: 一个或多个 gin.OptionFunc 类型的路由配置函数
 //
 // 使用示例：
@@ -28,6 +34,8 @@ var optionFuncList = make([]gin.OptionFunc, 0)
 //	  r.GET("/users", getUsersHandler)
 //	})
 func AddOptionFunc(optionFunc ...gin.OptionFunc) {
+	optionFuncMu.Lock()
+	defer optionFuncMu.Unlock()
 	optionFuncList = append(optionFuncList, optionFunc...)
 }
 
@@ -149,9 +157,16 @@ func initEngine() *gin.Engine {
 	AddOptionFunc(healthDetactEngine)
 	// 添加 Prometheus 指标端点
 	AddOptionFunc(metricsEngine)
+
 	// 应用所有用户自定义的路由配置函数
-	// 这些函数在应用启动时通过AddOptionFunc注册
-	engine.With(optionFuncList...)
+	// 这些函数在应用启动时通过 AddOptionFunc 注册
+	// 获取 optionFuncList 的副本以确保线程安全
+	optionFuncMu.Lock()
+	optionFuncs := make([]gin.OptionFunc, len(optionFuncList))
+	copy(optionFuncs, optionFuncList)
+	optionFuncMu.Unlock()
+
+	engine.With(optionFuncs...)
 
 	return engine
 }
