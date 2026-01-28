@@ -46,7 +46,6 @@ const (
 func setupProducerTestConfig() func() {
 	// 备份原始配置
 	originalConfig := app.BaseConfig
-	originalProducerList := app.RabbitMQProducerList
 
 	// 设置测试配置（硬编码）
 	app.BaseConfig = config.BaseConfig{
@@ -62,17 +61,38 @@ func setupProducerTestConfig() func() {
 		},
 	}
 
-	app.RabbitMQProducerList = make(map[string]*config.MessageQueue)
+	// 清空生产者列表（使用 sync.Map）
+	clearProducerTestRabbitMQProducerList()
 
 	// 返回清理函数
 	return func() {
-		// 关闭所有生产者连接
-		for _, producer := range app.RabbitMQProducerList {
+		// 关闭所有生产者连接并清空列表
+		app.RabbitMQProducerList.Range(func(key, value any) bool {
+			producer := value.(*config.MessageQueue)
 			producer.Close()
-		}
+			app.RabbitMQProducerList.Delete(key)
+			return true
+		})
 		app.BaseConfig = originalConfig
-		app.RabbitMQProducerList = originalProducerList
 	}
+}
+
+// clearProducerTestRabbitMQProducerList 清空生产者列表（用于测试）
+func clearProducerTestRabbitMQProducerList() {
+	app.RabbitMQProducerList.Range(func(key, value any) bool {
+		app.RabbitMQProducerList.Delete(key)
+		return true
+	})
+}
+
+// getProducerTestRabbitMQProducerListLength 获取生产者列表长度（用于测试）
+func getProducerTestRabbitMQProducerListLength() int {
+	count := 0
+	app.RabbitMQProducerList.Range(func(key, value any) bool {
+		count++
+		return true
+	})
+	return count
 }
 
 // ==================== 单元测试：InitialRabbitMqProducer 参数校验（不需要 RabbitMQ 连接） ====================
@@ -89,8 +109,8 @@ func TestInitialRabbitMqProducer_Empty(t *testing.T) {
 	// 空列表不应 panic
 	InitialRabbitMqProducer()
 
-	if len(app.RabbitMQProducerList) != 0 {
-		t.Errorf("空列表初始化后，生产者列表应为空，实际长度: %d", len(app.RabbitMQProducerList))
+	if getProducerTestRabbitMQProducerListLength() != 0 {
+		t.Errorf("空列表初始化后，生产者列表应为空，实际长度: %d", getProducerTestRabbitMQProducerListLength())
 	}
 }
 
@@ -116,8 +136,8 @@ func TestInitialRabbitMqProducer_NoMQConfig(t *testing.T) {
 	initMqProducer(mq)
 
 	// 由于无法获取连接字符串，生产者列表应为空
-	if len(app.RabbitMQProducerList) != 0 {
-		t.Errorf("无配置时，生产者列表应为空，实际长度: %d", len(app.RabbitMQProducerList))
+	if getProducerTestRabbitMQProducerListLength() != 0 {
+		t.Errorf("无配置时，生产者列表应为空，实际长度: %d", getProducerTestRabbitMQProducerListLength())
 	}
 }
 
@@ -142,8 +162,8 @@ func TestInitialRabbitMqProducer_InvalidMQName(t *testing.T) {
 	initMqProducer(mq)
 
 	// 由于 MQName 不存在，生产者列表应为空
-	if len(app.RabbitMQProducerList) != 0 {
-		t.Errorf("无效 MQName 时，生产者列表应为空，实际长度: %d", len(app.RabbitMQProducerList))
+	if getProducerTestRabbitMQProducerListLength() != 0 {
+		t.Errorf("无效 MQName 时，生产者列表应为空，实际长度: %d", getProducerTestRabbitMQProducerListLength())
 	}
 }
 
@@ -185,7 +205,7 @@ func TestInitialRabbitMqProducer_MultipleQueues(t *testing.T) {
 
 	// 由于无法真正连接，生产者列表可能为空
 	// 这里只测试不 panic
-	t.Logf("生产者列表长度: %d", len(app.RabbitMQProducerList))
+	t.Logf("生产者列表长度: %d", getProducerTestRabbitMQProducerListLength())
 }
 
 // ==================== 单元测试：initMqProducer 连接字符串设置（不需要 RabbitMQ 连接） ====================
@@ -262,7 +282,7 @@ func TestInitMqProducer_InvalidConnection(t *testing.T) {
 
 	// 由于无法连接，生产者不应被添加到列表
 	queueInfo := mq.GetInfo()
-	if _, ok := app.RabbitMQProducerList[queueInfo]; ok {
+	if _, ok := app.RabbitMQProducerList.Load(queueInfo); ok {
 		// 如果本地有 RabbitMQ 运行，则可能成功
 		t.Log("连接成功（本地有 RabbitMQ 运行）")
 	} else {

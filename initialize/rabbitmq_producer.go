@@ -56,7 +56,7 @@ func initMqProducer(messageQueue *config.MessageQueue) {
 		return
 	}
 
-	// 将初始化好的发送者存储到全局映射表中
-	app.RabbitMQProducerList[messageQueue.GetInfo()] = messageQueue
+	// 将初始化好的发送者存储到全局映射表中（使用 sync.Map）
+	app.RabbitMQProducerList.Store(messageQueue.GetInfo(), messageQueue)
 	logger.Info("[消息队列] 发送者初始化成功, queueInfo: %s", messageQueue.GetInfo())
 }

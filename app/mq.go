@@ -146,7 +146,7 @@ func sendRabbitMqMsgWithRetry(messageQueue *config.MessageQueue, message string,
 }
 
 // getOrInitProducer 获取或初始化消息队列生产者
-// 该函数是线程安全的，使用锁保护并发访问
+// 该函数是线程安全的，使用 sync.Map 提供并发安全的读写访问
 // 参数：
 //   - messageQueue: 消息队列配置（指针）
 //   - queueInfo: 队列信息字符串
@@ -155,24 +155,34 @@ func sendRabbitMqMsgWithRetry(messageQueue *config.MessageQueue, message string,
 //   - *config.MessageQueue: 生产者实例
 //   - error: 初始化失败时返回错误
 func getOrInitProducer(messageQueue *config.MessageQueue, queueInfo string) (*config.MessageQueue, error) {
-	lock.Lock()
-	defer lock.Unlock()
-
-	// 优先使用已初始化的发送者
-	producer, ok := RabbitMQProducerList[queueInfo]
-	if !ok {
-		// 如果发送者未初始化，则创建并初始化
-		producer = messageQueue
-		// 初始化连接和通道
-		err := producer.InitChannelForProducer()
-		if err != nil {
-			return nil, fmt.Errorf("初始化发送者失败, queueInfo: %s, error: %w", queueInfo, err)
-		}
-		RabbitMQProducerList[queueInfo] = producer
-		logger.Info("[消息队列] 动态初始化发送者成功, queueInfo: %s", queueInfo)
+	// 快速路径：尝试从 sync.Map 中读取已存在的生产者
+	if producer, ok := RabbitMQProducerList.Load(queueInfo); ok {
+		return producer.(*config.MessageQueue), nil
 	}
 
-	return producer, nil
+	// 慢路径：需要初始化新的生产者
+	// 先初始化连接和通道
+	err := messageQueue.InitChannelForProducer()
+	if err != nil {
+		return nil, fmt.Errorf("初始化发送者失败, queueInfo: %s, error: %w", queueInfo, err)
+	}
+
+	// 使用 LoadOrStore 确保并发安全，避免重复初始化
+	// 如果另一个 goroutine 已经存储了该 key，则使用已存储的值
+	actual, loaded := RabbitMQProducerList.LoadOrStore(queueInfo, messageQueue)
+	if loaded {
+		// 已存在，关闭我们刚初始化的连接，使用已有的
+		if messageQueue.Channel != nil {
+			messageQueue.Channel.Close()
+		}
+		if messageQueue.Conn != nil {
+			messageQueue.Conn.Close()
+		}
+		return actual.(*config.MessageQueue), nil
+	}
+
+	logger.Info("[消息队列] 动态初始化发送者成功, queueInfo: %s", queueInfo)
+	return messageQueue, nil
 }
 
 // SendRabbitMqMsgBatch 批量发送RabbitMQ消息

@@ -15,18 +15,22 @@ import (
 )
 
 var (
-	Env                  string
-	DB                   *gorm.DB
-	DBResolver           *gorm.DB
-	ES                   *elasticsearch.TypedClient
-	Etcd                 *clientv3.Client
-	DBList               map[string]*gorm.DB
-	Redis                redis.UniversalClient
-	RedisList            map[string]redis.UniversalClient
-	BaseConfig           config.BaseConfig
-	RabbitMQProducerList map[string]*config.MessageQueue = make(map[string]*config.MessageQueue)
-	Config               any                             = new(config.BaseConfig)
+	Env        string
+	DB         *gorm.DB
+	DBResolver *gorm.DB
+	ES         *elasticsearch.TypedClient
+	Etcd       *clientv3.Client
+	DBList     map[string]*gorm.DB
+	Redis      redis.UniversalClient
+	RedisList  map[string]redis.UniversalClient
+	BaseConfig config.BaseConfig
+	// RabbitMQProducerList 使用 sync.Map 存储 RabbitMQ 生产者
+	// key: queueInfo (string), value: *config.MessageQueue
+	// 使用 sync.Map 替代 map + mutex，提供更好的并发读写性能
+	RabbitMQProducerList sync.Map
+	Config               any = new(config.BaseConfig)
 	Logger               *logrus.Logger
 	GVA_VP               *viper.Viper
-	lock                 sync.RWMutex
+	// lock 用于保护 DBList、RedisList 等 map 类型全局变量的并发访问
+	lock sync.RWMutex
 )

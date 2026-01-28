@@ -79,11 +79,27 @@ func setupTestConfig() func() {
 	// 返回清理函数
 	return func() {
 		BaseConfig = originalConfig
-		// 清理生产者列表
-		lock.Lock()
-		RabbitMQProducerList = make(map[string]*config.MessageQueue)
-		lock.Unlock()
+		// 清理生产者列表（使用 sync.Map 的 Range 和 Delete 方法）
+		clearRabbitMQProducerList()
 	}
+}
+
+// clearRabbitMQProducerList 清空生产者列表（用于测试）
+func clearRabbitMQProducerList() {
+	RabbitMQProducerList.Range(func(key, value any) bool {
+		RabbitMQProducerList.Delete(key)
+		return true
+	})
+}
+
+// getRabbitMQProducerListLength 获取生产者列表长度（用于测试）
+func getRabbitMQProducerListLength() int {
+	count := 0
+	RabbitMQProducerList.Range(func(key, value any) bool {
+		count++
+		return true
+	})
+	return count
 }
 
 // ==================== 单元测试：发送消息参数校验（不需要 RabbitMQ 连接） ====================
@@ -207,17 +223,9 @@ func TestSendRabbitMqMsg_InvalidMQName(t *testing.T) {
 // 【功能点】验证缓存命中时返回原有生产者实例
 // 【测试流程】预先添加生产者，再次获取同一队列信息，验证返回原实例
 func TestGetOrInitProducer_ExistingProducer(t *testing.T) {
-	// 备份并清空生产者列表
-	lock.Lock()
-	originalList := RabbitMQProducerList
-	RabbitMQProducerList = make(map[string]*config.MessageQueue)
-	lock.Unlock()
-
-	defer func() {
-		lock.Lock()
-		RabbitMQProducerList = originalList
-		lock.Unlock()
-	}()
+	// 清空生产者列表
+	clearRabbitMQProducerList()
+	defer clearRabbitMQProducerList()
 
 	// 预先添加一个生产者
 	existingMq := &config.MessageQueue{
@@ -228,9 +236,8 @@ func TestGetOrInitProducer_ExistingProducer(t *testing.T) {
 	}
 	queueInfo := existingMq.GetInfo()
 
-	lock.Lock()
-	RabbitMQProducerList[queueInfo] = existingMq
-	lock.Unlock()
+	// 使用 sync.Map 的 Store 方法存储生产者
+	RabbitMQProducerList.Store(queueInfo, existingMq)
 
 	// 获取已存在的生产者
 	newMq := &config.MessageQueue{
@@ -262,17 +269,9 @@ func TestGetOrInitProducer_NewProducer(t *testing.T) {
 	// 验证 MQ 连接可用
 	requireRabbitMQ(t)
 
-	// 备份并清空生产者列表
-	lock.Lock()
-	originalList := RabbitMQProducerList
-	RabbitMQProducerList = make(map[string]*config.MessageQueue)
-	lock.Unlock()
-
-	defer func() {
-		lock.Lock()
-		RabbitMQProducerList = originalList
-		lock.Unlock()
-	}()
+	// 清空生产者列表
+	clearRabbitMQProducerList()
+	defer clearRabbitMQProducerList()
 
 	mq := &config.MessageQueue{
 		QueueName:    "test-queue",
@@ -305,17 +304,9 @@ func TestGetOrInitProducer_ConcurrentAccess(t *testing.T) {
 	// 验证 MQ 连接可用
 	requireRabbitMQ(t)
 
-	// 备份并清空生产者列表
-	lock.Lock()
-	originalList := RabbitMQProducerList
-	RabbitMQProducerList = make(map[string]*config.MessageQueue)
-	lock.Unlock()
-
-	defer func() {
-		lock.Lock()
-		RabbitMQProducerList = originalList
-		lock.Unlock()
-	}()
+	// 清空生产者列表
+	clearRabbitMQProducerList()
+	defer clearRabbitMQProducerList()
 
 	var wg sync.WaitGroup
 	var errorCount int32
@@ -523,14 +514,12 @@ func BenchmarkGetOrInitProducer_Existing(b *testing.B) {
 	}
 	queueInfo := existingMq.GetInfo()
 
-	lock.Lock()
-	RabbitMQProducerList[queueInfo] = existingMq
-	lock.Unlock()
+	// 使用 sync.Map 的 Store 方法存储生产者
+	RabbitMQProducerList.Store(queueInfo, existingMq)
 
 	defer func() {
-		lock.Lock()
-		delete(RabbitMQProducerList, queueInfo)
-		lock.Unlock()
+		// 使用 sync.Map 的 Delete 方法删除生产者
+		RabbitMQProducerList.Delete(queueInfo)
 	}()
 
 	newMq := &config.MessageQueue{

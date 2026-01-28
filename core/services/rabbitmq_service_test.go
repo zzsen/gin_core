@@ -41,7 +41,6 @@ const (
 func setupRabbitMQServiceTestConfig() func() {
 	// 备份原始配置
 	originalConfig := app.BaseConfig
-	originalProducerList := app.RabbitMQProducerList
 
 	// 设置测试配置（硬编码）
 	app.BaseConfig = config.BaseConfig{
@@ -59,17 +58,28 @@ func setupRabbitMQServiceTestConfig() func() {
 		},
 	}
 
-	app.RabbitMQProducerList = make(map[string]*config.MessageQueue)
+	// 清空生产者列表（使用 sync.Map）
+	clearServiceTestRabbitMQProducerList()
 
 	// 返回清理函数
 	return func() {
-		// 关闭所有生产者连接
-		for _, producer := range app.RabbitMQProducerList {
+		// 关闭所有生产者连接并清空列表
+		app.RabbitMQProducerList.Range(func(key, value any) bool {
+			producer := value.(*config.MessageQueue)
 			producer.Close()
-		}
+			app.RabbitMQProducerList.Delete(key)
+			return true
+		})
 		app.BaseConfig = originalConfig
-		app.RabbitMQProducerList = originalProducerList
 	}
+}
+
+// clearServiceTestRabbitMQProducerList 清空生产者列表（用于测试）
+func clearServiceTestRabbitMQProducerList() {
+	app.RabbitMQProducerList.Range(func(key, value any) bool {
+		app.RabbitMQProducerList.Delete(key)
+		return true
+	})
 }
 
 // ==================== 单元测试：NewRabbitMQService 服务创建（不需要 RabbitMQ 连接） ====================
@@ -383,14 +393,14 @@ func TestRabbitMQService_Close_WithProducers(t *testing.T) {
 	cleanup := setupRabbitMQServiceTestConfig()
 	defer cleanup()
 
-	// 模拟添加生产者到全局列表
+	// 模拟添加生产者到全局列表（使用 sync.Map）
 	producer := &config.MessageQueue{
 		QueueName:    "close-test-queue",
 		ExchangeName: "close-test-exchange",
 		ExchangeType: "direct",
 		RoutingKey:   "close-test-key",
 	}
-	app.RabbitMQProducerList["test-producer"] = producer
+	app.RabbitMQProducerList.Store("test-producer", producer)
 
 	service := NewRabbitMQService(nil, nil)
 

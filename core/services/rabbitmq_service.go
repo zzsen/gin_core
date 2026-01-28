@@ -54,10 +54,13 @@ func (s *RabbitMQService) Init(ctx context.Context) error {
 
 // Close 关闭RabbitMQ连接
 func (s *RabbitMQService) Close(ctx context.Context) error {
-	for _, producer := range app.RabbitMQProducerList {
+	// 遍历 sync.Map 中的所有生产者并关闭
+	app.RabbitMQProducerList.Range(func(key, value any) bool {
+		producer := value.(*config.MessageQueue)
 		producer.Close()
 		logger.Info("[RabbitMQ] 已关闭生产者: %s", producer.GetInfo())
-	}
+		return true // 继续遍历
+	})
 	return nil
 }
 

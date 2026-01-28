@@ -63,7 +63,6 @@ func requireRabbitMQConnection(t *testing.T) {
 // setupIntegrationTestConfig 设置集成测试配置
 func setupIntegrationTestConfig() func() {
 	originalConfig := BaseConfig
-	originalProducerList := RabbitMQProducerList
 
 	// 设置测试配置（硬编码）
 	BaseConfig = config.BaseConfig{
@@ -78,20 +77,27 @@ func setupIntegrationTestConfig() func() {
 		},
 	}
 
-	lock.Lock()
-	RabbitMQProducerList = make(map[string]*config.MessageQueue)
-	lock.Unlock()
+	// 清空生产者列表（使用 sync.Map）
+	clearIntegrationRabbitMQProducerList()
 
 	return func() {
 		BaseConfig = originalConfig
-		lock.Lock()
-		// 关闭所有生产者连接
-		for _, producer := range RabbitMQProducerList {
+		// 关闭所有生产者连接并清空列表
+		RabbitMQProducerList.Range(func(key, value any) bool {
+			producer := value.(*config.MessageQueue)
 			producer.Close()
-		}
-		RabbitMQProducerList = originalProducerList
-		lock.Unlock()
+			RabbitMQProducerList.Delete(key)
+			return true
+		})
 	}
+}
+
+// clearIntegrationRabbitMQProducerList 清空生产者列表（用于集成测试）
+func clearIntegrationRabbitMQProducerList() {
+	RabbitMQProducerList.Range(func(key, value any) bool {
+		RabbitMQProducerList.Delete(key)
+		return true
+	})
 }
 
 // generateQueueName 生成唯一的队列名称
