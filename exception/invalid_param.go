@@ -50,8 +50,15 @@ func (e InvalidParam) OnException(*gin.Context) (msg string, code int) {
 func formatValidationErrors(validationErrors validator.ValidationErrors) string {
 	messages := []string{"【参数校验不通过】"}
 	for _, err := range validationErrors {
-		// 获取字段名
+		// 获取字段名（优先使用命名空间以保留嵌套路径）
+		// Namespace 返回完整路径如 "ApiResponseBatchRequest.Responses[0].ApiID"
+		// 移除顶层结构体名称，保留有意义的字段路径
+		namespace := err.Namespace()
 		field := err.Field()
+		// 如果是嵌套结构，使用去除顶层结构体后的路径
+		if idx := strings.Index(namespace, "."); idx != -1 {
+			field = namespace[idx+1:]
+		}
 		// 获取校验标签
 		tag := err.Tag()
 		// 获取字段值
