@@ -28,6 +28,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// newTestHandler 创建测试用的中间件处理函数
+func newTestHandler() func() gin.HandlerFunc {
+	return func() gin.HandlerFunc {
+		return gin.HandlerFunc(func(c *gin.Context) {
+			c.Next()
+		})
+	}
+}
+
 // ==================== RegisterMiddleware 测试 ====================
 
 // TestRegisterMiddleware 测试RegisterMiddleware函数
@@ -43,13 +52,7 @@ func TestRegisterMiddleware(t *testing.T) {
 
 	t.Run("register new middleware", func(t *testing.T) {
 		// 测试注册新的中间件
-		handlerFunc := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-
-		err := RegisterMiddleware("testMiddleware", handlerFunc)
+		err := RegisterMiddleware("testMiddleware", newTestHandler())
 		assert.NoError(t, err)
 		// 验证中间件已注册
 		handler, exists := getMiddleware("testMiddleware")
@@ -58,24 +61,12 @@ func TestRegisterMiddleware(t *testing.T) {
 	})
 
 	t.Run("register duplicate middleware", func(t *testing.T) {
-		// 测试注册重复名称的中间件
-		handlerFunc1 := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-		handlerFunc2 := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-
 		// 第一次注册应该成功
-		err1 := RegisterMiddleware("duplicateMiddleware", handlerFunc1)
+		err1 := RegisterMiddleware("duplicateMiddleware", newTestHandler())
 		assert.NoError(t, err1)
 
 		// 第二次注册相同名称应该失败
-		err2 := RegisterMiddleware("duplicateMiddleware", handlerFunc2)
+		err2 := RegisterMiddleware("duplicateMiddleware", newTestHandler())
 		assert.Error(t, err2)
 		assert.Equal(t, "this name is already in use", err2.Error())
 	})
@@ -85,47 +76,19 @@ func TestRegisterMiddleware(t *testing.T) {
 		clearMiddlewares()
 
 		// 测试注册多个不同的中间件
-		middlewares := []struct {
-			name        string
-			handlerFunc func() gin.HandlerFunc
-		}{
-			{
-				name: "middleware1",
-				handlerFunc: func() gin.HandlerFunc {
-					return gin.HandlerFunc(func(c *gin.Context) {
-						c.Next()
-					})
-				},
-			},
-			{
-				name: "middleware2",
-				handlerFunc: func() gin.HandlerFunc {
-					return gin.HandlerFunc(func(c *gin.Context) {
-						c.Next()
-					})
-				},
-			},
-			{
-				name: "middleware3",
-				handlerFunc: func() gin.HandlerFunc {
-					return gin.HandlerFunc(func(c *gin.Context) {
-						c.Next()
-					})
-				},
-			},
-		}
+		middlewareNames := []string{"middleware1", "middleware2", "middleware3"}
 
 		// 注册所有中间件
-		for _, mw := range middlewares {
-			err := RegisterMiddleware(mw.name, mw.handlerFunc)
+		for _, name := range middlewareNames {
+			err := RegisterMiddleware(name, newTestHandler())
 			assert.NoError(t, err)
 		}
 
 		// 验证所有中间件都已注册
-		assert.Equal(t, 3, getMiddlewareCount())
-		for _, mw := range middlewares {
-			assert.True(t, hasMiddleware(mw.name))
-			handler, exists := getMiddleware(mw.name)
+		assert.Equal(t, len(middlewareNames), getMiddlewareCount())
+		for _, name := range middlewareNames {
+			assert.True(t, hasMiddleware(name))
+			handler, exists := getMiddleware(name)
 			assert.True(t, exists)
 			assert.NotNil(t, handler)
 		}
@@ -136,13 +99,7 @@ func TestRegisterMiddleware(t *testing.T) {
 		clearMiddlewares()
 
 		// 测试注册空名称的中间件
-		handlerFunc := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-
-		err := RegisterMiddleware("", handlerFunc)
+		err := RegisterMiddleware("", newTestHandler())
 		assert.NoError(t, err) // 空名称应该被允许注册
 		assert.True(t, hasMiddleware(""))
 	})
@@ -174,14 +131,8 @@ func TestRegisterMiddleware(t *testing.T) {
 			"middleware space",
 		}
 
-		handlerFunc := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-
 		for _, name := range specialNames {
-			err := RegisterMiddleware(name, handlerFunc)
+			err := RegisterMiddleware(name, newTestHandler())
 			assert.NoError(t, err, "Failed to register middleware with name: %s", name)
 			assert.True(t, hasMiddleware(name))
 		}
@@ -207,24 +158,15 @@ func TestInitMiddleware(t *testing.T) {
 		initMiddleware()
 
 		// 验证所有默认中间件都已注册
-		expectedMiddlewares := []string{
-			"prometheusHandler",
-			"exceptionHandler",
-			"traceIdHandler",
-			"otelTraceHandler",
-			"traceLogHandler",
-			"timeoutHandler",
-		}
-
-		for _, name := range expectedMiddlewares {
-			assert.True(t, hasMiddleware(name), "Middleware %s should be registered", name)
-			handler, exists := getMiddleware(name)
-			assert.True(t, exists, "Middleware %s should have a handler function", name)
+		for _, m := range defaultMiddlewares {
+			assert.True(t, hasMiddleware(m.name), "Middleware %s should be registered", m.name)
+			handler, exists := getMiddleware(m.name)
+			assert.True(t, exists, "Middleware %s should have a handler function", m.name)
 			assert.NotNil(t, handler)
 		}
 
 		// 验证注册的中间件数量
-		assert.Equal(t, 6, getMiddlewareCount())
+		assert.Equal(t, len(defaultMiddlewares), getMiddlewareCount())
 	})
 
 	t.Run("initialize multiple times", func(t *testing.T) {
@@ -237,21 +179,12 @@ func TestInitMiddleware(t *testing.T) {
 		initMiddleware()
 
 		// 验证中间件只注册了一次（因为重复注册会失败）
-		expectedMiddlewares := []string{
-			"prometheusHandler",
-			"exceptionHandler",
-			"traceIdHandler",
-			"otelTraceHandler",
-			"traceLogHandler",
-			"timeoutHandler",
-		}
-
-		for _, name := range expectedMiddlewares {
-			assert.True(t, hasMiddleware(name), "Middleware %s should be registered", name)
+		for _, m := range defaultMiddlewares {
+			assert.True(t, hasMiddleware(m.name), "Middleware %s should be registered", m.name)
 		}
 
 		// 验证注册的中间件数量
-		assert.Equal(t, 6, getMiddlewareCount())
+		assert.Equal(t, len(defaultMiddlewares), getMiddlewareCount())
 	})
 }
 
@@ -277,21 +210,13 @@ func TestMiddlewareMapAccess(t *testing.T) {
 
 	t.Run("access registered middleware", func(t *testing.T) {
 		// 注册一个中间件
-		handlerFunc := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-
-		err := RegisterMiddleware("testMiddleware", handlerFunc)
+		err := RegisterMiddleware("testMiddleware", newTestHandler())
 		assert.NoError(t, err)
 
 		// 测试访问已注册的中间件
 		handler, exists := getMiddleware("testMiddleware")
 		assert.True(t, exists)
 		assert.NotNil(t, handler)
-		// 函数不能直接比较，但可以验证它们都不为nil
-		assert.NotNil(t, handlerFunc)
 	})
 
 	t.Run("modify middleware map directly", func(t *testing.T) {
@@ -299,20 +224,12 @@ func TestMiddlewareMapAccess(t *testing.T) {
 		clearMiddlewares()
 
 		// 直接修改映射表
-		handlerFunc := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-
-		setMiddleware("directMiddleware", handlerFunc)
+		setMiddleware("directMiddleware", newTestHandler())
 
 		// 验证直接修改生效
 		handler, exists := getMiddleware("directMiddleware")
 		assert.True(t, exists)
 		assert.NotNil(t, handler)
-		// 函数不能直接比较，但可以验证它们都不为nil
-		assert.NotNil(t, handlerFunc)
 	})
 }
 
@@ -396,20 +313,14 @@ func TestConcurrentMiddlewareRegistration(t *testing.T) {
 			wg.Add(1)
 			go func(index int) {
 				defer wg.Done()
-				handlerFunc := func() gin.HandlerFunc {
-					return gin.HandlerFunc(func(c *gin.Context) {
-						c.Next()
-					})
-				}
-
 				// 使用不同的名称避免冲突
 				name := fmt.Sprintf("concurrentMiddleware%d", index)
-				err := RegisterMiddleware(name, handlerFunc)
+				err := RegisterMiddleware(name, newTestHandler())
 				results <- err
 			}(i)
 		}
 
-		// 等待所有goroutine完成
+		// 等待所有 goroutine 完成
 		wg.Wait()
 		close(results)
 
@@ -440,13 +351,7 @@ func TestConcurrentMiddlewareRegistration(t *testing.T) {
 
 		for i := 0; i < concurrency; i++ {
 			go func() {
-				handlerFunc := func() gin.HandlerFunc {
-					return gin.HandlerFunc(func(c *gin.Context) {
-						c.Next()
-					})
-				}
-
-				err := RegisterMiddleware("duplicateConcurrent", handlerFunc)
+				err := RegisterMiddleware("duplicateConcurrent", newTestHandler())
 				results <- err
 			}()
 		}
@@ -485,21 +390,11 @@ func TestMiddlewareErrorHandling(t *testing.T) {
 
 	t.Run("register with empty name after non-empty", func(t *testing.T) {
 		// 先注册一个非空名称的中间件
-		handlerFunc1 := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-		err1 := RegisterMiddleware("nonEmpty", handlerFunc1)
+		err1 := RegisterMiddleware("nonEmpty", newTestHandler())
 		assert.NoError(t, err1)
 
 		// 再注册一个空名称的中间件
-		handlerFunc2 := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-		err2 := RegisterMiddleware("", handlerFunc2)
+		err2 := RegisterMiddleware("", newTestHandler())
 		assert.NoError(t, err2)
 
 		// 验证两个中间件都已注册
@@ -513,31 +408,19 @@ func TestMiddlewareErrorHandling(t *testing.T) {
 		clearMiddlewares()
 
 		// 先注册一个中间件
-		handlerFunc1 := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-		err1 := RegisterMiddleware("first", handlerFunc1)
+		err1 := RegisterMiddleware("first", newTestHandler())
 		assert.NoError(t, err1)
 
 		// 再注册相同名称的中间件
-		handlerFunc2 := func() gin.HandlerFunc {
-			return gin.HandlerFunc(func(c *gin.Context) {
-				c.Next()
-			})
-		}
-		err2 := RegisterMiddleware("first", handlerFunc2)
+		err2 := RegisterMiddleware("first", newTestHandler())
 		assert.Error(t, err2)
 		assert.Equal(t, "this name is already in use", err2.Error())
 
 		// 验证只有第一个中间件被注册
 		assert.Equal(t, 1, getMiddlewareCount())
 		assert.True(t, hasMiddleware("first"))
-		// 函数不能直接比较，但可以验证它们都不为nil
 		handler, exists := getMiddleware("first")
 		assert.True(t, exists)
 		assert.NotNil(t, handler)
-		assert.NotNil(t, handlerFunc1)
 	})
 }

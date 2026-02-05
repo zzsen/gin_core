@@ -89,72 +89,38 @@ func RegisterMiddleware(name string, handlerFunc func() gin.HandlerFunc) error {
 	return nil
 }
 
+// 中间件注册列表
+// 每个元素包含中间件名称和对应的处理函数
+var defaultMiddlewares = []struct {
+	name    string
+	handler func() gin.HandlerFunc
+}{
+	// Prometheus 指标采集中间件：统计 HTTP 请求总数、耗时分布和处理中请求数
+	{"prometheusHandler", middleware.PrometheusHandler},
+	// 异常处理中间件：提供统一的异常捕获和错误响应处理，确保应用在遇到异常时能够优雅降级
+	{"exceptionHandler", middleware.ExceptionHandler},
+	// 请求追踪 ID 中间件（兼容旧版）：为每个 HTTP 请求生成唯一的追踪 ID，便于在分布式系统中追踪请求链路
+	{"traceIdHandler", middleware.TraceIdHandler},
+	// OpenTelemetry 链路追踪中间件：支持 W3C Trace Context 标准，可与 Jaeger、Zipkin 等追踪系统集成
+	{"otelTraceHandler", middleware.OtelTraceHandler},
+	// 追踪日志中间件：记录请求的详细信息，包括请求路径、方法、响应状态、执行时间等
+	{"traceLogHandler", middleware.TraceLogHandler},
+	// 超时处理中间件：防止请求处理时间过长导致的资源耗尽，超时时间通过 Service.ApiTimeout 配置
+	{"timeoutHandler", middleware.TimeoutHandler},
+	// 限流中间件：控制 API 请求速率，支持多种限流维度（IP/用户/全局）和存储方式（内存/Redis）
+	{"rateLimitHandler", middleware.RateLimitHandler},
+	// CORS 跨域中间件：处理浏览器的跨域请求，支持预检请求（OPTIONS）
+	{"corsHandler", middleware.CORSHandler},
+}
+
 // initMiddleware 初始化系统默认中间件
 // 注册框架提供的核心中间件到中间件映射表中
 // 这些中间件提供了基础的功能支持，包括异常处理、请求追踪、日志记录和超时控制
 // 该函数在应用启动时被调用，确保所有系统中间件都可用
-//
-// 注册的中间件包括：
-// 1. exceptionHandler - 异常处理中间件，统一处理应用异常
-// 2. traceIdHandler - 请求追踪中间件，为每个请求分配唯一ID
-// 3. otelTraceHandler - OpenTelemetry 链路追踪中间件，支持分布式追踪
-// 4. traceLogHandler - 追踪日志中间件，记录请求的详细信息
-// 5. timeoutHandler - 超时处理中间件，防止请求长时间阻塞
-// 6. rateLimitHandler - 限流中间件，控制API请求速率
 func initMiddleware() {
-	// 注册 Prometheus 指标采集中间件
-	// 统计 HTTP 请求总数、耗时分布和处理中请求数
-	if err := RegisterMiddleware("prometheusHandler", middleware.PrometheusHandler); err != nil {
-		logger.Error("%s", err.Error())
-	}
-
-	// 注册异常处理中间件
-	// 提供统一的异常捕获和错误响应处理，确保应用在遇到异常时能够优雅降级
-	if err := RegisterMiddleware("exceptionHandler", middleware.ExceptionHandler); err != nil {
-		logger.Error("%s", err.Error())
-	}
-
-	// 注册请求追踪ID中间件（兼容旧版）
-	// 为每个HTTP请求生成唯一的追踪ID，便于在分布式系统中追踪请求链路
-	// 追踪ID会被添加到响应头和日志中，方便问题排查和性能分析
-	if err := RegisterMiddleware("traceIdHandler", middleware.TraceIdHandler); err != nil {
-		logger.Error("%s", err.Error())
-	}
-
-	// 注册 OpenTelemetry 链路追踪中间件
-	// 支持 W3C Trace Context 标准，可与 Jaeger、Zipkin 等追踪系统集成
-	// 提供完整的分布式链路追踪能力，包括跨服务追踪、数据库和缓存追踪
-	if err := RegisterMiddleware("otelTraceHandler", middleware.OtelTraceHandler); err != nil {
-		logger.Error("%s", err.Error())
-	}
-
-	// 注册追踪日志中间件
-	// 记录请求的详细信息，包括请求路径、方法、响应状态、执行时间等
-	// 提供完整的请求生命周期日志，支持性能监控和问题诊断
-	if err := RegisterMiddleware("traceLogHandler", middleware.TraceLogHandler); err != nil {
-		logger.Error("%s", err.Error())
-	}
-
-	// 注册超时处理中间件
-	// 防止请求处理时间过长导致的资源耗尽和用户体验问题
-	// 超时时间可通过配置文件中的 Service.ApiTimeout 参数设置
-	// 当请求处理时间超过设定值时，会自动终止请求并返回超时错误
-	if err := RegisterMiddleware("timeoutHandler", middleware.TimeoutHandler); err != nil {
-		logger.Error("%s", err.Error())
-	}
-
-	// 注册限流中间件
-	// 控制API请求速率，防止服务过载
-	// 支持多种限流维度（IP/用户/全局）和多种存储方式（内存/Redis）
-	// 通过配置文件中的 RateLimit 参数设置限流规则
-	if err := RegisterMiddleware("rateLimitHandler", middleware.RateLimitHandler); err != nil {
-		logger.Error("%s", err.Error())
-	}
-
-	// 注册 CORS 跨域中间件
-	// 处理浏览器的跨域请求，支持预检请求（OPTIONS）
-	// 通过配置文件中的 CORS 参数设置允许的来源、方法、请求头等
-	if err := RegisterMiddleware("corsHandler", middleware.CORSHandler); err != nil {
-		logger.Error("%s", err.Error())
+	for _, defaultMiddleware := range defaultMiddlewares {
+		if err := RegisterMiddleware(defaultMiddleware.name, defaultMiddleware.handler); err != nil {
+			logger.Error("%s", err.Error())
+		}
 	}
 }
