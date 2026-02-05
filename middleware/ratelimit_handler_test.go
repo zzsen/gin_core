@@ -421,7 +421,7 @@ func TestFindMatchingRule(t *testing.T) {
 		shouldMatch  bool
 	}{
 		{"精确匹配 POST", "POST", "/api/login", 5, true},
-		{"精确匹配 GET 不匹配方法", "GET", "/api/login", 0, false},
+		{"精确匹配 GET 降级到通配符", "GET", "/api/login", 100, true}, // 方法不匹配时降级到 /api/* 通配符规则
 		{"通配符匹配 users", "GET", "/api/users/123", 10, true},
 		{"通配符匹配 api", "GET", "/api/test", 100, true},
 		{"无匹配", "GET", "/other/path", 0, false},
