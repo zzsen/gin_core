@@ -13,6 +13,8 @@
 // 7. 零超时配置跳过超时控制
 // 8. 超时上下文传播验证
 //
+// 9. 高并发压力测试（100 goroutine 混合场景）
+//
 // 运行测试：go test -v ./middleware/... -run TimeoutHandler
 // ==================================================
 package middleware
@@ -389,6 +391,120 @@ func TestTimeoutHandler_ContextPropagation(t *testing.T) {
 	}
 	if resp["message"] != "context has deadline" {
 		t.Errorf("期望 context 包含 deadline, 实际响应 %v", resp)
+	}
+}
+
+// ==================== 并发安全测试 ====================
+
+// TestTimeoutHandler_ConcurrentStress 高并发压力测试
+//
+// 【功能点】验证大量并发请求下中间件不会出现 panic、数据竞争或响应错乱
+// 【测试流程】
+// 1. 启动 100 个 goroutine 同时发送请求（混合快速、慢速、超时三种场景）
+// 2. 每个请求独立验证响应正确性
+// 3. 若存在并发竞争问题，会表现为 panic、响应内容错乱或 JSON 解析失败
+func TestTimeoutHandler_ConcurrentStress(t *testing.T) {
+	cleanup := setupTimeoutTestConfig(1) // 1 秒超时
+	defer cleanup()
+
+	router := createTimeoutTestRouter(TimeoutHandler())
+
+	router.GET("/fast", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "fast"})
+	})
+	router.GET("/medium", func(c *gin.Context) {
+		select {
+		case <-time.After(500 * time.Millisecond):
+			c.JSON(http.StatusOK, gin.H{"message": "medium"})
+		case <-c.Request.Context().Done():
+			return
+		}
+	})
+	router.GET("/slow", func(c *gin.Context) {
+		select {
+		case <-time.After(3 * time.Second):
+			c.JSON(http.StatusOK, gin.H{"message": "slow"})
+		case <-c.Request.Context().Done():
+			return
+		}
+	})
+
+	const goroutines = 99
+	var wg sync.WaitGroup
+
+	type result struct {
+		path    string
+		code    int
+		msg     string
+		panicOk bool
+	}
+	results := make(chan result, goroutines)
+
+	paths := []string{"/fast", "/medium", "/slow"}
+	expectedCount := make(map[string]int)
+
+	for i := 0; i < goroutines; i++ {
+		path := paths[i%len(paths)]
+		expectedCount[path]++
+		wg.Add(1)
+		go func(p string) {
+			defer func() {
+				if r := recover(); r != nil {
+					results <- result{panicOk: false}
+				}
+				wg.Done()
+			}()
+
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest("GET", p, nil)
+			router.ServeHTTP(w, req)
+
+			var resp map[string]interface{}
+			json.Unmarshal(w.Body.Bytes(), &resp)
+			msg, _ := resp["message"].(string)
+			if msg == "" {
+				msg, _ = resp["msg"].(string)
+			}
+			results <- result{path: p, code: w.Code, msg: msg, panicOk: true}
+		}(path)
+	}
+
+	wg.Wait()
+	close(results)
+
+	var fastOk, mediumOk, slowTimeout, panics int
+	for r := range results {
+		if !r.panicOk {
+			panics++
+			continue
+		}
+		switch r.path {
+		case "/fast":
+			if r.code == http.StatusOK && r.msg == "fast" {
+				fastOk++
+			}
+		case "/medium":
+			if r.code == http.StatusOK && r.msg == "medium" {
+				mediumOk++
+			}
+		case "/slow":
+			if r.msg == "Request timed out" {
+				slowTimeout++
+			}
+		}
+	}
+
+	if panics > 0 {
+		t.Errorf("并发测试中出现 %d 次 panic，存在并发安全问题", panics)
+	}
+	if fastOk != expectedCount["/fast"] {
+		t.Errorf("快速请求：期望 %d 个成功，实际 %d 个", expectedCount["/fast"], fastOk)
+	}
+	if mediumOk != expectedCount["/medium"] {
+		t.Errorf("中速请求：期望 %d 个成功，实际 %d 个", expectedCount["/medium"], mediumOk)
+	}
+	if slowTimeout != expectedCount["/slow"] {
+		t.Errorf("慢速请求：期望 %d 个超时，实际 %d 个", expectedCount["/slow"], slowTimeout)
 	}
 }
 
