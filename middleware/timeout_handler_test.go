@@ -5,10 +5,13 @@
 //
 // 测试覆盖内容：
 // 1. 正常请求的处理（未超时）
-// 2. 请求超时的处理
-// 3. 请求接近超时的警告
-// 4. goroutine 中的 panic 处理
-// 5. 并发请求的超时处理
+// 2. 协作式超时处理（context-aware 处理器）
+// 3. 非协作式超时处理（处理器忽略 context）
+// 4. 请求接近超时的警告
+// 5. 处理器中的 panic 传播
+// 6. 并发请求的独立超时处理
+// 7. 零超时配置跳过超时控制
+// 8. 超时上下文传播验证
 //
 // 运行测试：go test -v ./middleware/... -run TimeoutHandler
 // ==================================================
@@ -84,18 +87,62 @@ func TestTimeoutHandler_NormalRequest(t *testing.T) {
 	}
 }
 
-// TestTimeoutHandler_SlowRequest 测试超时请求
+// TestTimeoutHandler_CooperativeTimeout 测试协作式超时（context-aware 处理器）
 //
-// 【功能点】验证超时请求的超时处理逻辑被触发
-// 【测试流程】设置 1 秒超时，发送需要 2 秒的请求，验证超时日志被记录
-// 【注意】由于 httptest.Recorder 的限制，超时时状态码可能仍为 200
-func TestTimeoutHandler_SlowRequest(t *testing.T) {
+// 【功能点】验证 context-aware 的处理器在超时时能被正确中断，并返回 408 响应
+// 【测试流程】
+// 1. 设置 1 秒超时
+// 2. 处理器通过 select 监听 ctx.Done()，实现协作式超时
+// 3. 验证请求在超时后返回 408，且耗时接近超时时间
+func TestTimeoutHandler_CooperativeTimeout(t *testing.T) {
 	cleanup := setupTimeoutTestConfig(1) // 1 秒超时
 	defer cleanup()
 
 	router := createTimeoutTestRouter(TimeoutHandler())
 	router.GET("/slow", func(c *gin.Context) {
-		time.Sleep(2 * time.Second)
+		select {
+		case <-time.After(3 * time.Second):
+			c.JSON(http.StatusOK, gin.H{"message": "slow response"})
+		case <-c.Request.Context().Done():
+			return
+		}
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/slow", nil)
+
+	start := time.Now()
+	router.ServeHTTP(w, req)
+	duration := time.Since(start)
+
+	if duration > 1500*time.Millisecond {
+		t.Errorf("协作式超时应在 ~1s 内返回，实际耗时 %v", duration)
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Errorf("解析响应失败: %v", err)
+	}
+	if resp["msg"] != "Request timed out" {
+		t.Errorf("期望超时响应消息，实际 %v", resp["msg"])
+	}
+}
+
+// TestTimeoutHandler_NonCooperativeTimeout 测试非协作式超时（处理器忽略 context）
+//
+// 【功能点】验证不检查 context 的处理器在超时后仍能正常执行完毕，
+// 由于响应已写入，中间件仅记录超时日志而不覆盖响应
+// 【测试流程】
+// 1. 设置 1 秒超时
+// 2. 处理器使用 time.Sleep 阻塞（不监听 context）
+// 3. 验证处理器的响应被保留（200），但总耗时超过超时时间
+func TestTimeoutHandler_NonCooperativeTimeout(t *testing.T) {
+	cleanup := setupTimeoutTestConfig(1) // 1 秒超时
+	defer cleanup()
+
+	router := createTimeoutTestRouter(TimeoutHandler())
+	router.GET("/slow", func(c *gin.Context) {
+		time.Sleep(1500 * time.Millisecond)
 		c.JSON(http.StatusOK, gin.H{"message": "slow response"})
 	})
 
@@ -106,10 +153,12 @@ func TestTimeoutHandler_SlowRequest(t *testing.T) {
 	router.ServeHTTP(w, req)
 	duration := time.Since(start)
 
-	// 验证超时机制生效 - 请求应在超时后返回，而不是等待完整的 2 秒
-	// 由于超时处理是在 goroutine 中执行的，实际可能略有误差
-	if duration > 1500*time.Millisecond {
-		t.Logf("请求超时处理已触发，耗时 %v", duration)
+	if duration < 1*time.Second {
+		t.Errorf("非协作式处理器应阻塞至完成，实际耗时 %v", duration)
+	}
+
+	if w.Code != http.StatusOK {
+		t.Errorf("处理器已写入响应，期望状态码 200, 实际 %d", w.Code)
 	}
 }
 
@@ -131,7 +180,6 @@ func TestTimeoutHandler_NearTimeout(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/near-timeout", nil)
 	router.ServeHTTP(w, req)
 
-	// 应该正常返回，但会记录警告日志
 	if w.Code != http.StatusOK {
 		t.Errorf("期望状态码 200, 实际 %d", w.Code)
 	}
@@ -139,15 +187,17 @@ func TestTimeoutHandler_NearTimeout(t *testing.T) {
 
 // TestTimeoutHandler_PanicInHandler 测试处理器中的 panic
 //
-// 【功能点】验证处理器中的 panic 被正确传递
-// 【测试流程】在处理器中触发 panic，验证 panic 被传递到外层
+// 【功能点】验证处理器中的 panic 沿中间件链自然传播，由上层 recover 中间件捕获
+// 【测试流程】
+// 1. 在 TimeoutHandler 之前注册 recover 中间件
+// 2. 在处理器中触发 panic
+// 3. 验证 panic 被上层中间件正确捕获并返回 500
 func TestTimeoutHandler_PanicInHandler(t *testing.T) {
 	cleanup := setupTimeoutTestConfig(5) // 5 秒超时
 	defer cleanup()
 
 	router := createTimeoutTestRouter(nil)
 
-	// 添加异常处理中间件来捕获 panic
 	router.Use(func(c *gin.Context) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -167,7 +217,6 @@ func TestTimeoutHandler_PanicInHandler(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/panic", nil)
 	router.ServeHTTP(w, req)
 
-	// panic 应该被捕获
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("期望状态码 500, 实际 %d", w.Code)
 	}
@@ -175,8 +224,11 @@ func TestTimeoutHandler_PanicInHandler(t *testing.T) {
 
 // TestTimeoutHandler_MultipleRequests 测试多个并发请求
 //
-// 【功能点】验证多个并发请求能够独立处理
-// 【测试流程】发送多个并发请求，验证每个请求独立超时处理
+// 【功能点】验证多个并发请求能够独立处理，互不影响
+// 【测试流程】
+// 1. 同时发送快速请求和 context-aware 的慢速请求
+// 2. 验证快速请求返回 200
+// 3. 验证慢速请求因超时返回 408（通过检查响应内容）
 func TestTimeoutHandler_MultipleRequests(t *testing.T) {
 	cleanup := setupTimeoutTestConfig(2) // 2 秒超时
 	defer cleanup()
@@ -186,58 +238,77 @@ func TestTimeoutHandler_MultipleRequests(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{"message": "fast"})
 	})
 	router.GET("/slow", func(c *gin.Context) {
-		time.Sleep(3 * time.Second)
-		c.JSON(http.StatusOK, gin.H{"message": "slow"})
+		select {
+		case <-time.After(5 * time.Second):
+			c.JSON(http.StatusOK, gin.H{"message": "slow"})
+		case <-c.Request.Context().Done():
+			return
+		}
 	})
 
-	var wg sync.WaitGroup
-	results := make(chan int, 2)
+	type result struct {
+		path string
+		code int
+		msg  string
+	}
 
-	// 快速请求
+	var wg sync.WaitGroup
+	results := make(chan result, 2)
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/fast", nil)
 		router.ServeHTTP(w, req)
-		results <- w.Code
+		var resp map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		msg, _ := resp["message"].(string)
+		if msg == "" {
+			msg, _ = resp["msg"].(string)
+		}
+		results <- result{path: "/fast", code: w.Code, msg: msg}
 	}()
 
-	// 慢速请求
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/slow", nil)
 		router.ServeHTTP(w, req)
-		results <- w.Code
+		var resp map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		msg, _ := resp["message"].(string)
+		if msg == "" {
+			msg, _ = resp["msg"].(string)
+		}
+		results <- result{path: "/slow", code: w.Code, msg: msg}
 	}()
 
 	wg.Wait()
 	close(results)
 
-	var codes []int
-	for code := range results {
-		codes = append(codes, code)
-	}
-
-	// 至少应该有一个 200 (快速请求)
-	has200 := false
-	for _, code := range codes {
-		if code == 200 {
-			has200 = true
+	for r := range results {
+		switch r.path {
+		case "/fast":
+			if r.code != http.StatusOK {
+				t.Errorf("快速请求期望状态码 200, 实际 %d", r.code)
+			}
+			if r.msg != "fast" {
+				t.Errorf("快速请求期望 message=fast, 实际 %s", r.msg)
+			}
+		case "/slow":
+			if r.msg != "Request timed out" {
+				t.Errorf("慢速请求期望超时消息，实际 %s", r.msg)
+			}
 		}
-	}
-
-	if !has200 {
-		t.Error("应该有一个快速请求返回 200")
 	}
 }
 
 // TestTimeoutHandler_ZeroTimeout 测试零超时配置
 //
-// 【功能点】验证零超时时请求立即超时
-// 【测试流程】设置 0 秒超时，验证请求处理
+// 【功能点】验证零超时时跳过超时控制，请求正常处理
+// 【测试流程】设置 0 秒超时，验证请求直接通过，返回 200
 func TestTimeoutHandler_ZeroTimeout(t *testing.T) {
 	cleanup := setupTimeoutTestConfig(0) // 0 秒超时
 	defer cleanup()
@@ -251,24 +322,21 @@ func TestTimeoutHandler_ZeroTimeout(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/test", nil)
 	router.ServeHTTP(w, req)
 
-	// 0 超时时，time.After(0) 可能立即触发或不触发
-	// 结果取决于 goroutine 调度
-	if w.Code != http.StatusOK && w.Code != http.StatusRequestTimeout {
-		t.Errorf("期望状态码 200 或 408, 实际 %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Errorf("零超时应跳过超时控制，期望状态码 200, 实际 %d", w.Code)
 	}
 }
 
 // TestTimeoutHandler_HeadersBeforeTimeout 测试超时前已发送的响应头
 //
 // 【功能点】验证在超时前已开始写入响应的情况
-// 【测试流程】在超时发生前开始写入响应
+// 【测试流程】在超时发生前开始写入响应，验证正常返回
 func TestTimeoutHandler_HeadersBeforeTimeout(t *testing.T) {
 	cleanup := setupTimeoutTestConfig(2) // 2 秒超时
 	defer cleanup()
 
 	router := createTimeoutTestRouter(TimeoutHandler())
 	router.GET("/partial", func(c *gin.Context) {
-		// 快速返回，不会超时
 		c.JSON(http.StatusOK, gin.H{"message": "ok"})
 	})
 
@@ -278,6 +346,49 @@ func TestTimeoutHandler_HeadersBeforeTimeout(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("期望状态码 200, 实际 %d", w.Code)
+	}
+}
+
+// TestTimeoutHandler_ContextPropagation 测试超时上下文传播
+//
+// 【功能点】验证 context.WithTimeout 设置的截止时间能正确传播到处理器
+// 【测试流程】
+// 1. 设置 2 秒超时
+// 2. 在处理器中检查 context 是否包含截止时间
+// 3. 验证截止时间在合理范围内
+func TestTimeoutHandler_ContextPropagation(t *testing.T) {
+	cleanup := setupTimeoutTestConfig(2) // 2 秒超时
+	defer cleanup()
+
+	router := createTimeoutTestRouter(TimeoutHandler())
+	router.GET("/ctx", func(c *gin.Context) {
+		deadline, ok := c.Request.Context().Deadline()
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "no deadline"})
+			return
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 || remaining > 2*time.Second {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid deadline"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "context has deadline"})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/ctx", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("期望状态码 200, 实际 %d", w.Code)
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Errorf("解析响应失败: %v", err)
+	}
+	if resp["message"] != "context has deadline" {
+		t.Errorf("期望 context 包含 deadline, 实际响应 %v", resp)
 	}
 }
 
