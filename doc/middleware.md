@@ -81,10 +81,11 @@ import (
 	"time"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/zzsen/gin_core/app"
 )
 
 func TimeoutHandler() gin.HandlerFunc {
-    timeout := time.Duration(global.BaseConfig.Service.ApiTimeout) * time.Second
+    timeout := time.Duration(app.BaseConfig.Service.ApiTimeout) * time.Second
 	return func(c *gin.Context) {
 		startTime := time.Now()
 
@@ -116,23 +117,20 @@ func TimeoutHandler() gin.HandlerFunc {
 1. 注册中间件到框架中间件列表
 
    ```go
-   package core
+   package middleware
 
    import (
-       "time"
-
        "github.com/zzsen/gin_core/core"
-       "github.com/zzsen/gin_core/global"
    )
 
-   func initMiddleware() {
-       if err := core.RegisterMiddleware("timeoutHandler", middleware.TimeoutHandler); err != nil {
-           logger.Error(err.Error())
+   func init() {
+       if err := core.RegisterMiddleware("timeoutHandler", TimeoutHandler); err != nil {
+           panic(err)
        }
    }
-   // 然后在core.Start()启动服务前, 调用initMiddleware()方法即可
-   // 也可将方法改为init方法, 在导入时使用
    ```
+
+   然后在 `main.go` 中通过 `import _ "my-project/middleware"` 引入，`init` 函数会自动注册中间件。
 
 2. 配置中间件调用顺序
    在配置文件中, 可以配置中间件的调用顺序, 具体配置如下:
@@ -170,11 +168,19 @@ func TimeoutHandler() gin.HandlerFunc {
    ```
 
 ## 四、内置中间件
-本框架内置了以下中间件：
-* **exceptionHandler**：异常处理中间件，捕获并处理程序中的异常，返回统一的错误响应。
-* **traceLogHandler**：请求id中间件，使用uuid生成traceId, 并添加到上下文和请求头中, 方便地跟踪和分析请求的处理流程，定位问题和进行性能监控。
-* **traceLogHandler**：请求日志中间件，记录请求的相关信息，如请求方式、请求路由、状态码、请求 IP 等。
-* **timeoutHandler**：超时处理中间件，处理请求超时的情况，并记录请求响应时长。
+
+本框架内置了以下中间件，通过配置 `service.middlewares` 启用：
+
+| 名称 | 说明 |
+|------|------|
+| `prometheusHandler` | Prometheus 指标采集，统计请求计数、耗时分布和并发数 |
+| `exceptionHandler` | 统一异常处理，捕获 panic 并返回标准错误响应 |
+| `otelTraceHandler` | OpenTelemetry 链路追踪，支持 W3C Trace Context 标准 |
+| `traceIdHandler` | 请求追踪 ID，为每个请求生成 UUID 并注入上下文和响应头 |
+| `traceLogHandler` | 请求日志，记录请求方式、路由、状态码、耗时、IP 等信息 |
+| `timeoutHandler` | 请求超时控制，基于 `service.apiTimeout` 配置 |
+| `rateLimitHandler` | API 限流，支持内存 / Redis 存储和多维度限流策略 |
+| `corsHandler` | CORS 跨域处理，支持预检请求（OPTIONS） |
 
 这些中间件可以通过全局使用或路由使用的方式应用到项目中。
 

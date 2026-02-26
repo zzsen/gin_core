@@ -140,8 +140,8 @@ import (
 )
 
 func init() {
-	core.AddOptionFuncs(healthy.InitRouter())
-	// core.AddOptionFuncs(healthy.InitRouter(demoMiddleware)) // 若需要添加中间件
+	core.AddOptionFunc(healthy.InitRouter())
+	// core.AddOptionFunc(healthy.InitRouter(demoMiddleware)) // 若需要添加中间件
 }
 ```
 
@@ -164,7 +164,17 @@ func main() {
 ```
 
 ## 五、内置路由
-框架中, 内置了healthy路由, 用于服务健康检测。若配置了`统一路由前缀`, 假设当前配置为`routerPrefix`, 则健康监测路由为`routerPrefix/healthy`。
+
+框架自动注册以下路由，无需手动添加：
+
+| 端点 | 说明 |
+|------|------|
+| `GET /healthy` | 存活检查（Liveness），返回健康状态 |
+| `GET /healthy/ready` | 就绪检查（Readiness），检查所有依赖服务状态 |
+| `GET /healthy/stats` | 连接池统计信息 |
+| `GET /metrics` | Prometheus 指标端点（需启用 `metrics.enabled`） |
+
+若配置了 `service.routePrefix`，内置路由也会自动添加前缀。
 
 ## 六、注意事项
 * **路由文件组织**：按照框架建议的目录结构组织路由文件，便于维护和管理。

@@ -3,36 +3,36 @@
 ## 项目目录结构
 
 ```bash
-gin_project
+my-project
 ├── go.mod                            # 依赖包管理文件
 ├── go.sum                            # 依赖包校验文件
-├── main.go                           # （供参考）程序主入口
+├── main.go                           # 程序主入口
 ├── conf                              # 配置文件
-│   ├── config-default.yml            #   ├（供参考）默认配置文件
-│   └── config-prod.yml               #   └（供参考）正式环境配置文件
-├── constant                          # 常量（可选）
-├── custom_config                     # 存放自定义配置类（可选）
-├── middleware                        # 中间件（可选）
+│   ├── config.default.yml            #   ├ 默认配置文件
+│   ├── config.dev.yml                #   ├ 开发环境配置文件（可选）
+│   └── config.prod.yml               #   └ 生产环境配置文件（可选）
+├── middleware                        # 自定义中间件（可选）
 ├── router                            # 路由规则（可选）
 ├── controller                        # 控制器（可选）
 ├── service                           # 业务逻辑层（可选）
 ├── schedule                          # 定时任务（可选）
+├── mq                                # 消息队列消费者（可选）
 ├── model                             # 模型（可选）
-│   ├── config                        #   ├ 配置模型（可选）
-│   ├── entity                        #   ├ 数据库模型（可选）
-│   ├── request                       #   ├ 请求模型（可选）
-│   └── response                      #   └ 响应模型（可选）
+│   ├── entity                        #   ├ 数据库模型
+│   ├── request                       #   ├ 请求模型
+│   └── response                      #   └ 响应模型
 └── utils                             # 工具类（可选）
 ```
 
 如上，由框架约定的目录：
 
-- `middleware` 用于编写中间件，具体参见 [Middleware](./middleware.md)。
-- `router` 用于配置 URL 路由规则，具体参见 [Router](./router.md)。
-- `controller` 用于解析用户的输入，处理后返回相应的结果，具体参见 [Controller](./controller.md)。
-- `service` 用于编写业务逻辑层，具体参见 [Service](./service.md)。
-- `schedule` 用于编写定时任务，具体参见 [Schedule](./schedule.md)。
-- `model` 用于放置领域模型，如配置文件、数据库模型等，具体参见 [Model](./model.md)。
+- `middleware` 用于编写自定义中间件，具体参见 [中间件](./middleware.md)。
+- `router` 用于配置 URL 路由规则，具体参见 [路由](./router.md)。
+- `controller` 用于解析用户的输入，处理后返回相应的结果，具体参见 [控制器](./controller.md)。
+- `service` 用于编写业务逻辑层，具体参见 [服务](./service.md)。
+- `schedule` 用于编写定时任务，具体参见 [定时任务](./schedule.md)。
+- `mq` 用于定义消息队列消费者，具体参见 [死信队列](./dead_letter_queue.md)。
+- `model` 用于放置领域模型，如数据库模型、请求模型、响应模型等。
 
 ## 框架目录结构
 

@@ -135,14 +135,14 @@ import (
 )
 
 func main() {
-    // 注册自定义服务（在 core.Run 之前）
+    // 注册自定义服务（在 core.Start 之前）
     core.RegisterService(service.NewMyRedisService("cache:"))
 
+    // 初始化配置、注册路由等...
+    core.InitCustomConfig(&CustomConfig{})
+
     // 启动服务
-    core.Run(
-        core.WithRouters(router.Init),
-        // ...
-    )
+    core.Start()
 }
 ```
 
@@ -194,11 +194,12 @@ fmt.Println(state) // 输出: ready
 | 服务名称 | 优先级 | 依赖 | 说明 |
 |----------|--------|------|------|
 | `logger` | 0 | 无 | 日志服务 |
-| `redis` | 10 | logger | Redis缓存 |
-| `mysql` | 10 | logger | MySQL数据库 |
-| `elasticsearch` | 20 | logger | Elasticsearch搜索 |
-| `etcd` | 20 | logger | Etcd配置中心 |
-| `rabbitmq` | 30 | logger | RabbitMQ消息队列 |
+| `tracing` | 5 | logger | OpenTelemetry 链路追踪 |
+| `redis` | 10 | logger | Redis 缓存 |
+| `mysql` | 10 | logger | MySQL 数据库 |
+| `elasticsearch` | 20 | logger | Elasticsearch 搜索 |
+| `etcd` | 20 | logger | Etcd 配置中心 |
+| `rabbitmq` | 30 | logger | RabbitMQ 消息队列 |
 | `schedule` | 100 | logger | 定时任务 |
 
 ## 初始化流程
@@ -217,7 +218,7 @@ fmt.Println(state) // 输出: ready
 
 ## 调用链
 
-[`core.Run()`](../core/server.go) 
+[`core.Start()`](../core/server.go) 
 → [`initService()`](../core/service.go) 
 → [`registerBuiltinServices()`](../core/service.go) 
 → [`lifecycle.InitAllServices()`](../core/lifecycle/initializer.go) 
