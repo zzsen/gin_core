@@ -29,12 +29,28 @@ type ServiceState = lifecycle.ServiceState
 // InitConfig 初始化配置
 type InitConfig = lifecycle.InitConfig
 
-// 钩子阶段常量
+// AppHookPhase 应用级钩子执行阶段
+type AppHookPhase = lifecycle.AppHookPhase
+
+// AppHook 应用级生命周期钩子
+type AppHook = lifecycle.AppHook
+
+// 服务级钩子阶段常量
 const (
 	BeforeInit  = lifecycle.BeforeInit
 	AfterInit   = lifecycle.AfterInit
 	BeforeClose = lifecycle.BeforeClose
 	AfterClose  = lifecycle.AfterClose
+)
+
+// 应用级钩子阶段常量
+const (
+	AppBeforeInit     = lifecycle.AppBeforeInit
+	AppAfterInit      = lifecycle.AppAfterInit
+	AppOnReady        = lifecycle.AppOnReady
+	AppBeforeShutdown = lifecycle.AppBeforeShutdown
+	AppAfterShutdown  = lifecycle.AppAfterShutdown
+	AppOnInitFailed   = lifecycle.AppOnInitFailed
 )
 
 // 服务状态常量

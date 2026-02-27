@@ -55,9 +55,10 @@ gin_core
 │   ├── engine_test.go                      #   ├ (测试) 路由初始化
 │   ├── middleware.go                       #   ├ 配置默认中间件(异常处理, 请求日志, 超时处理等)
 │   ├── middleware_test.go                  #   ├ (测试) 默认中间件
+│   ├── hooks.go                            #   ├ 应用级生命周期钩子便捷注册
 │   ├── service.go                          #   ├ 服务初始化入口
 │   ├── validator.go                        #   ├ 参数校验（使用github.com/go-playground/validator/v10覆盖gin的参数校验）
-│   ├── server.go                           #   ├ 服务启动主方法
+│   ├── server.go                           #   ├ 服务启动主方法（钩子驱动）
 │   ├── lifecycle                           #   ├ 服务生命周期管理
 │   │   ├── interface.go                    #   │ ├ 服务接口定义
 │   │   ├── registry.go                     #   │ ├ 服务注册中心
@@ -178,6 +179,7 @@ gin_core
 │   ├── schedule.md                         #   ├ 定时任务文档
 │   ├── service.md                          #   ├ 服务文档
 │   ├── service_register.md                 #   ├ 服务注册文档
+│   ├── lifecycle_hooks.md                  #   ├ 生命周期钩子文档
 │   ├── structure.md                        #   ├ 目录结构文档
 │   └── tracing.md                          #   └ 链路追踪文档
 ├── docs                                    # Swagger 文档（自动生成）

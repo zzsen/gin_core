@@ -24,8 +24,9 @@ type CustomConfig struct {
 	Secret            string `yaml:"secret"`
 }
 
-func execFunc() {
+func execFunc(ctx context.Context) error {
 	fmt.Println("server stop")
+	return nil
 }
 
 func getCustomRouter1() func(e *gin.Engine) {
@@ -141,6 +142,9 @@ func main() {
 		Cron: "@every 10s",
 		Cmd:  Print,
 	})
-	//启动服务
-	core.Start(execFunc)
+	// 注册关闭前钩子（替代原 core.Start(execFunc) 方式）
+	core.OnBeforeShutdown(execFunc)
+
+	// 启动服务
+	core.Start()
 }

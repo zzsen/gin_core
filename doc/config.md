@@ -219,6 +219,7 @@ service:
   apiTimeout: 1                    # 单个API请求超时时间，单位：秒
   readTimeout: 60                  # HTTP请求读取超时时间，单位：秒
   writeTimeout: 60                 # HTTP响应写入超时时间，单位：秒
+  shutdownTimeout: 5               # 优雅关闭超时时间，单位：秒，默认5秒
   middlewares:                     # 中间件配置列表，注意：顺序对应中间件调用顺序
     - "exceptionHandler"           # 异常处理中间件，统一处理应用异常
     - "traceIdHandler"             # 请求追踪ID中间件，优先从上游请求头读取，未传递时生成唯一标识
@@ -535,7 +536,7 @@ func main() {
 
     // 其他代码...
     // 启动服务
-    core.Start(execFunc)
+    core.Start()
 }
 ```
 

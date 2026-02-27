@@ -53,6 +53,47 @@ type Hook struct {
 	Fn       func(ctx context.Context, serviceName string) error // 钩子函数
 }
 
+// AppHookPhase 应用级钩子执行阶段
+// 与服务级 HookPhase 区分，AppHookPhase 作用于整个应用生命周期
+type AppHookPhase int
+
+const (
+	AppBeforeInit     AppHookPhase = iota // 应用初始化前（loadConfig 之后、initService 之前）
+	AppAfterInit                          // 应用初始化后（所有服务初始化完成、HTTP 监听之前）
+	AppOnReady                            // HTTP 服务就绪后（ListenAndServe 成功后）
+	AppBeforeShutdown                     // 应用关闭前（收到信号后、CloseServices 之前）
+	AppAfterShutdown                      // 应用关闭后（所有服务关闭完成、进程退出前）
+	AppOnInitFailed                       // 启动失败时（任意初始化阶段出错时触发）
+)
+
+// String 返回应用级钩子阶段的字符串表示
+func (p AppHookPhase) String() string {
+	switch p {
+	case AppBeforeInit:
+		return "AppBeforeInit"
+	case AppAfterInit:
+		return "AppAfterInit"
+	case AppOnReady:
+		return "AppOnReady"
+	case AppBeforeShutdown:
+		return "AppBeforeShutdown"
+	case AppAfterShutdown:
+		return "AppAfterShutdown"
+	case AppOnInitFailed:
+		return "AppOnInitFailed"
+	default:
+		return "unknown"
+	}
+}
+
+// AppHook 应用级生命周期钩子
+type AppHook struct {
+	Phase    AppHookPhase                    // 执行阶段
+	Priority int                             // 执行优先级（数值越小越先执行）
+	Name     string                          // 钩子名称，用于日志
+	Fn       func(ctx context.Context) error // 钩子函数
+}
+
 // ServiceState 服务状态
 type ServiceState int
 

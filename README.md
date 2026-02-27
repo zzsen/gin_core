@@ -43,6 +43,7 @@ go get -u github.com/zzsen/gin_core
 package main
 
 import (
+    "context"
     "fmt"
 
     "github.com/gin-gonic/gin"
@@ -68,10 +69,14 @@ func main() {
         })
     })
 
-    // 3. 启动服务（可传入退出时执行的回调函数）
-    core.Start(func() {
+    // 3. 注册关闭前钩子（可选）
+    core.OnBeforeShutdown(func(ctx context.Context) error {
         fmt.Println("server stopped")
+        return nil
     })
+
+    // 4. 启动服务
+    core.Start()
 }
 ```
 
@@ -112,15 +117,25 @@ main()
   → core.AddOptionFunc()             # 注册路由
   → core.AddMessageQueueConsumer()   # 注册 MQ 消费者（可选）
   → core.AddSchedule()               # 注册定时任务（可选）
+  → core.OnBeforeShutdown()          # 注册关闭前钩子（可选）
+  → core.OnReady()                   # 注册就绪钩子（可选）
   → core.Start()
        → overrideValidator()         # 自定义验证器
        → loadConfig()                # 加载配置文件
+       → AppBeforeInit 钩子          # 应用初始化前钩子
        → initMiddleware()            # 注册中间件
        → initService()               # 初始化服务（DB、Redis 等）
+       → AppAfterInit 钩子           # 应用初始化后钩子
        → initEngine()                # 创建 Gin 引擎、注册路由
        → server.ListenAndServe()     # 启动 HTTP 服务
+       → AppOnReady 钩子             # 服务就绪钩子
 
-优雅关闭：SIGINT/SIGTERM → 执行退出回调 → 关闭服务连接 → server.Shutdown()
+优雅关闭：
+  SIGINT/SIGTERM
+    → AppBeforeShutdown 钩子         # 应用关闭前钩子
+    → lifecycle.CloseServices()      # 关闭服务连接
+    → server.Shutdown(timeout)       # 优雅关闭 HTTP（超时可配置）
+    → AppAfterShutdown 钩子          # 应用关闭后钩子
 ```
 
 ## 核心 API 速查
@@ -134,7 +149,13 @@ main()
 | `core.AddSchedule(schedule)` | 注册定时任务 |
 | `core.RegisterMiddleware(name, fn)` | 注册自定义中间件 |
 | `core.RegisterService(svc)` | 注册自定义服务 |
-| `core.Start(exitFns...)` | 启动服务器 |
+| `core.RegisterAppHook(hook)` | 注册应用级生命周期钩子（完整配置） |
+| `core.OnBeforeInit(fn)` | 注册应用初始化前钩子 |
+| `core.OnAfterInit(fn)` | 注册应用初始化后钩子 |
+| `core.OnReady(fn)` | 注册服务就绪钩子 |
+| `core.OnBeforeShutdown(fn)` | 注册应用关闭前钩子 |
+| `core.OnAfterShutdown(fn)` | 注册应用关闭后钩子 |
+| `core.Start()` | 启动服务器 |
 
 | 全局变量 (app 包) | 说明 |
 |-----|------|
@@ -197,6 +218,7 @@ main()
 | [控制器](./doc/controller.md) | 控制器编写规范 |
 | [服务](./doc/service.md) | 业务逻辑层编写 |
 | [服务注册](./doc/service_register.md) | 服务注册和依赖管理 |
+| [生命周期钩子](./doc/lifecycle_hooks.md) | 应用级 / 服务级生命周期钩子 |
 | [定时任务](./doc/schedule.md) | 定时任务配置 |
 
 ### 高级功能

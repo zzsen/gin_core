@@ -146,9 +146,9 @@ func main() {
 }
 ```
 
-## 使用初始化钩子
+## 服务级钩子
 
-可以在服务初始化前后执行自定义逻辑：
+可以在**单个服务**初始化前后执行自定义逻辑：
 
 ```go
 // 在 Redis 初始化后执行数据预热
@@ -163,7 +163,7 @@ core.RegisterServiceHook("redis", core.Hook{
 })
 ```
 
-### 钩子阶段
+### 服务级钩子阶段
 
 | 阶段 | 说明 |
 |------|------|
@@ -171,6 +171,81 @@ core.RegisterServiceHook("redis", core.Hook{
 | `core.AfterInit` | 服务初始化之后 |
 | `core.BeforeClose` | 服务关闭之前 |
 | `core.AfterClose` | 服务关闭之后 |
+
+## 应用级生命周期钩子
+
+除了绑定到具体服务的钩子外，框架还提供了**应用级生命周期钩子**，作用于整个应用的启动和关闭流程，与服务无关。
+
+> 完整文档（含流程图和时序图）请参见 [生命周期钩子](./lifecycle_hooks.md)
+
+### 便捷注册方法
+
+```go
+// 应用初始化前（loadConfig 之后、initService 之前）
+core.OnBeforeInit(func(ctx context.Context) error {
+    log.Println("应用初始化前，执行环境检查...")
+    return nil
+})
+
+// 应用初始化后（所有服务初始化完成、HTTP 监听之前）
+core.OnAfterInit(func(ctx context.Context) error {
+    log.Println("所有服务已初始化，准备启动 HTTP 服务...")
+    return nil
+})
+
+// HTTP 服务就绪后（ListenAndServe 成功后触发）
+core.OnReady(func(ctx context.Context) error {
+    log.Println("服务已就绪，开始缓存预热...")
+    return warmUpCache(ctx)
+})
+
+// 应用关闭前（收到信号后、CloseServices 之前）
+core.OnBeforeShutdown(func(ctx context.Context) error {
+    log.Println("服务即将关闭，执行清理逻辑...")
+    return nil
+})
+
+// 应用关闭后（所有服务关闭完成、进程退出前）
+core.OnAfterShutdown(func(ctx context.Context) error {
+    log.Println("所有服务已关闭")
+    return nil
+})
+```
+
+### 完整配置注册
+
+如需指定优先级和名称，可使用 [`core.RegisterAppHook`](../core/hooks.go)：
+
+```go
+core.RegisterAppHook(lifecycle.AppHook{
+    Phase:    lifecycle.AppOnInitFailed,
+    Priority: 0,
+    Name:     "notify-on-failure",
+    Fn: func(ctx context.Context) error {
+        return notifyOps("服务启动失败")
+    },
+})
+```
+
+### 应用级钩子阶段
+
+| 阶段 | 说明 | 触发时机 |
+|------|------|----------|
+| `AppBeforeInit` | 应用初始化前 | loadConfig 之后、initService 之前 |
+| `AppAfterInit` | 应用初始化后 | 所有服务初始化完成、HTTP 监听之前 |
+| `AppOnReady` | 服务就绪 | ListenAndServe 成功后 |
+| `AppBeforeShutdown` | 应用关闭前 | 收到关闭信号后、CloseServices 之前 |
+| `AppAfterShutdown` | 应用关闭后 | 所有服务关闭完成、进程退出前 |
+| `AppOnInitFailed` | 启动失败 | 任意初始化阶段出错时触发 |
+
+### 优雅关闭超时配置
+
+优雅关闭超时时间支持通过配置文件自定义，默认 5 秒：
+
+```yaml
+service:
+  shutdownTimeout: 10  # 优雅关闭超时（秒），默认 5
+```
 
 ## 查询服务状态
 
@@ -218,9 +293,15 @@ fmt.Println(state) // 输出: ready
 
 ## 调用链
 
-[`core.Start()`](../core/server.go) 
-→ [`initService()`](../core/service.go) 
-→ [`registerBuiltinServices()`](../core/service.go) 
-→ [`lifecycle.InitAllServices()`](../core/lifecycle/initializer.go) 
-→ [`ParallelInitializer.Init()`](../core/lifecycle/initializer.go) 
+[`core.Start()`](../core/server.go)
+→ `overrideValidator()` → `loadConfig()`
+→ [`ExecuteAppHooks(AppBeforeInit)`](../core/lifecycle/registry.go)
+→ `initMiddleware()`
+→ [`initService()`](../core/service.go)
+→ [`registerBuiltinServices()`](../core/service.go)
+→ [`lifecycle.InitAllServices()`](../core/lifecycle/initializer.go)
+→ [`ParallelInitializer.Init()`](../core/lifecycle/initializer.go)
 → 各服务的 `Init()` 方法
+→ [`ExecuteAppHooks(AppAfterInit)`](../core/lifecycle/registry.go)
+→ `server.ListenAndServe()`
+→ [`ExecuteAppHooks(AppOnReady)`](../core/lifecycle/registry.go)

@@ -11,10 +11,11 @@ import (
 )
 
 // ServiceRegistry 服务注册中心
-// 管理所有服务的注册、初始化和关闭
+// 管理所有服务的注册、初始化和关闭，同时管理应用级生命周期钩子
 type ServiceRegistry struct {
 	services map[string]Service      // 已注册的服务
 	hooks    map[string][]Hook       // 服务钩子
+	appHooks []AppHook               // 应用级生命周期钩子
 	states   map[string]ServiceState // 服务状态
 	mu       sync.RWMutex            // 读写锁
 }
@@ -218,6 +219,60 @@ func (r *ServiceRegistry) CloseService(ctx context.Context, name string) error {
 	return nil
 }
 
+// RegisterAppHook 注册应用级生命周期钩子
+// 参数：
+//   - hook: 应用级钩子配置，包含阶段、优先级、名称和执行函数
+func (r *ServiceRegistry) RegisterAppHook(hook AppHook) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.appHooks = append(r.appHooks, hook)
+}
+
+// ExecuteAppHooks 执行指定阶段的应用级钩子
+// 按优先级（数值越小越先执行）顺序执行所有匹配阶段的钩子
+//
+// 执行流程：
+// 1. 筛选匹配指定阶段的钩子
+// 2. 按优先级排序
+// 3. 依次执行，任一钩子失败则立即返回错误
+func (r *ServiceRegistry) ExecuteAppHooks(ctx context.Context, phase AppHookPhase) error {
+	r.mu.RLock()
+	hooks := make([]AppHook, len(r.appHooks))
+	copy(hooks, r.appHooks)
+	r.mu.RUnlock()
+
+	// 筛选匹配阶段的钩子
+	var matched []AppHook
+	for _, hook := range hooks {
+		if hook.Phase == phase {
+			matched = append(matched, hook)
+		}
+	}
+
+	if len(matched) == 0 {
+		return nil
+	}
+
+	// 按优先级排序
+	sort.Slice(matched, func(i, j int) bool {
+		return matched[i].Priority < matched[j].Priority
+	})
+
+	// 依次执行
+	for _, hook := range matched {
+		hookName := hook.Name
+		if hookName == "" {
+			hookName = phase.String()
+		}
+		logger.Info("[应用钩子] 执行钩子: %s (阶段: %s, 优先级: %d)", hookName, phase, hook.Priority)
+		if err := hook.Fn(ctx); err != nil {
+			return fmt.Errorf("应用钩子执行失败 [%s, phase=%s]: %w", hookName, phase, err)
+		}
+	}
+	return nil
+}
+
 // --- 全局函数（便捷方法）---
 
 // RegisterService 注册服务到全局注册中心
@@ -228,6 +283,16 @@ func RegisterService(service Service) error {
 // RegisterServiceHook 注册钩子到全局注册中心
 func RegisterServiceHook(serviceName string, hook Hook) {
 	globalRegistry.RegisterHook(serviceName, hook)
+}
+
+// RegisterAppHook 注册应用级生命周期钩子到全局注册中心
+func RegisterAppHook(hook AppHook) {
+	globalRegistry.RegisterAppHook(hook)
+}
+
+// ExecuteAppHooks 执行全局注册中心中指定阶段的应用级钩子
+func ExecuteAppHooks(ctx context.Context, phase AppHookPhase) error {
+	return globalRegistry.ExecuteAppHooks(ctx, phase)
 }
 
 // GetServiceState 获取服务状态

@@ -53,7 +53,7 @@ system: # 系统配置
 
     func main() {
         //启动服务
-        core.Start(clearCache)
+        core.Start()
     }
     ```
 
