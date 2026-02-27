@@ -93,7 +93,11 @@ func convertStrToPrivateKey(privatekeyStr string) (*rsa.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pri2.(*rsa.PrivateKey), nil
+	rsaKey, ok := pri2.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("parsed key is not an RSA private key")
+	}
+	return rsaKey, nil
 }
 
 // RsaReadPrivatePem 从文件中读取PEM格式的RSA私钥
@@ -127,7 +131,11 @@ func convertStrToPublicKey(publickeyStr string) (*rsa.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pub.(*rsa.PublicKey), err
+	rsaKey, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("parsed key is not an RSA public key")
+	}
+	return rsaKey, nil
 }
 
 // RsaReadPublicPem 从文件中读取PEM格式的RSA公钥
