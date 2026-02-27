@@ -206,8 +206,12 @@ func TestCORSHandler_WildcardOrigin(t *testing.T) {
 		{"https://api.example.com", true},
 		{"https://www.example.com", true},
 		{"https://sub.domain.example.com", true},
+		{"https://example.com", true},
+		{"https://api.example.com:8080", true},
 		{"https://example.org", false},
 		{"https://notexample.com", false},
+		{"https://evil-example.com", false},
+		{"https://fakeexample.com", false},
 	}
 
 	for _, tt := range tests {
@@ -403,7 +407,13 @@ func TestIsOriginAllowed(t *testing.T) {
 		{"exact match", "http://example.com", []string{"http://example.com"}, true},
 		{"exact no match", "http://other.com", []string{"http://example.com"}, false},
 		{"wildcard subdomain match", "https://api.example.com", []string{"*.example.com"}, true},
+		{"wildcard deep subdomain match", "https://a.b.c.example.com", []string{"*.example.com"}, true},
+		{"wildcard bare domain match", "https://example.com", []string{"*.example.com"}, true},
+		{"wildcard with port match", "https://api.example.com:8080", []string{"*.example.com"}, true},
 		{"wildcard subdomain no match", "https://example.org", []string{"*.example.com"}, false},
+		{"wildcard bypass attempt with dash", "https://evil-example.com", []string{"*.example.com"}, false},
+		{"wildcard bypass attempt with prefix", "https://fakeexample.com", []string{"*.example.com"}, false},
+		{"wildcard invalid origin", "not-a-url", []string{"*.example.com"}, false},
 		{"multiple origins first match", "http://a.com", []string{"http://a.com", "http://b.com"}, true},
 		{"multiple origins second match", "http://b.com", []string{"http://a.com", "http://b.com"}, true},
 		{"multiple origins no match", "http://c.com", []string{"http://a.com", "http://b.com"}, false},

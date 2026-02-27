@@ -4,6 +4,7 @@ package middleware
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -107,9 +108,12 @@ func CORSHandler() gin.HandlerFunc {
 }
 
 // isOriginAllowed 检查来源是否被允许
+//
+// 对通配符规则（如 *.example.com），解析 origin URL 提取 hostname 后
+// 在子域名边界上做精确匹配，防止 evil-example.com 绕过 *.example.com
 func isOriginAllowed(origin string, allowOrigins []string) bool {
 	if len(allowOrigins) == 0 {
-		return true // 未配置则允许所有
+		return true
 	}
 
 	for _, allowed := range allowOrigins {
@@ -119,13 +123,25 @@ func isOriginAllowed(origin string, allowOrigins []string) bool {
 		if allowed == origin {
 			return true
 		}
-		// 支持通配符匹配，如 *.example.com
 		if strings.HasPrefix(allowed, "*.") {
-			suffix := strings.TrimPrefix(allowed, "*")
-			if strings.HasSuffix(origin, suffix) {
+			domain := strings.TrimPrefix(allowed, "*.")
+			host := extractHost(origin)
+			if host == "" {
+				continue
+			}
+			if host == domain || strings.HasSuffix(host, "."+domain) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// extractHost 从 origin URL 中提取主机名（不含端口）
+func extractHost(origin string) string {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return ""
+	}
+	return u.Hostname()
 }
