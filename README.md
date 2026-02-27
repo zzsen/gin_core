@@ -159,7 +159,7 @@ main()
 | `prometheusHandler` | Prometheus 指标采集（请求计数、耗时分布、并发数） |
 | `exceptionHandler` | 统一异常处理，捕获 panic 并返回标准错误响应 |
 | `otelTraceHandler` | OpenTelemetry 链路追踪（W3C Trace Context） |
-| `traceIdHandler` | 请求追踪 ID（为每个请求生成 UUID） |
+| `traceIdHandler` | 请求追踪 ID（优先从上游请求头读取，未传递时生成 UUID） |
 | `traceLogHandler` | 请求日志（记录请求 / 响应详情） |
 | `timeoutHandler` | 请求超时控制（基于 `service.apiTimeout` 配置） |
 | `rateLimitHandler` | API 限流（内存 / Redis，支持多维度限流） |

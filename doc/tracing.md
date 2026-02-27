@@ -62,7 +62,7 @@ service:
     - "timeoutHandler"
 ```
 
-> **注意**: `otelTraceHandler` 会自动设置 `traceId` 到上下文中，可以替代 `traceIdHandler`。如果同时使用，`otelTraceHandler` 应放在 `traceIdHandler` 之后。
+> **注意**: `otelTraceHandler` 会自动设置 `traceId` 到上下文中，可以替代 `traceIdHandler`。如果同时使用，`otelTraceHandler` 应放在 `traceIdHandler` 之后。`traceIdHandler` 支持从上游请求头（`X-Trace-ID`、`X-Request-ID`）读取已有的 trace ID，适用于不启用 OpenTelemetry 但仍需跨服务传播追踪 ID 的场景。
 
 ### 3. 启动 Jaeger（本地测试）
 

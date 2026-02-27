@@ -9,6 +9,10 @@
 // 3. TraceID 添加到响应头
 // 4. 多个请求生成不同的 TraceID
 // 5. UUID 格式验证
+// 6. 从上游请求头 X-Trace-ID 读取 trace ID
+// 7. 从上游请求头 X-Request-ID 读取 trace ID
+// 8. 请求头优先级（X-Trace-ID > X-Request-ID）
+// 9. 忽略空白请求头值
 //
 // 运行测试：go test -v ./middleware/... -run TraceIdHandler
 // ==================================================
@@ -273,6 +277,167 @@ func TestTraceIdHandler_POSTRequest(t *testing.T) {
 	traceID := w.Header().Get("X-Trace-ID")
 	if traceID == "" {
 		t.Error("POST 请求响应头中应该有 X-Trace-ID")
+	}
+}
+
+// ==================== 上游请求头传播测试 ====================
+
+// TestTraceIdHandler_PropagateFromXTraceID 测试从 X-Trace-ID 请求头读取 trace ID
+//
+// 【功能点】验证中间件优先使用上游传递的 X-Trace-ID
+// 【测试流程】
+// 1. 在请求中设置 X-Trace-ID 头
+// 2. 验证响应头和上下文中使用的是上游传递的值
+func TestTraceIdHandler_PropagateFromXTraceID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	upstreamTraceID := "upstream-trace-id-12345"
+	var contextTraceID string
+
+	router := gin.New()
+	router.Use(TraceIdHandler())
+	router.GET("/test", func(c *gin.Context) {
+		if val, exists := c.Get("traceId"); exists {
+			contextTraceID = val.(string)
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-Trace-ID", upstreamTraceID)
+	router.ServeHTTP(w, req)
+
+	if contextTraceID != upstreamTraceID {
+		t.Errorf("上下文中的 traceId 应为上游传递的值 %s, 实际 %s", upstreamTraceID, contextTraceID)
+	}
+
+	headerTraceID := w.Header().Get("X-Trace-ID")
+	if headerTraceID != upstreamTraceID {
+		t.Errorf("响应头 X-Trace-ID 应为上游传递的值 %s, 实际 %s", upstreamTraceID, headerTraceID)
+	}
+}
+
+// TestTraceIdHandler_PropagateFromXRequestID 测试从 X-Request-ID 请求头读取 trace ID
+//
+// 【功能点】验证中间件在没有 X-Trace-ID 时使用 X-Request-ID
+// 【测试流程】
+// 1. 在请求中仅设置 X-Request-ID 头
+// 2. 验证响应头和上下文中使用的是 X-Request-ID 的值
+func TestTraceIdHandler_PropagateFromXRequestID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	upstreamRequestID := "request-id-abcdef"
+	var contextTraceID string
+
+	router := gin.New()
+	router.Use(TraceIdHandler())
+	router.GET("/test", func(c *gin.Context) {
+		if val, exists := c.Get("traceId"); exists {
+			contextTraceID = val.(string)
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-Request-ID", upstreamRequestID)
+	router.ServeHTTP(w, req)
+
+	if contextTraceID != upstreamRequestID {
+		t.Errorf("上下文中的 traceId 应为 X-Request-ID 的值 %s, 实际 %s", upstreamRequestID, contextTraceID)
+	}
+
+	headerTraceID := w.Header().Get("X-Trace-ID")
+	if headerTraceID != upstreamRequestID {
+		t.Errorf("响应头 X-Trace-ID 应为 X-Request-ID 的值 %s, 实际 %s", upstreamRequestID, headerTraceID)
+	}
+}
+
+// TestTraceIdHandler_HeaderPriority 测试请求头优先级
+//
+// 【功能点】验证 X-Trace-ID 优先级高于 X-Request-ID
+// 【测试流程】
+// 1. 同时设置 X-Trace-ID 和 X-Request-ID
+// 2. 验证使用的是 X-Trace-ID 的值
+func TestTraceIdHandler_HeaderPriority(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	xTraceID := "x-trace-id-value"
+	xRequestID := "x-request-id-value"
+	var contextTraceID string
+
+	router := gin.New()
+	router.Use(TraceIdHandler())
+	router.GET("/test", func(c *gin.Context) {
+		if val, exists := c.Get("traceId"); exists {
+			contextTraceID = val.(string)
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-Trace-ID", xTraceID)
+	req.Header.Set("X-Request-ID", xRequestID)
+	router.ServeHTTP(w, req)
+
+	if contextTraceID != xTraceID {
+		t.Errorf("当同时存在 X-Trace-ID 和 X-Request-ID 时应优先使用 X-Trace-ID, 期望 %s, 实际 %s", xTraceID, contextTraceID)
+	}
+}
+
+// TestTraceIdHandler_IgnoreEmptyHeaders 测试忽略空白请求头
+//
+// 【功能点】验证空白的上游请求头不会被采用，仍然生成新的 UUID
+// 【测试流程】
+// 1. 设置空白值的 X-Trace-ID 和 X-Request-ID
+// 2. 验证生成了新的 UUID 格式的 trace ID
+func TestTraceIdHandler_IgnoreEmptyHeaders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(TraceIdHandler())
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-Trace-ID", "   ")
+	req.Header.Set("X-Request-ID", "")
+	router.ServeHTTP(w, req)
+
+	traceID := w.Header().Get("X-Trace-ID")
+	if !uuidRegex.MatchString(traceID) {
+		t.Errorf("空白请求头应被忽略并生成新的 UUID, 实际 %s", traceID)
+	}
+}
+
+// TestTraceIdHandler_NoUpstreamHeader 测试无上游请求头时生成新 UUID
+//
+// 【功能点】验证没有上游请求头时仍然生成新的 UUID（向下兼容）
+// 【测试流程】
+// 1. 不设置任何追踪相关请求头
+// 2. 验证生成了有效的 UUID
+func TestTraceIdHandler_NoUpstreamHeader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(TraceIdHandler())
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/test", nil)
+	router.ServeHTTP(w, req)
+
+	traceID := w.Header().Get("X-Trace-ID")
+	if traceID == "" {
+		t.Error("无上游请求头时应生成新的 TraceID")
+	}
+
+	if !uuidRegex.MatchString(traceID) {
+		t.Errorf("生成的 TraceID 应为有效 UUID, 实际 %s", traceID)
 	}
 }
 

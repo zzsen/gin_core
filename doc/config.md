@@ -221,7 +221,7 @@ service:
   writeTimeout: 60                 # HTTP响应写入超时时间，单位：秒
   middlewares:                     # 中间件配置列表，注意：顺序对应中间件调用顺序
     - "exceptionHandler"           # 异常处理中间件，统一处理应用异常
-    - "traceIdHandler"             # 请求追踪ID中间件，为每个请求生成唯一标识
+    - "traceIdHandler"             # 请求追踪ID中间件，优先从上游请求头读取，未传递时生成唯一标识
     - "traceLogHandler"            # 请求日志中间件，记录请求详细信息
     - "timeoutHandler"             # 请求超时中间件，防止请求长时间阻塞
 ```
