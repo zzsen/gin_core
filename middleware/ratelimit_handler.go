@@ -3,8 +3,10 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -182,15 +184,15 @@ func toString(v interface{}) string {
 	case string:
 		return val
 	case int:
-		return string(rune(val))
+		return strconv.Itoa(val)
 	case int64:
-		return string(rune(val))
+		return strconv.FormatInt(val, 10)
 	case uint:
-		return string(rune(val))
+		return strconv.FormatUint(uint64(val), 10)
 	case uint64:
-		return string(rune(val))
+		return strconv.FormatUint(val, 10)
 	default:
-		return ""
+		return fmt.Sprintf("%v", val)
 	}
 }
 
