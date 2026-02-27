@@ -49,7 +49,7 @@ func TestAesEcbEncrypt(t *testing.T) {
 				src2Encrypt: "Hello World",
 				key:         "UTabIUiHgDyh464+", // 16字节密钥
 			},
-			want:    "/t8wxJyz5nLKYDa7w8W3oQ==", // base64编码的加密结果
+			want:    "MUnLTlM2mFGy5FJ3FFSaqw==", // base64编码的加密结果
 			wantErr: false,
 		},
 	}
@@ -92,7 +92,7 @@ func TestAesEcbDecrypt(t *testing.T) {
 		{
 			name: "aes ecb decrypt",
 			args: args{
-				src2Decrypt: "/t8wxJyz5nLKYDa7w8W3oQ==", // base64编码的密文
+				src2Decrypt: "MUnLTlM2mFGy5FJ3FFSaqw==", // base64编码的密文
 				key:         "UTabIUiHgDyh464+",         // 16字节密钥
 			},
 			want:    "Hello World", // 期望解密后的明文
@@ -139,7 +139,7 @@ func TestAesEcbCrypt(t *testing.T) {
 			name: "aes ecb crypt",
 			args: args{
 				src2Encrypt:   "Hello World",
-				encryptResult: "/t8wxJyz5nLKYDa7w8W3oQ==", // 预期的加密结果
+				encryptResult: "MUnLTlM2mFGy5FJ3FFSaqw==", // 预期的加密结果
 				key:           "UTabIUiHgDyh464+",         // 16字节密钥
 			},
 		},

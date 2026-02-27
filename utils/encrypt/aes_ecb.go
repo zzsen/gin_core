@@ -115,17 +115,26 @@ func unNoPadding(src []byte) []byte {
 // 返回: 填充后的字节数组
 func padding(src []byte) []byte {
 	count := aes.BlockSize - len(src)%aes.BlockSize
-	padding := bytes.Repeat([]byte{byte(0)}, count)
-	padding[count-1] = byte(count)
-	return append(src, padding...)
+	return append(src, bytes.Repeat([]byte{byte(count)}, count)...)
 }
 
-// unPadding 去除PKCS7填充
-// 根据最后一个字节的值确定填充长度，去除填充内容
+// unPadding 去除标准PKCS7填充
+// 读取最后一个字节作为填充长度，校验所有填充字节是否一致
 // src: 待去除填充的字节数组
 // 返回: 去除填充后的字节数组
 func unPadding(src []byte) []byte {
 	l := len(src)
+	if l == 0 {
+		return src
+	}
 	p := int(src[l-1])
+	if p > aes.BlockSize || p > l {
+		return src
+	}
+	for i := l - p; i < l; i++ {
+		if src[i] != byte(p) {
+			return src
+		}
+	}
 	return src[:l-p]
 }
