@@ -9,6 +9,32 @@ import (
 	"github.com/zzsen/gin_core/model/config"
 )
 
+// buildProducerMQ 构建生产者消息队列实例
+//
+// 抽取公共逻辑：构建 MessageQueue 结构体、获取连接字符串、校验连接字符串
+// 流程：
+// 1. 根据参数构建 MessageQueue 结构体
+// 2. 根据 mqConfigName 获取对应的连接字符串（默认配置或命名配置）
+// 3. 校验连接字符串是否为空
+func buildProducerMQ(queueName, exchangeName, exchangeType, routingKey, mqConfigName string) (*config.MessageQueue, error) {
+	mq := &config.MessageQueue{
+		MQName:       mqConfigName,
+		QueueName:    queueName,
+		ExchangeName: exchangeName,
+		ExchangeType: exchangeType,
+		RoutingKey:   routingKey,
+	}
+	mqConnStr := BaseConfig.RabbitMQ.Url()
+	if mqConfigName != "" {
+		mqConnStr = BaseConfig.RabbitMQList.Url(mqConfigName)
+	}
+	if mqConnStr == "" {
+		return nil, fmt.Errorf("[消息队列] 未找到对应的消息队列配置, MQName: %s", mqConfigName)
+	}
+	mq.MqConnStr = mqConnStr
+	return mq, nil
+}
+
 // SendRabbitMqMsg 发送RabbitMQ消息
 // 该函数支持向多个消息队列实例发送消息，并提供重试机制
 // 参数：
@@ -31,29 +57,15 @@ func SendRabbitMqMsg(queueName string, exchangeName string,
 	successCount := 0
 
 	for _, mqConfigName := range mqConfigNames {
-		messageQueue := config.MessageQueue{
-			MQName:       mqConfigName,
-			QueueName:    queueName,
-			ExchangeName: exchangeName,
-			ExchangeType: exchangeType,
-			RoutingKey:   routingKey,
-		}
-		// 获取消息队列连接字符串
-		mqConnStr := BaseConfig.RabbitMQ.Url()
-		// 如果配置了消息队列名称, 则使用对应的消息队列
-		if messageQueue.MQName != "" {
-			mqConnStr = BaseConfig.RabbitMQList.Url(messageQueue.MQName)
-		}
-		if mqConnStr == "" {
-			err := fmt.Errorf("[消息队列] 未找到对应的消息队列配置, MQName: %s", messageQueue.MQName)
+		messageQueue, err := buildProducerMQ(queueName, exchangeName, exchangeType, routingKey, mqConfigName)
+		if err != nil {
 			logger.Error("%v", err)
 			lastErr = err
 			continue
 		}
-		messageQueue.MqConnStr = mqConnStr
 
 		// 发送消息，带重试机制
-		err := sendRabbitMqMsgWithRetry(&messageQueue, message, 3, 100*time.Millisecond)
+		err = sendRabbitMqMsgWithRetry(messageQueue, message, 3, 100*time.Millisecond)
 		if err != nil {
 			lastErr = err
 			logger.Error("[消息队列] 消息发送失败, queueInfo: %s, error: %v", messageQueue.GetInfo(), err)
@@ -228,30 +240,16 @@ func SendRabbitMqMsgBatchWithContext(ctx context.Context, queueName string, exch
 	successCount := 0
 
 	for _, mqConfigName := range mqConfigNames {
-		messageQueue := config.MessageQueue{
-			MQName:       mqConfigName,
-			QueueName:    queueName,
-			ExchangeName: exchangeName,
-			ExchangeType: exchangeType,
-			RoutingKey:   routingKey,
-		}
-		// 获取消息队列连接字符串
-		mqConnStr := BaseConfig.RabbitMQ.Url()
-		// 如果配置了消息队列名称, 则使用对应的消息队列
-		if messageQueue.MQName != "" {
-			mqConnStr = BaseConfig.RabbitMQList.Url(messageQueue.MQName)
-		}
-		if mqConnStr == "" {
-			err := fmt.Errorf("[消息队列] 未找到对应的消息队列配置, MQName: %s", messageQueue.MQName)
+		messageQueue, err := buildProducerMQ(queueName, exchangeName, exchangeType, routingKey, mqConfigName)
+		if err != nil {
 			logger.Error("%v", err)
 			lastErr = err
 			continue
 		}
-		messageQueue.MqConnStr = mqConnStr
 
 		// 获取或初始化生产者
 		queueInfo := messageQueue.GetInfo()
-		producer, err := getOrInitProducer(&messageQueue, queueInfo)
+		producer, err := getOrInitProducer(messageQueue, queueInfo)
 		if err != nil {
 			lastErr = err
 			logger.Error("[消息队列] 初始化生产者失败, queueInfo: %s, error: %v", queueInfo, err)
@@ -300,33 +298,19 @@ func SendRabbitMqMsgWithConfirm(queueName string, exchangeName string,
 	successCount := 0
 
 	for _, mqConfigName := range mqConfigNames {
-		messageQueue := config.MessageQueue{
-			MQName:       mqConfigName,
-			QueueName:    queueName,
-			ExchangeName: exchangeName,
-			ExchangeType: exchangeType,
-			RoutingKey:   routingKey,
-			PublishConfirm: config.PublishConfirmConfig{
-				Enabled: true,
-				Timeout: confirmTimeout,
-			},
-		}
-		// 获取消息队列连接字符串
-		mqConnStr := BaseConfig.RabbitMQ.Url()
-		// 如果配置了消息队列名称, 则使用对应的消息队列
-		if messageQueue.MQName != "" {
-			mqConnStr = BaseConfig.RabbitMQList.Url(messageQueue.MQName)
-		}
-		if mqConnStr == "" {
-			err := fmt.Errorf("[消息队列] 未找到对应的消息队列配置, MQName: %s", messageQueue.MQName)
+		messageQueue, err := buildProducerMQ(queueName, exchangeName, exchangeType, routingKey, mqConfigName)
+		if err != nil {
 			logger.Error("%v", err)
 			lastErr = err
 			continue
 		}
-		messageQueue.MqConnStr = mqConnStr
+		messageQueue.PublishConfirm = config.PublishConfirmConfig{
+			Enabled: true,
+			Timeout: confirmTimeout,
+		}
 
 		// 发送消息，带重试机制
-		err := sendRabbitMqMsgWithRetry(&messageQueue, message, 3, 100*time.Millisecond)
+		err = sendRabbitMqMsgWithRetry(messageQueue, message, 3, 100*time.Millisecond)
 		if err != nil {
 			lastErr = err
 			logger.Error("[消息队列] 消息发送失败, queueInfo: %s, error: %v", messageQueue.GetInfo(), err)
