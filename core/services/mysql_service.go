@@ -42,10 +42,9 @@ func (s *MySQLService) Init(ctx context.Context) error {
 	return nil
 }
 
-// Close 关闭数据库连接
+// Close 关闭数据库连接，显式释放所有 sql.DB 底层连接资源
 func (s *MySQLService) Close(ctx context.Context) error {
-	// GORM 通常自动管理连接，无需手动关闭
-	return nil
+	return app.CloseAllDB()
 }
 
 // HealthCheck 健康检查
