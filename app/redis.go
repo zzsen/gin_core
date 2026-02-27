@@ -14,6 +14,8 @@ import (
 //   - redis.UniversalClient: Redis客户端实例
 //   - error: 如果Redis不存在或未初始化则返回错误
 func GetRedisByName(name string) (redis.UniversalClient, error) {
+	lock.RLock()
+	defer lock.RUnlock()
 	redisClient, ok := RedisList[name]
 	if !ok || redisClient == nil {
 		return nil, fmt.Errorf("[redis] Redis `%s` 未初始化或不可用", name)
