@@ -410,9 +410,9 @@ func TestStructToMap(t *testing.T) {
 
 // TestStructToMap_EdgeCases 测试边界情况
 //
-// 【功能点】验证边界情况的错误处理
+// 【功能点】验证边界情况的处理（指针类型输入、nil 输入）
 // 【测试流程】
-//  1. 测试指针类型输入 - 验证 panic
+//  1. 测试指针类型输入 - 验证可正常转换
 //  2. 测试 nil 输入 - 验证 panic
 func TestStructToMap_EdgeCases(t *testing.T) {
 	t.Run("pointer to struct", func(t *testing.T) {
@@ -421,16 +421,35 @@ func TestStructToMap_EdgeCases(t *testing.T) {
 			Age:  40,
 		}
 
-		// 这应该会panic，因为StructToMap期望的是结构体值，不是指针
-		assert.Panics(t, func() {
-			StructToMap(input)
-		})
+		result := StructToMap(input)
+		assert.Equal(t, "Pointer Test", result["name"])
+		assert.Equal(t, 40, result["age"])
+	})
+
+	t.Run("pointer to struct with all fields", func(t *testing.T) {
+		input := &TestStructWithCustomTags{
+			UserName:  "Ptr User",
+			UserAge:   33,
+			UserEmail: "ptr@example.com",
+			IsActive:  true,
+			UserScore: 99.9,
+			UserTags:  []string{"go", "ptr"},
+			UserData:  map[string]interface{}{"k": "v"},
+		}
+
+		result := StructToMap(input)
+		assert.Equal(t, "Ptr User", result["user_name"])
+		assert.Equal(t, 33, result["user_age"])
+		assert.Equal(t, "ptr@example.com", result["user_email"])
+		assert.Equal(t, true, result["is_active"])
+		assert.Equal(t, 99.9, result["user_score"])
+		assert.Equal(t, []string{"go", "ptr"}, result["user_tags"])
+		assert.Equal(t, map[string]interface{}{"k": "v"}, result["user_data"])
 	})
 
 	t.Run("nil struct", func(t *testing.T) {
 		var input *TestStruct = nil
 
-		// 这应该会panic，因为reflect.TypeOf(nil)会panic
 		assert.Panics(t, func() {
 			StructToMap(input)
 		})

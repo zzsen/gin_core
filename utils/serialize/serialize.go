@@ -19,15 +19,13 @@ func MapToStruct(m map[string]any, s any) error {
 	return nil
 }
 
-// StructToMap将结构体对象转换为map对象
+// StructToMap 将结构体对象转换为 map 对象，支持传入结构体值或结构体指针
 func StructToMap(s any) map[string]any {
 	m := make(map[string]any)
 
-	// 获取结构体类型和值
-	t := reflect.TypeOf(s)
-	v := reflect.ValueOf(s)
+	v := reflect.Indirect(reflect.ValueOf(s))
+	t := v.Type()
 
-	// 遍历结构体字段并将其添加到map对象中
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i).Tag.Get("json")
 		if field == "" {
