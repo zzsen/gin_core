@@ -5,7 +5,7 @@
 //
 // 测试覆盖内容：
 // 1. AesEcbEncrypt - AES ECB 模式加密
-// 2. AesEcbDecrypt - AES ECB 模式解密
+// 2. AesEcbDecrypt - AES ECB 模式解密（含密文长度校验等异常场景）
 // 3. AesEcbCrypt - 加密解密完整流程（加密→解密→验证一致性）
 //
 // 密钥要求：
@@ -73,11 +73,12 @@ func TestAesEcbEncrypt(t *testing.T) {
 
 // TestAesEcbDecrypt 测试AES ECB模式解密功能
 //
-// 【功能点】验证 AES ECB 模式解密的正确性
+// 【功能点】验证 AES ECB 模式解密的正确性及异常输入处理
 // 【测试流程】
-//  1. 准备 Base64 编码的密文和对应密钥
-//  2. 调用 AesEcbDecrypt 进行解密
-//  3. 验证解密后的明文与期望值一致
+//  1. 正常解密：准备 Base64 编码的密文和对应密钥，验证解密结果
+//  2. 非法密文长度：密文字节数非 AES 块大小整数倍时返回错误
+//  3. 空密文：空字符串时返回错误
+//  4. 非法 Base64：无效 Base64 编码时返回错误
 func TestAesEcbDecrypt(t *testing.T) {
 	type args struct {
 		src2Decrypt string // 待解密的密文（base64编码）
@@ -97,6 +98,33 @@ func TestAesEcbDecrypt(t *testing.T) {
 			},
 			want:    "Hello World", // 期望解密后的明文
 			wantErr: false,
+		},
+		{
+			name: "invalid ciphertext length",
+			args: args{
+				src2Decrypt: "AQID", // 3字节，非16字节整数倍
+				key:         "UTabIUiHgDyh464+",
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name: "empty ciphertext",
+			args: args{
+				src2Decrypt: "",
+				key:         "UTabIUiHgDyh464+",
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name: "invalid base64",
+			args: args{
+				src2Decrypt: "!!!not-base64!!!",
+				key:         "UTabIUiHgDyh464+",
+			},
+			want:    "",
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

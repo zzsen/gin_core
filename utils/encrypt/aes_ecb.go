@@ -58,6 +58,9 @@ func AesEcbDecrypt(cryptText string, key string, isPad ...bool) (string, error) 
 	if len(cryptBytes) == 0 {
 		return "", fmt.Errorf("content is empty")
 	}
+	if len(cryptBytes)%aes.BlockSize != 0 {
+		return "", fmt.Errorf("ciphertext length %d is not a multiple of AES block size %d", len(cryptBytes), aes.BlockSize)
+	}
 
 	// 创建AES密码块
 	block, err := aes.NewCipher([]byte(key))
