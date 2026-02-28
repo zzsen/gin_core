@@ -838,3 +838,93 @@ func TestGet_Concurrent(t *testing.T) {
 		}
 	})
 }
+
+// TestGet_BodyParseCaching 测试 JSON body 解析缓存机制
+//
+// 【功能点】验证同一请求中多次调用 Get 时，JSON body 只解析一次
+// 【测试流程】
+// 1. 构造带有多个字段的 JSON body 请求
+// 2. 在同一个 handler 中多次调用 Get 获取不同 key
+// 3. 验证所有调用都能正确返回值
+// 4. 验证缓存数据存在于 context 中
+// 5. 验证请求体仍然可被后续读取
+func TestGet_BodyParseCaching(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("multiple Get calls use cached body", func(t *testing.T) {
+		r := gin.New()
+		r.POST("/test", func(c *gin.Context) {
+			name := Get(c, "name")
+			age := Get(c, "age")
+			city := Get(c, "city")
+
+			cached, exists := c.Get(parsedBodyKey)
+			cachedMap, _ := cached.(map[string]any)
+
+			body, _ := c.GetRawData()
+			var afterBody map[string]interface{}
+			json.Unmarshal(body, &afterBody)
+
+			c.JSON(200, gin.H{
+				"name":            name,
+				"age":             age,
+				"city":            city,
+				"cache_exists":    exists,
+				"cache_size":      len(cachedMap),
+				"body_accessible": len(afterBody) > 0,
+			})
+		})
+
+		jsonData := map[string]interface{}{
+			"name": "john",
+			"age":  25,
+			"city": "beijing",
+		}
+		jsonBytes, _ := json.Marshal(jsonData)
+
+		req, _ := http.NewRequest("POST", "/test", bytes.NewBuffer(jsonBytes))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, 200, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.Nil(t, err)
+		assert.Equal(t, "john", response["name"])
+		assert.Equal(t, "25", response["age"])
+		assert.Equal(t, "beijing", response["city"])
+		assert.True(t, response["cache_exists"].(bool))
+		assert.Equal(t, 3, int(response["cache_size"].(float64)))
+		assert.True(t, response["body_accessible"].(bool))
+	})
+
+	t.Run("empty body caching does not panic", func(t *testing.T) {
+		r := gin.New()
+		r.POST("/test", func(c *gin.Context) {
+			val1 := Get(c, "key1")
+			val2 := Get(c, "key2")
+
+			c.JSON(200, gin.H{
+				"val1": val1,
+				"val2": val2,
+			})
+		})
+
+		req, _ := http.NewRequest("POST", "/test", nil)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, 200, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.Nil(t, err)
+		assert.Equal(t, "", response["val1"])
+		assert.Equal(t, "", response["val2"])
+	})
+}
