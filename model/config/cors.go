@@ -34,7 +34,8 @@ type CORSConfig struct {
 	MaxAge int `yaml:"maxAge"`
 }
 
-// GetAllowOrigins 获取允许的来源列表
+// GetAllowOrigins 获取允许的来源列表。
+// 未配置时默认返回 ["*"]（允许所有来源）。
 func (c *CORSConfig) GetAllowOrigins() []string {
 	if len(c.AllowOrigins) == 0 {
 		return []string{"*"}
@@ -42,7 +43,8 @@ func (c *CORSConfig) GetAllowOrigins() []string {
 	return c.AllowOrigins
 }
 
-// GetAllowMethods 获取允许的方法列表
+// GetAllowMethods 获取允许的 HTTP 方法列表。
+// 未配置时默认返回 GET, POST, PUT, PATCH, DELETE, OPTIONS。
 func (c *CORSConfig) GetAllowMethods() []string {
 	if len(c.AllowMethods) == 0 {
 		return []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
@@ -50,7 +52,8 @@ func (c *CORSConfig) GetAllowMethods() []string {
 	return c.AllowMethods
 }
 
-// GetAllowHeaders 获取允许的请求头列表
+// GetAllowHeaders 获取允许的请求头列表。
+// 未配置时默认返回 Content-Type, Authorization, X-Trace-Id, X-Request-Id。
 func (c *CORSConfig) GetAllowHeaders() []string {
 	if len(c.AllowHeaders) == 0 {
 		return []string{"Content-Type", "Authorization", "X-Trace-Id", "X-Request-Id"}
@@ -58,7 +61,8 @@ func (c *CORSConfig) GetAllowHeaders() []string {
 	return c.AllowHeaders
 }
 
-// GetMaxAge 获取预检请求缓存时间
+// GetMaxAge 获取预检请求缓存时间（秒）。
+// 未配置或配置为非正数时默认返回 86400（24 小时）。
 func (c *CORSConfig) GetMaxAge() int {
 	if c.MaxAge <= 0 {
 		return 86400

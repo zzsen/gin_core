@@ -18,9 +18,14 @@ func NewDependencyResolver(services map[string]Service) *DependencyResolver {
 	}
 }
 
-// Resolve 解析依赖关系，返回按层级分组的初始化顺序
-// 返回值: [][]string，每个内层数组是可以并行初始化的服务
-// 算法：使用 Kahn 算法进行拓扑排序，同时按层级分组
+// Resolve 解析依赖关系，返回按层级分组的初始化顺序。
+// 返回值 [][]string 中，每个内层数组是可以并行初始化的服务组。
+//
+// 执行流程：
+// 1. 使用 DFS 检测循环依赖，发现环则返回错误
+// 2. 构建入度表（每个服务依赖数）和邻接表（被依赖关系）
+// 3. 使用 Kahn 算法逐层剥离入度为 0 的节点，按优先级排序后加入当前层
+// 4. 每剥离一层，更新依赖它的服务的入度，直到所有服务处理完毕
 func (r *DependencyResolver) Resolve() ([][]string, error) {
 	// 1. 检测循环依赖
 	if err := r.detectCycle(); err != nil {
@@ -28,8 +33,8 @@ func (r *DependencyResolver) Resolve() ([][]string, error) {
 	}
 
 	// 2. 构建入度表和邻接表
-	inDegree := make(map[string]int)        // 入度（依赖数量）
-	dependents := make(map[string][]string) // 被依赖关系（谁依赖我）
+	inDegree := make(map[string]int)
+	dependents := make(map[string][]string)
 
 	// 初始化所有服务的入度为0
 	for name := range r.services {
@@ -48,7 +53,7 @@ func (r *DependencyResolver) Resolve() ([][]string, error) {
 		}
 	}
 
-	// 3. 使用 Kahn 算法进行拓扑排序，同时按层级分组
+	// 3. Kahn 算法：逐层剥离入度为 0 的服务
 	var layers [][]string
 
 	for {
@@ -73,10 +78,9 @@ func (r *DependencyResolver) Resolve() ([][]string, error) {
 		// 添加到结果
 		layers = append(layers, currentLayer)
 
-		// 从图中移除这些服务，更新入度
+		// 4. 移除当前层节点，更新后续节点入度
 		for _, name := range currentLayer {
 			delete(inDegree, name)
-			// 更新依赖这些服务的其他服务的入度
 			for _, dependent := range dependents[name] {
 				if _, exists := inDegree[dependent]; exists {
 					inDegree[dependent]--
@@ -88,8 +92,17 @@ func (r *DependencyResolver) Resolve() ([][]string, error) {
 	return layers, nil
 }
 
-// detectCycle 检测循环依赖
-// 使用 DFS 检测有向图中的环
+// detectCycle 检测循环依赖。
+// 使用 DFS（三色标记法）检测有向图中的环：
+//   - 状态 0（白色）：未访问
+//   - 状态 1（灰色）：访问中（在当前递归栈上）
+//   - 状态 2（黑色）：已完成（所有后继已处理）
+//
+// 执行流程：
+// 1. 对每个未访问的节点启动 DFS
+// 2. 进入节点时标记为"访问中"并加入路径栈
+// 3. 遇到"访问中"节点说明存在环，从路径栈中提取循环路径
+// 4. 所有后继处理完毕后标记为"已完成"并回溯
 func (r *DependencyResolver) detectCycle() error {
 	// 状态：0=未访问，1=访问中，2=已完成
 	state := make(map[string]int)

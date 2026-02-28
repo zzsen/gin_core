@@ -102,29 +102,32 @@ func (p *ParallelInitializer) Init(ctx context.Context, baseConfig *config.BaseC
 }
 
 // initLayer 并行初始化同一层级的服务
+//
+// 执行流程：
+// 1. 单服务时直接初始化，跳过并发开销
+// 2. 多服务时使用 errgroup 并行执行，通过信号量控制最大并发数
+// 3. 任一服务失败则取消剩余并行任务并返回错误
 func (p *ParallelInitializer) initLayer(ctx context.Context, serviceNames []string) error {
 	if len(serviceNames) == 0 {
 		return nil
 	}
 
-	// 如果只有一个服务，直接初始化
+	// 1. 单服务直接初始化
 	if len(serviceNames) == 1 {
 		return p.initServiceWithRetry(ctx, serviceNames[0])
 	}
 
-	// 使用 errgroup 并行执行
+	// 2. 多服务并行执行
 	g, ctx := errgroup.WithContext(ctx)
 
-	// 限制并发数
 	var sem chan struct{}
 	if p.config.MaxConcurrency > 0 {
 		sem = make(chan struct{}, p.config.MaxConcurrency)
 	}
 
 	for _, name := range serviceNames {
-		name := name // 捕获变量
+		name := name
 		g.Go(func() error {
-			// 获取信号量
 			if sem != nil {
 				sem <- struct{}{}
 				defer func() { <-sem }()
@@ -134,30 +137,39 @@ func (p *ParallelInitializer) initLayer(ctx context.Context, serviceNames []stri
 		})
 	}
 
+	// 3. 等待所有并行任务完成
 	return g.Wait()
 }
 
 // initServiceWithRetry 初始化单个服务，支持重试
+//
+// 执行流程：
+// 1. 首次尝试初始化（attempt=0）
+// 2. 初始化失败时按 RetryInterval 间隔重试，最多 RetryCount 次
+// 3. 每次重试都带超时控制（由 initServiceWithTimeout 保证）
+// 4. 所有重试耗尽后返回最后一次错误
 func (p *ParallelInitializer) initServiceWithRetry(ctx context.Context, name string) error {
 	var lastErr error
 
 	for attempt := 0; attempt <= p.config.RetryCount; attempt++ {
-		// 重试时等待
+		// 1. 非首次尝试时，等待重试间隔
 		if attempt > 0 {
 			logger.Info("[并行初始化] 重试初始化服务 %s，第 %d 次重试", name, attempt)
 			time.Sleep(p.config.RetryInterval)
 		}
 
-		// 带超时的初始化
+		// 2. 带超时的初始化
 		err := p.initServiceWithTimeout(ctx, name)
 		if err == nil {
 			return nil
 		}
 
+		// 3. 记录错误，继续重试
 		lastErr = err
 		logger.Error("[并行初始化] 服务 %s 初始化失败: %v", name, err)
 	}
 
+	// 4. 所有重试耗尽
 	return fmt.Errorf("服务 %s 初始化失败（已重试 %d 次）: %w", name, p.config.RetryCount, lastErr)
 }
 

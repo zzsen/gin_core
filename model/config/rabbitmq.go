@@ -12,6 +12,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+// RabbitMQInfo RabbitMQ 连接配置信息，对应 YAML 配置文件中的 rabbitmq 列表项
 type RabbitMQInfo struct {
 	AliasName         string `yaml:"aliasName"`         // 代表当前实例的名字
 	Host              string `yaml:"host"`              // 主机地址
@@ -21,6 +22,7 @@ type RabbitMQInfo struct {
 	LogMessageContent bool   `yaml:"logMessageContent"` // 是否在日志中输出消息内容，默认 false（不输出），生产环境建议关闭以避免敏感信息泄露
 }
 
+// Url 拼接 AMQP 连接字符串（格式：amqp://user:pass@host:port/）
 func (rabbitMQInfo *RabbitMQInfo) Url() string {
 	return fmt.Sprintf("amqp://%s:%s@%s:%d/",
 		rabbitMQInfo.Username,
@@ -29,8 +31,10 @@ func (rabbitMQInfo *RabbitMQInfo) Url() string {
 		rabbitMQInfo.Port)
 }
 
+// RabbitMqListInfo RabbitMQ 连接配置列表，支持多实例场景
 type RabbitMqListInfo []RabbitMQInfo
 
+// Url 根据别名查找 RabbitMQ 实例并返回连接字符串，未找到时返回空字符串
 func (rabbitMqListInfo *RabbitMqListInfo) Url(aliasName string) string {
 	for _, rabbitMQInfo := range *rabbitMqListInfo {
 		if rabbitMQInfo.AliasName == aliasName {
@@ -74,14 +78,17 @@ type ConsumeConfig struct {
 	RetryDelay time.Duration
 }
 
+// MessageQueue RabbitMQ 消息队列实例，封装了连接管理、通道初始化、消息发布与消费的完整能力。
+// 支持死信队列、Publisher Confirms、消费重试、批量发布等高级特性。
 type MessageQueue struct {
-	MQName       string
-	QueueName    string
-	ExchangeName string
-	// direct(根据路由精准匹配), fanout(广播, queue和routing都设空), topic(路由模糊匹配), headers(根据header匹配)
+	MQName       string // RabbitMQ 实例别名
+	QueueName    string // 队列名称
+	ExchangeName string // 交换机名称
+	// ExchangeType 交换机类型：direct(根据路由精准匹配), fanout(广播, queue 和 routing 都设空),
+	// topic(路由模糊匹配), headers(根据 header 匹配)
 	ExchangeType string
-	RoutingKey   string
-	MqConnStr    string
+	RoutingKey   string // 路由键
+	MqConnStr    string // AMQP 连接字符串
 	Conn         *amqp.Connection
 	Channel      *amqp.Channel
 	// Fun 消费函数（旧版兼容，建议使用 FunWithCtx）
@@ -100,6 +107,7 @@ type MessageQueue struct {
 	confirmLock sync.Mutex
 }
 
+// GetInfo 返回队列的唯一标识字符串，格式为 "MQName_QueueName_ExchangeName_ExchangeType_RoutingKey"
 func (m *MessageQueue) GetInfo() string {
 	var b strings.Builder
 	b.Grow(len(m.MQName) + len(m.QueueName) + len(m.ExchangeName) + len(m.ExchangeType) + len(m.RoutingKey) + 4)
@@ -115,6 +123,7 @@ func (m *MessageQueue) GetInfo() string {
 	return b.String()
 }
 
+// GetFuncInfo 通过反射获取消费函数（Fun）的完整函数名，用于日志输出
 func (m *MessageQueue) GetFuncInfo() string {
 	// 使用 reflect.ValueOf 获取传入函数的反射值
 	value := reflect.ValueOf(m.Fun)
@@ -132,6 +141,7 @@ func (m *MessageQueue) GetFuncInfo() string {
 	return funcInfo.Name()
 }
 
+// initConn 初始化或复用 AMQP 连接。连接为 nil 或已关闭时重新建立连接。
 func (m *MessageQueue) initConn() error {
 	queueInfo := m.GetInfo()
 	if m.Conn == nil || m.Conn.IsClosed() {
@@ -144,19 +154,31 @@ func (m *MessageQueue) initConn() error {
 	return nil
 }
 
+// initChannel 初始化消费者通道（Channel 为 nil 或已关闭时执行）
+//
+// 执行流程：
+// 1. 初始化/复用 AMQP 连接
+// 2. 创建新的 Channel
+// 3. 声明交换机（如果配置了 ExchangeName）
+// 4. 配置死信队列（如果启用了 DeadLetter）
+// 5. 声明并绑定主队列，设置死信参数
+// 6. 设置 QoS 预取数量
 func (m *MessageQueue) initChannel() error {
 	if m.Channel == nil || m.Channel.IsClosed() {
 		queueInfo := m.GetInfo()
 
+		// 1. 初始化/复用 AMQP 连接
 		if err := m.initConn(); err != nil {
 			return err
 		}
 
+		// 2. 创建新的 Channel
 		ch, err := m.Conn.Channel()
 		if err != nil {
 			return fmt.Errorf("开启通道失败: queueInfo: %s, error: %w", queueInfo, err)
 		}
 
+		// 3. 声明交换机
 		if m.ExchangeName != "" {
 			err = ch.ExchangeDeclare(
 				m.ExchangeName, // name
@@ -172,10 +194,9 @@ func (m *MessageQueue) initChannel() error {
 			}
 		}
 
-		// 构建队列参数
+		// 4. 构建队列参数，配置死信队列
 		queueArgs := amqp.Table{}
 
-		// 配置死信队列
 		if m.DeadLetter.Enabled {
 			// 初始化死信交换机和队列
 			if err := m.initDeadLetterQueue(ch); err != nil {
@@ -198,6 +219,7 @@ func (m *MessageQueue) initChannel() error {
 			argsPtr = queueArgs
 		}
 
+		// 5. 声明并绑定主队列
 		q, err := ch.QueueDeclare(
 			m.QueueName, // name
 			true,        // durable
@@ -221,7 +243,7 @@ func (m *MessageQueue) initChannel() error {
 			return fmt.Errorf("队列绑定失败: queueInfo: %s, error: %w", queueInfo, err)
 		}
 
-		// 设置 QoS，使用配置的 PrefetchCount，默认为 1
+		// 6. 设置 QoS，使用配置的 PrefetchCount，默认为 1
 		prefetchCount := m.ConsumeConfig.PrefetchCount
 		if prefetchCount <= 0 {
 			prefetchCount = 1
@@ -241,6 +263,11 @@ func (m *MessageQueue) initChannel() error {
 }
 
 // initDeadLetterQueue 初始化死信队列
+//
+// 执行流程：
+// 1. 声明死信交换机（类型与主交换机相同）
+// 2. 声明死信队列（可选配置 TTL）
+// 3. 将死信队列绑定到死信交换机
 func (m *MessageQueue) initDeadLetterQueue(ch *amqp.Channel) error {
 	queueInfo := m.GetInfo()
 	dlxExchange := m.getDeadLetterExchange()
@@ -379,6 +406,7 @@ func (m *MessageQueue) InitChannelForProducer() error {
 	return nil
 }
 
+// Close 关闭 AMQP 连接和通道，释放资源
 func (m *MessageQueue) Close() {
 	if m.Conn != nil && !m.Conn.IsClosed() {
 		m.Conn.Close()
