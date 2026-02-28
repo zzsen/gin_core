@@ -4,11 +4,24 @@ package middleware
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/zzsen/gin_core/logger"
 )
+
+// maskToken 对 token 进行脱敏处理，保留前 3 位和后 3 位，中间用 *** 替代。
+// token 长度不足 8 位时全部替换为 ***，空字符串直接返回空。
+func maskToken(token string) string {
+	if token == "" {
+		return ""
+	}
+	if len(token) < 8 {
+		return strings.Repeat("*", len(token))
+	}
+	return token[:3] + "***" + token[len(token)-3:]
+}
 
 // TraceLogHandler 请求追踪日志处理器中间件
 // 该中间件会：
@@ -41,7 +54,7 @@ func TraceLogHandler() gin.HandlerFunc {
 		reqUrl := c.Request.RequestURI                                    // 请求路由路径
 		statusCode := c.Writer.Status()                                   // HTTP响应状态码
 		clientIP := c.ClientIP()                                          // 客户端IP地址
-		header := c.GetHeader("User-Agent") + "@@" + c.GetHeader("token") // 用户代理和认证令牌的组合
+		header := c.GetHeader("User-Agent") + "@@" + maskToken(c.GetHeader("token")) // 用户代理和脱敏后的认证令牌
 
 		// 解析多部分表单数据，限制内存使用为128MB
 		_ = c.Request.ParseMultipartForm(128)
@@ -70,7 +83,6 @@ func TraceLogHandler() gin.HandlerFunc {
 		}
 
 		// 使用结构化日志记录所有请求信息，便于日志分析和问题排查
-		// 敏感字段（如token）会自动脱敏
 		logger.TraceWithFields(map[string]any{
 			"traceId":      traceId,      // 追踪ID，用于分布式追踪
 			"requestId":    requestId,    // 请求ID，用于关联同一请求的不同操作

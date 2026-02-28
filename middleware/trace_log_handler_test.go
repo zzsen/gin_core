@@ -11,8 +11,9 @@
 // 5. 响应时间的计算
 // 6. TraceID 和 RequestID 的获取
 // 7. 错误信息的收集
+// 8. maskToken 脱敏函数（空字符串、短 token、边界值、长 token、日志无泄露）
 //
-// 运行测试：go test -v ./middleware/... -run TraceLogHandler
+// 运行测试：go test -v ./middleware/... -run "TraceLogHandler|MaskToken"
 // ==================================================
 package middleware
 
@@ -20,6 +21,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -408,5 +410,142 @@ func BenchmarkTraceLogHandler_WithFormData(b *testing.B) {
 		req, _ := http.NewRequest("POST", "/test", body)
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		router.ServeHTTP(w, req)
+	}
+}
+
+// ==================== maskToken 脱敏函数单元测试 ====================
+
+// TestMaskToken_EmptyString 测试空字符串输入
+//
+// 【功能点】空 token 应直接返回空字符串
+// 【测试流程】
+// 1. 传入空字符串
+// 2. 验证返回值为空字符串
+func TestMaskToken_EmptyString(t *testing.T) {
+	got := maskToken("")
+	if got != "" {
+		t.Errorf("maskToken(\"\") = %q, want \"\"", got)
+	}
+}
+
+// TestMaskToken_ShortToken 测试短 token 全部掩码
+//
+// 【功能点】长度不足 8 的 token 应全部替换为 * 号，且长度与原始 token 一致
+// 【测试流程】
+// 1. 测试长度 1~7 的 token
+// 2. 验证返回值全部为 * 号
+// 3. 验证返回值长度与原始 token 一致
+// 4. 验证返回值中不包含原始字符
+func TestMaskToken_ShortToken(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"1位", "a", "*"},
+		{"2位", "ab", "**"},
+		{"3位", "abc", "***"},
+		{"5位", "abcde", "*****"},
+		{"7位", "abcdefg", "*******"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := maskToken(tt.input)
+			if got != tt.want {
+				t.Errorf("maskToken(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+			if len(got) != len(tt.input) {
+				t.Errorf("maskToken(%q) 长度 = %d, want %d", tt.input, len(got), len(tt.input))
+			}
+		})
+	}
+}
+
+// TestMaskToken_BoundaryEight 测试恰好 8 位的边界
+//
+// 【功能点】8 位 token 是走脱敏保留前后 3 位逻辑的最小长度
+// 【测试流程】
+// 1. 传入恰好 8 位的 token "12345678"
+// 2. 验证结果为 "123***678"，前 3 后 3 保留
+func TestMaskToken_BoundaryEight(t *testing.T) {
+	got := maskToken("12345678")
+	want := "123***678"
+	if got != want {
+		t.Errorf("maskToken(\"12345678\") = %q, want %q", got, want)
+	}
+}
+
+// TestMaskToken_LongToken 测试长 token 脱敏
+//
+// 【功能点】长 token（如 JWT）应保留前 3 后 3，中间用 *** 替代，不泄露中间内容
+// 【测试流程】
+// 1. 传入模拟 JWT 格式的长 token
+// 2. 验证前 3 位与原始 token 一致
+// 3. 验证后 3 位与原始 token 一致
+// 4. 验证中间包含 ***
+// 5. 验证脱敏结果不包含原始 token 的中间部分
+func TestMaskToken_LongToken(t *testing.T) {
+	input := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature"
+	got := maskToken(input)
+
+	if got[:3] != input[:3] {
+		t.Errorf("前 3 位不匹配: got %q, want %q", got[:3], input[:3])
+	}
+	if got[len(got)-3:] != input[len(input)-3:] {
+		t.Errorf("后 3 位不匹配: got %q, want %q", got[len(got)-3:], input[len(input)-3:])
+	}
+	if !strings.Contains(got, "***") {
+		t.Errorf("脱敏结果应包含 ***: got %q", got)
+	}
+
+	middle := input[3 : len(input)-3]
+	if strings.Contains(got, middle) {
+		t.Errorf("脱敏结果不应包含原始 token 中间部分")
+	}
+}
+
+// TestMaskToken_FixedOutputLength 测试脱敏后的输出长度固定为 9（前 3 + *** + 后 3）
+//
+// 【功能点】长 token 脱敏后长度固定为 9，不暴露原始长度信息
+// 【测试流程】
+// 1. 传入不同长度的长 token
+// 2. 验证脱敏结果长度均为 9
+func TestMaskToken_FixedOutputLength(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"8位", "12345678"},
+		{"16位", "abcdefghijklmnop"},
+		{"64位", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9eyJzdWIiOiIxMjM0NTY3ODk"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := maskToken(tt.input)
+			if len(got) != 9 {
+				t.Errorf("maskToken(%d 位 token) 长度 = %d, want 9", len(tt.input), len(got))
+			}
+		})
+	}
+}
+
+// TestMaskToken_NoLeakInLogField 测试日志字段拼接后不泄露完整 token
+//
+// 【功能点】模拟 TraceLogHandler 中 User-Agent + @@ + maskedToken 的拼接，验证不含完整 token
+// 【测试流程】
+// 1. 模拟日志中 header 字段的拼接方式
+// 2. 验证拼接结果中不包含原始 token 明文
+func TestMaskToken_NoLeakInLogField(t *testing.T) {
+	token := "Bearer_super_secret_token_value_12345"
+	masked := maskToken(token)
+	logField := "Mozilla/5.0@@" + masked
+
+	if strings.Contains(logField, token) {
+		t.Errorf("日志字段中不应包含完整 token 明文: %q", logField)
+	}
+	if !strings.Contains(logField, "@@") {
+		t.Errorf("日志字段应保留 @@ 分隔符: %q", logField)
 	}
 }
