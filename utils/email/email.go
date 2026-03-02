@@ -15,11 +15,12 @@ import (
 
 // SmtpConfig SMTP 邮件服务器配置
 type SmtpConfig struct {
-	Sender   string // 发件人地址（如 "noreply@example.com"）
-	Username string // SMTP 认证用户名
-	Password string // SMTP 认证密码
-	Host     string // SMTP 服务器地址（如 "smtp.example.com"）
-	Port     int    // SMTP 服务器端口（TLS 通常为 465，STARTTLS 通常为 587）
+	Sender             string // 发件人地址（如 "noreply@example.com"）
+	Username           string // SMTP 认证用户名
+	Password           string // SMTP 认证密码
+	Host               string // SMTP 服务器地址（如 "smtp.example.com"）
+	Port               int    // SMTP 服务器端口（TLS 通常为 465，STARTTLS 通常为 587）
+	InsecureSkipVerify bool   // 是否跳过 TLS 证书验证，默认 false（启用验证）；仅在自签名证书等场景下设为 true
 }
 
 // SendHtmlByTLS 通过 STARTTLS 方式发送 HTML 邮件。
@@ -62,46 +63,54 @@ func SendHtmlByTLS(conf SmtpConfig, receiver string, subject string, text string
 //
 // 返回：
 //   - error: 发送失败时返回错误
+//
+// 该方法手动建立 TLS 连接并完成 SMTP 会话，按以下顺序执行：
+// 1. 建立 TLS 连接
+// 2. 创建 SMTP 客户端并认证
+// 3. 设置发件人、收件人
+// 4. 构造邮件内容并写入
+// 5. 发送 QUIT 关闭会话
 func SendHtml(conf SmtpConfig, receiver string, subject string, text string) error {
 	auth := &plainAuth{"", conf.Username, conf.Password, conf.Host}
 
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: conf.InsecureSkipVerify,
 		ServerName:         conf.Host,
 	}
 
+	// 1. 建立 TLS 连接
 	conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", conf.Host, conf.Port), tlsConfig)
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
 
+	// 2. 创建 SMTP 客户端并认证
 	client, err := smtp.NewClient(conn, conf.Host)
 	if err != nil {
 		return err
 	}
+	defer client.Close()
 
 	if err = client.Auth(auth); err != nil {
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
+	// 3. 设置发件人、收件人
 	if err = client.Mail(conf.Sender); err != nil {
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	if err = client.Rcpt(receiver); err != nil {
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
+	// 4. 构造邮件内容并写入
 	w, err := client.Data()
 	if err != nil {
 		return err
 	}
+
 	em := email.NewEmail()
 	// 设置 sender 发送方 的邮箱
 	em.From = conf.Sender
@@ -111,16 +120,20 @@ func SendHtml(conf SmtpConfig, receiver string, subject string, text string) err
 	em.Subject = subject
 	// 简单设置文件发送的内容，暂时设置成纯文本
 	em.HTML = []byte(text)
-	raw, _ := em.Bytes()
-	_, err = w.Write(raw)
+
+	raw, err := em.Bytes()
 	if err != nil {
+		return fmt.Errorf("serialize email failed: %w", err)
+	}
+
+	if _, err = w.Write(raw); err != nil {
 		return err
 	}
 
-	err = w.Close()
-	if err != nil {
+	if err = w.Close(); err != nil {
 		return err
 	}
 
+	// 5. 发送 QUIT 关闭会话
 	return client.Quit()
 }
