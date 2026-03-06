@@ -106,7 +106,13 @@ var (
 	)
 )
 
-// NewCounter 创建自定义计数器
+// NewCounter 创建自定义 Prometheus Counter（计数器）。
+// Counter 是一种只增不减的指标，适用于请求总数、错误总数等累计统计场景。
+// 通过 promauto 自动注册到默认 Registry，无需手动注册。
+//
+// 参数：
+//   - name: 指标名称，需符合 Prometheus 命名规范（如 "myapp_requests_total"）
+//   - help: 指标描述，展示在 /metrics 页面
 func NewCounter(name, help string) prometheus.Counter {
 	return promauto.NewCounter(prometheus.CounterOpts{
 		Name: name,
@@ -114,7 +120,14 @@ func NewCounter(name, help string) prometheus.Counter {
 	})
 }
 
-// NewCounterVec 创建带标签的自定义计数器
+// NewCounterVec 创建带标签维度的 Prometheus CounterVec（向量计数器）。
+// 与 NewCounter 不同，CounterVec 支持按标签维度拆分统计，
+// 例如按 method、status 分别统计请求数。
+//
+// 参数：
+//   - name: 指标名称
+//   - help: 指标描述
+//   - labels: 标签名列表，如 []string{"method", "status"}
 func NewCounterVec(name, help string, labels []string) *prometheus.CounterVec {
 	return promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: name,
@@ -130,7 +143,14 @@ func NewGauge(name, help string) prometheus.Gauge {
 	})
 }
 
-// NewHistogram 创建自定义直方图
+// NewHistogram 创建自定义 Prometheus Histogram（直方图）。
+// Histogram 将观测值分桶统计，适用于请求耗时、响应大小等分布型指标，
+// 并自动计算 _count、_sum 和各分位数。
+//
+// 参数：
+//   - name: 指标名称
+//   - help: 指标描述
+//   - buckets: 分桶边界值，如 []float64{0.01, 0.05, 0.1, 0.5, 1, 5}
 func NewHistogram(name, help string, buckets []float64) prometheus.Histogram {
 	return promauto.NewHistogram(prometheus.HistogramOpts{
 		Name:    name,

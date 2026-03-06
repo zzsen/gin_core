@@ -9,10 +9,17 @@ import (
 	"github.com/zzsen/gin_core/model/response"
 )
 
+// InvalidParam 参数校验异常。
+// 当请求参数不符合校验规则时抛出此异常，框架将返回参数校验失败的响应码和错误详情。
+// 支持自定义错误消息，也可通过 NewInvalidParamFromValidator 自动转换 validator 校验错误。
+//
+// 使用方式：panic(exception.NewInvalidParam("用户名长度必须在 3-20 之间"))
 type InvalidParam struct {
 	msg string
 }
 
+// Error 实现 error 接口，返回参数校验的错误消息。
+// 如果未设置自定义消息，则返回框架默认的参数校验失败消息。
 func (e InvalidParam) Error() string {
 	if e.msg != "" {
 		return e.msg
@@ -20,6 +27,8 @@ func (e InvalidParam) Error() string {
 	return response.ResponseParamInvalid.GetMsg()
 }
 
+// NewInvalidParam 创建参数校验异常。
+// 参数 msg 为具体的校验失败描述信息，将作为 HTTP 响应返回给调用方。
 func NewInvalidParam(msg string) InvalidParam {
 	return InvalidParam{msg: msg}
 }
@@ -33,6 +42,7 @@ func NewInvalidParamFromValidator(validationErrors validator.ValidationErrors) I
 	return InvalidParam{msg: formatValidationErrors(validationErrors)}
 }
 
+// OnException 实现 Handler 接口，返回参数校验失败消息和对应的业务状态码
 func (e InvalidParam) OnException(*gin.Context) (msg string, code int) {
 	return e.Error(), response.ResponseParamInvalid.GetCode()
 }

@@ -116,8 +116,15 @@ func RateLimitHandler() gin.HandlerFunc {
 	}
 }
 
-// findMatchingRule 查找匹配的限流规则
-// 优先级：精确匹配 > 通配符匹配 > 无匹配
+// findMatchingRule 根据 HTTP 方法和请求路径查找最佳匹配的限流规则。
+//
+// 匹配优先级（从高到低）：
+//  1. 精确路径匹配：规则路径与请求路径完全一致
+//  2. 通配符匹配（/* 后缀）：取前缀最长的通配符规则
+//  3. 路径模式匹配（path.Match 语法）：取模式最长的匹配规则
+//
+// 所有匹配都会先检查 HTTP 方法过滤，空 Method 表示匹配所有方法。
+// 未匹配到任何规则时返回 nil，由调用方使用默认限流参数。
 func findMatchingRule(method, requestPath string, rules []config.RateLimitRule) *config.RateLimitRule {
 	var wildcardMatch *config.RateLimitRule
 
@@ -156,7 +163,14 @@ func findMatchingRule(method, requestPath string, rules []config.RateLimitRule) 
 	return wildcardMatch
 }
 
-// generateRateLimitKey 生成限流键
+// generateRateLimitKey 根据限流键类型生成唯一的限流键。
+//
+// 支持的 keyType：
+//   - "ip"：按客户端 IP 限流，格式 "ip:{clientIP}:{path}"
+//   - "user"：按用户 ID 限流，格式 "user:{userID}:{path}"（从上下文 userID/user_id 字段获取，获取失败时降级为 IP 限流）
+//   - "global"：全局限流（不区分客户端），格式 "global:{path}"
+//
+// 默认使用 IP 限流策略。
 func generateRateLimitKey(c *gin.Context, keyType, requestPath string) string {
 	switch keyType {
 	case "ip":
