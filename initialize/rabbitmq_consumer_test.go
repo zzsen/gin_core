@@ -12,7 +12,7 @@
 //
 // 注意：需要真实 RabbitMQ 连接的测试会自动跳过
 //
-// 运行测试：go test -v ./initialize/... -run Consumer
+// 运行测试：go test -v ./initialize/... -run "Consumer|TestMessageQueue"
 // ==================================================
 package initialize
 

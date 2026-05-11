@@ -13,7 +13,7 @@
 // 7. 辅助函数测试（findMatchingRule、generateRateLimitKey）
 // 8. 性能基准测试
 //
-// 运行测试：go test -v ./middleware/... -run RateLimit
+// 运行测试：go test -v ./middleware/... -run "RateLimit|TestFindMatchingRule|TestGenerateRateLimitKey"
 // ==================================================
 package middleware
 

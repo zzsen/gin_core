@@ -17,7 +17,7 @@
 //   -config     配置文件目录路径
 //   -cipherKey  配置加密密钥
 //
-// 运行测试：go test -v ./core/... -run CmdArgs
+// 运行测试：go test -v ./core/... -run "CmdArgs|ParseCmdArgs"
 // ==================================================
 package core
 

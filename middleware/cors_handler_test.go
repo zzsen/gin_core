@@ -13,7 +13,7 @@
 // 7. 自定义响应头的配置
 // 8. isOriginAllowed 辅助函数测试
 //
-// 运行测试：go test -v ./middleware/... -run CORS
+// 运行测试：go test -v ./middleware/... -run "CORS|TestIsOriginAllowed"
 // ==================================================
 package middleware
 

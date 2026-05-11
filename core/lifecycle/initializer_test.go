@@ -14,7 +14,7 @@
 // 8. 关闭时依赖解析失败的回退逻辑
 // 9. 全局便捷函数（SetInitConfig）
 //
-// 运行测试：go test -v ./core/lifecycle/... -run TestInitializer
+// 运行测试：go test -v ./core/lifecycle/... -run "TestInitializer|TestSetInitConfig"
 // ==================================================
 package lifecycle
 

@@ -12,7 +12,7 @@
 // 6. HTTP 属性的正确设置
 // 7. getScheme 辅助函数测试
 //
-// 运行测试：go test -v ./middleware/... -run OtelTrace
+// 运行测试：go test -v ./middleware/... -run "OtelTrace|TestGetScheme"
 // ==================================================
 package middleware
 
