@@ -86,14 +86,14 @@ metrics:
 | `db_pool_open_connections` | Gauge | 数据库打开连接数 |
 | `db_pool_idle_connections` | Gauge | 数据库空闲连接数 |
 | `db_pool_in_use_connections` | Gauge | 数据库使用中连接数 |
-| `db_pool_wait_count_total` | Counter | 等待连接总次数 |
+| `db_pool_wait_count` | Gauge | 等待连接累计次数（由 Go runtime 维护的单调递增值） |
 
 ### Redis 连接池指标
 
 | 指标名 | 类型 | 说明 |
 |--------|------|------|
-| `redis_pool_hits_total` | Counter | 连接池命中次数 |
-| `redis_pool_misses_total` | Counter | 连接池未命中次数 |
+| `redis_pool_hits` | Gauge | 连接池命中累计次数（由 go-redis 维护的单调递增值） |
+| `redis_pool_misses` | Gauge | 连接池未命中累计次数（由 go-redis 维护的单调递增值） |
 | `redis_pool_total_connections` | Gauge | 连接池总连接数 |
 | `redis_pool_idle_connections` | Gauge | 连接池空闲连接数 |
 
@@ -400,10 +400,10 @@ histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by 
 db_pool_in_use_connections / db_pool_open_connections * 100
 
 # Redis 连接池命中率
-redis_pool_hits_total / (redis_pool_hits_total + redis_pool_misses_total) * 100
+redis_pool_hits / (redis_pool_hits + redis_pool_misses) * 100
 
 # 数据库等待连接次数增长率
-rate(db_pool_wait_count_total[5m])
+rate(db_pool_wait_count[5m])
 ```
 
 ## 新增指标开发指南
