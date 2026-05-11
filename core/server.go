@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -30,8 +31,9 @@ import (
 //   - 失败 → ExecuteAppHooks(AppOnInitFailed)，然后 panic
 //
 // 6. 创建 HTTP Server
-// 7. server.ListenAndServe()
-// 8. ExecuteAppHooks(AppOnReady)（在独立 goroutine 中，确认监听成功后触发）
+// 7. net.Listen 绑定端口，确认监听就绪
+// 8. ExecuteAppHooks(AppOnReady)（在独立 goroutine 中，端口绑定成功后触发）
+// 9. server.Serve(listener)
 //
 // 关闭流程：
 // 9.  收到 SIGINT/SIGTERM
@@ -149,17 +151,22 @@ func Start() {
 		}()
 	}
 
-	// 8. 在独立 goroutine 中触发 AppOnReady 钩子
+	// 7. 先绑定端口，确认监听成功后再触发 OnReady 钩子
+	ln, err := net.Listen("tcp", serverAddr)
+	if err != nil {
+		logger.Error("[server] 端口监听失败: %v", err)
+		panic(err)
+	}
+
+	// 8. 端口已绑定成功，在独立 goroutine 中触发 AppOnReady 钩子
 	go func() {
-		// 短暂等待确认 ListenAndServe 已启动
-		time.Sleep(100 * time.Millisecond)
 		if err := lifecycle.ExecuteAppHooks(context.Background(), lifecycle.AppOnReady); err != nil {
 			logger.Error("[server] AppOnReady 钩子执行失败: %v", err)
 		}
 	}()
 
-	// 7. 启动主 HTTP 服务器（阻塞调用）
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	// 9. 启动主 HTTP 服务器（基于已就绪的 listener，阻塞调用）
+	if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
 		logger.Error("[server] 服务启动异常: %v", err)
 	}
 }
