@@ -62,30 +62,30 @@ var (
 		},
 	)
 
-	// DbPoolWaitCount 等待连接总次数
-	DbPoolWaitCount = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "db_pool_wait_count_total",
-			Help: "Total number of times waited for a connection",
+	// DbPoolWaitCount 等待连接累计次数（由 Go runtime 维护的单调递增值）
+	DbPoolWaitCount = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "db_pool_wait_count",
+			Help: "Total number of times waited for a connection (cumulative from runtime)",
 		},
 	)
 )
 
 // Redis 连接池指标
 var (
-	// RedisPoolHits Redis 连接池命中次数
-	RedisPoolHits = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "redis_pool_hits_total",
-			Help: "Total number of times a free connection was found in the pool",
+	// RedisPoolHits Redis 连接池命中累计次数（由 go-redis 维护的单调递增值）
+	RedisPoolHits = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "redis_pool_hits",
+			Help: "Total number of times a free connection was found in the pool (cumulative from runtime)",
 		},
 	)
 
-	// RedisPoolMisses Redis 连接池未命中次数
-	RedisPoolMisses = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "redis_pool_misses_total",
-			Help: "Total number of times a free connection was not found in the pool",
+	// RedisPoolMisses Redis 连接池未命中累计次数（由 go-redis 维护的单调递增值）
+	RedisPoolMisses = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "redis_pool_misses",
+			Help: "Total number of times a free connection was not found in the pool (cumulative from runtime)",
 		},
 	)
 

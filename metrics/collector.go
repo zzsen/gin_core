@@ -42,8 +42,7 @@ func collectDBStats() {
 	DbPoolOpenConnections.Set(float64(stats.OpenConnections))
 	DbPoolIdleConnections.Set(float64(stats.Idle))
 	DbPoolInUseConnections.Set(float64(stats.InUse))
-	// WaitCount 是累计值，需要转为增量
-	DbPoolWaitCount.Add(float64(stats.WaitCount))
+	DbPoolWaitCount.Set(float64(stats.WaitCount))
 }
 
 // collectRedisStats 收集 Redis 连接池统计
@@ -53,8 +52,8 @@ func collectRedisStats() {
 	}
 
 	stats := app.Redis.PoolStats()
-	RedisPoolHits.Add(float64(stats.Hits))
-	RedisPoolMisses.Add(float64(stats.Misses))
+	RedisPoolHits.Set(float64(stats.Hits))
+	RedisPoolMisses.Set(float64(stats.Misses))
 	RedisPoolTotalConns.Set(float64(stats.TotalConns))
 	RedisPoolIdleConns.Set(float64(stats.IdleConns))
 }
