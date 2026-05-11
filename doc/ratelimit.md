@@ -99,13 +99,13 @@ rules:
     keyType: "user"
 ```
 
-在处理器中设置用户 ID：
+在处理器中设置用户 ID（框架支持 `"userID"` 和 `"user_id"` 两种 key）：
 
 ```go
 func AuthMiddleware() gin.HandlerFunc {
     return func(c *gin.Context) {
         userID := getUserFromToken(c)
-        c.Set("userId", userID)
+        c.Set("userID", userID)
         c.Next()
     }
 }
@@ -148,15 +148,21 @@ rules:
 
 ### 规则优先级
 
-规则按定义顺序匹配，第一个匹配的规则生效。建议将更具体的规则放在前面：
+规则匹配遵循以下优先级（由 [`findMatchingRule()`](../middleware/ratelimit_handler.go) 实现）：
+
+1. **精确匹配最优先**：若 `rule.Path` 与请求路径完全相同，立即命中并返回，不再检查后续规则
+2. **最长通配符匹配**：遍历所有规则，在 `/*` 通配符和 `path.Match` 模式匹配中，选择 `rule.Path` 最长的规则
+3. **HTTP 方法过滤**：规则配置了 `method` 时，仅匹配对应的 HTTP 方法；未配置则匹配所有方法
+
+> 注意：通配符规则的定义顺序**不影响**匹配结果，框架始终选择最长匹配的规则。精确匹配按遍历顺序，第一个命中即返回。
 
 ```yaml
 rules:
-  - path: "/api/login"      # 精确匹配优先
+  - path: "/api/login"      # 精确匹配，最高优先级
     rate: 5
-  - path: "/api/users/*"    # 特定路径通配符
+  - path: "/api/users/*"    # 通配符匹配，长度 > "/api/*"，优先于下方规则
     rate: 50
-  - path: "/api/*"          # 通用通配符兜底
+  - path: "/api/*"          # 通配符匹配，兜底规则
     rate: 100
 ```
 
@@ -403,7 +409,7 @@ end
 
 ### 限流键生成
 
-限流键决定了限流的维度：
+限流键决定了限流的维度（由 [`generateRateLimitKey()`](../middleware/ratelimit_handler.go) 实现）：
 
 ```go
 switch keyType {
@@ -411,13 +417,19 @@ case "ip":
     // 按 IP 限流：每个 IP 独立计数
     return "ip:" + clientIP + ":" + path
 case "user":
-    // 按用户限流：每个用户独立计数
+    // 按用户限流：优先从上下文获取 userID / user_id
+    // 获取不到时降级为 IP 限流
     return "user:" + userID + ":" + path
 case "global":
     // 全局限流：所有请求共享计数
     return "global:" + path
+default:
+    // 未知类型降级为 IP 限流
+    return "ip:" + clientIP + ":" + path
 }
 ```
+
+> user 限流会依次尝试从 Gin Context 中读取 `"userID"` 和 `"user_id"` 两个 key，均不存在时自动降级为 IP 限流。
 
 ## 相关文档
 
