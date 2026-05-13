@@ -101,8 +101,8 @@ func FailWithDetail(c *gin.Context, message string, data any) {
 //   - message: 未授权原因说明
 func NoAuth(c *gin.Context, message string) {
 	c.JSON(http.StatusUnauthorized, Response{
-		7,       // 使用特殊的未授权状态码
-		nil,     // 无数据
-		message, // 未授权原因
+		7,       // 业务状态码 7 表示未授权/token 失效，前端据此跳转登录页
+		nil,
+		message,
 	})
 }

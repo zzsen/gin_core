@@ -101,8 +101,8 @@ func collectRedisStats(client redis.UniversalClient) *RedisInstanceStats {
 // 1. 主数据库（app.DB）
 // 2. 数据库解析器（app.DBResolver，读写分离）
 // 3. 多数据库列表（app.DBList）
-// 4. 主 Redis（app.Redis）
-// 5. 多 Redis 列表（app.RedisList）
+// 4. 多 Redis 列表（app.RedisList）
+// 5. 主 Redis（app.Redis）
 func GetPoolStats() *PoolStats {
 	stats := &PoolStats{}
 
@@ -132,7 +132,7 @@ func GetPoolStats() *PoolStats {
 		}
 	}
 
-	// 5. 多 Redis 列表连接池统计
+	// 4. 多 Redis 列表连接池统计
 	if len(RedisList) > 0 {
 		stats.RedisListStats = make(map[string]*RedisInstanceStats, len(RedisList))
 		for name, client := range RedisList {
@@ -143,7 +143,7 @@ func GetPoolStats() *PoolStats {
 	}
 	lock.RUnlock()
 
-	// 4. 主 Redis 连接池统计
+	// 5. 主 Redis 连接池统计
 	if rs := collectRedisStats(Redis); rs != nil {
 		stats.RedisPoolSize = rs.PoolSize
 		stats.RedisActiveConns = rs.ActiveConns

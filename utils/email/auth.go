@@ -12,26 +12,22 @@ import (
 	"net/smtp"
 )
 
+// plainAuth 实现 PLAIN 认证机制（RFC 4616）的自定义版本。
+//
+// 与标准库 smtp.PlainAuth 的区别：移除了强制 TLS 检查，允许在非 TLS 连接上发送凭据。
+// 这是为了兼容部分不支持 STARTTLS 但已通过其他方式（如 VPN、内网）保障安全的 SMTP 服务器。
+//
+// ⚠️ 安全风险：在非 TLS 连接上使用 PLAIN 认证，用户名和密码将以明文方式传输，
+// 存在被中间人攻击截获的风险。仅应在已确认网络链路安全的环境中使用。
 type plainAuth struct {
 	identity, username, password string
 	host                         string
 }
 
-// PlainAuth returns an Auth that implements the PLAIN authentication
-// mechanism as defined in RFC 4616. The returned Auth uses the given
-// username and password to authenticate to host and act as identity.
-// Usually identity should be the empty string, to act as username.
-//
-// PlainAuth will only send the credentials if the connection is using TLS
-// or is connected to localhost. Otherwise authentication will fail with an
-// error, without sending the credentials.
-
-// 主要改动源码的这个地方
+// Start 实现 smtp.Auth 接口，发起 PLAIN 认证。
+// 与标准库不同，此实现跳过了 TLS 连接检查，允许在非加密连接上发送认证凭据。
+// 仍会校验服务器主机名，防止凭据发送到错误的服务器。
 func (a *plainAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
-	//smtp 里面不支持以非TLS方式发送邮件，所以注释了这里，以非TLS方式发送
-	//if !server.TLS && !isLocalhost(server.Name) {
-	//	return "", nil, errors.New("unencrypted connection")
-	//}
 	if server.Name != a.host {
 		return "", nil, errors.New("wrong host name")
 	}
@@ -39,30 +35,35 @@ func (a *plainAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
 	return "PLAIN", resp, nil
 }
 
+// Next 实现 smtp.Auth 接口，处理服务器的后续挑战。
+// PLAIN 认证为单步认证，不期望收到后续挑战，收到时返回错误。
 func (a *plainAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 	if more {
-		// We've already sent everything.
 		return nil, errors.New("unexpected server challenge")
 	}
 	return nil, nil
 }
 
+// cramMD5Auth 实现 CRAM-MD5 认证机制（RFC 2195）。
+// 使用挑战-响应方式认证，密码不会以明文传输，安全性优于 PLAIN 认证。
 type cramMD5Auth struct {
 	username, secret string
 }
 
-// CRAMMD5Auth returns an Auth that implements the CRAM-MD5 authentication
-// mechanism as defined in RFC 2195.
-// The returned Auth uses the given username and secret to authenticate
-// to the server using the challenge-response mechanism.
+// CRAMMD5Auth 创建 CRAM-MD5 认证实例（RFC 2195）。
+// 使用给定的用户名和密钥，通过挑战-响应机制向服务器进行身份认证。
 func CRAMMD5Auth(username, secret string) smtp.Auth {
 	return &cramMD5Auth{username, secret}
 }
 
+// Start 实现 smtp.Auth 接口，声明使用 CRAM-MD5 认证方式。
+// 首次握手不发送任何数据，等待服务器发送挑战字符串。
 func (a *cramMD5Auth) Start(server *smtp.ServerInfo) (string, []byte, error) {
 	return "CRAM-MD5", nil, nil
 }
 
+// Next 实现 smtp.Auth 接口，使用 HMAC-MD5 对服务器挑战进行签名响应。
+// 响应格式为 "username digest"，其中 digest 是以 secret 为密钥对挑战做 HMAC-MD5 的十六进制结果。
 func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 	if more {
 		d := hmac.New(md5.New, []byte(a.secret))
