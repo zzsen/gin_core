@@ -54,7 +54,7 @@ func GetPageFromCtx(ctx *gin.Context) Page {
 	var page Page
 
 	// 从请求中绑定分页参数，支持JSON和表单格式
-	ctx.ShouldBind(&page)
+	_ = ctx.ShouldBind(&page)
 
 	// 使用validator验证分页参数的有效性
 	err := validator.New().Struct(page)

@@ -92,16 +92,6 @@ func clearRabbitMQProducerList() {
 	})
 }
 
-// getRabbitMQProducerListLength 获取生产者列表长度（用于测试）
-func getRabbitMQProducerListLength() int {
-	count := 0
-	RabbitMQProducerList.Range(func(key, value any) bool {
-		count++
-		return true
-	})
-	return count
-}
-
 // ==================== 单元测试：发送消息参数校验（不需要 RabbitMQ 连接） ====================
 // 测试点：验证消息发送函数的参数校验逻辑，包括空配置、空消息列表等边界情况
 

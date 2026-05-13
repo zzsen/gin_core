@@ -304,7 +304,7 @@ func TestGet_JSONBody(t *testing.T) {
 				// 所以后续的中间件或处理函数仍然可以正常读取JSON数据
 				var originalJsonData map[string]interface{}
 				body, _ := c.GetRawData()
-				json.Unmarshal(body, &originalJsonData)
+				_ = json.Unmarshal(body, &originalJsonData)
 
 				// 验证JSON数据仍然可以正常解析
 				originalValue := ""
@@ -509,7 +509,7 @@ func TestGet_Priority(t *testing.T) {
 			// 验证JSON数据仍然可以正常解析
 			var originalJsonData map[string]interface{}
 			body, _ := c.GetRawData()
-			json.Unmarshal(body, &originalJsonData)
+			_ = json.Unmarshal(body, &originalJsonData)
 			originalJson := ""
 			if val, exists := originalJsonData["id"]; exists {
 				originalJson = fmt.Sprint(val)
@@ -568,7 +568,7 @@ func TestGet_Priority(t *testing.T) {
 			// 验证JSON数据仍然可以正常解析
 			var originalJsonData map[string]interface{}
 			body, _ := c.GetRawData()
-			json.Unmarshal(body, &originalJsonData)
+			_ = json.Unmarshal(body, &originalJsonData)
 			originalJson := ""
 			if val, exists := originalJsonData["id"]; exists {
 				originalJson = fmt.Sprint(val)
@@ -705,7 +705,7 @@ func TestGet_EdgeCases(t *testing.T) {
 			// 验证调用Get后，原始方法仍然可以正常工作
 			var originalJsonData map[string]interface{}
 			body, _ := c.GetRawData()
-			json.Unmarshal(body, &originalJsonData)
+			_ = json.Unmarshal(body, &originalJsonData)
 
 			originalValue := ""
 			if val, exists := originalJsonData["name"]; exists {
@@ -794,7 +794,7 @@ func TestGet_Concurrent(t *testing.T) {
 				r.ServeHTTP(w, req)
 
 				var response map[string]interface{}
-				json.Unmarshal(w.Body.Bytes(), &response)
+				_ = json.Unmarshal(w.Body.Bytes(), &response)
 				done <- struct {
 					index              int
 					value              string
@@ -863,7 +863,7 @@ func TestGet_BodyParseCaching(t *testing.T) {
 
 			body, _ := c.GetRawData()
 			var afterBody map[string]interface{}
-			json.Unmarshal(body, &afterBody)
+			_ = json.Unmarshal(body, &afterBody)
 
 			c.JSON(200, gin.H{
 				"name":            name,

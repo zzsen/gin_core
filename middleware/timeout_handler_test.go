@@ -264,7 +264,7 @@ func TestTimeoutHandler_MultipleRequests(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/fast", nil)
 		router.ServeHTTP(w, req)
 		var resp map[string]interface{}
-		json.Unmarshal(w.Body.Bytes(), &resp)
+		_ = json.Unmarshal(w.Body.Bytes(), &resp)
 		msg, _ := resp["message"].(string)
 		if msg == "" {
 			msg, _ = resp["msg"].(string)
@@ -279,7 +279,7 @@ func TestTimeoutHandler_MultipleRequests(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/slow", nil)
 		router.ServeHTTP(w, req)
 		var resp map[string]interface{}
-		json.Unmarshal(w.Body.Bytes(), &resp)
+		_ = json.Unmarshal(w.Body.Bytes(), &resp)
 		msg, _ := resp["message"].(string)
 		if msg == "" {
 			msg, _ = resp["msg"].(string)
@@ -460,7 +460,7 @@ func TestTimeoutHandler_ConcurrentStress(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			var resp map[string]interface{}
-			json.Unmarshal(w.Body.Bytes(), &resp)
+			_ = json.Unmarshal(w.Body.Bytes(), &resp)
 			msg, _ := resp["message"].(string)
 			if msg == "" {
 				msg, _ = resp["msg"].(string)

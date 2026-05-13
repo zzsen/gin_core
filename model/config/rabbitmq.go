@@ -475,13 +475,13 @@ func (m *MessageQueue) handleMessage(ctx context.Context, msg amqp.Delivery) {
 		err = m.Fun(msgBody)
 	} else {
 		// 没有处理函数，直接确认
-		msg.Ack(false)
+		_ = msg.Ack(false)
 		return
 	}
 
 	if err == nil {
 		// 处理成功，确认消息
-		msg.Ack(false)
+		_ = msg.Ack(false)
 		return
 	}
 
@@ -496,10 +496,10 @@ func (m *MessageQueue) handleMessage(ctx context.Context, msg amqp.Delivery) {
 		// 重试：拒绝消息并重新入队
 		// 注意：这里使用 Nack 并 requeue，消息会立即重新投递
 		// 如果需要延迟重试，需要配合延迟队列或 TTL 实现
-		msg.Nack(false, true)
+		_ = msg.Nack(false, true)
 	} else {
 		// 超过重试次数，拒绝消息（如果配置了死信队列，消息会进入死信队列）
-		msg.Nack(false, false)
+		_ = msg.Nack(false, false)
 	}
 }
 

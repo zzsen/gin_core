@@ -24,7 +24,7 @@ import (
 // 2. 注册更新记录前的回调，自动更新修改时间字段
 func initDBCallbacks(gormDB *gorm.DB) {
 	// 创建前把createTime和updateTime字段填充好默认值
-	gormDB.Callback().Create().Before("gorm:create").Register("fill:createTime_updateTime", func(db *gorm.DB) {
+	_ = gormDB.Callback().Create().Before("gorm:create").Register("fill:createTime_updateTime", func(db *gorm.DB) {
 		if db.Statement.Schema == nil {
 			return
 		}
@@ -38,13 +38,13 @@ func initDBCallbacks(gormDB *gorm.DB) {
 					// 处理批量创建的情况，遍历每个元素
 					for i := 0; i < db.Statement.ReflectValue.Len(); i++ {
 						if _, isZero := timeField.ValueOf(db.Statement.Context, db.Statement.ReflectValue.Index(i)); isZero && db.Statement.ReflectValue.Index(i).CanAddr() {
-							timeField.Set(db.Statement.Context, db.Statement.ReflectValue.Index(i), time.Now())
+							_ = timeField.Set(db.Statement.Context, db.Statement.ReflectValue.Index(i), time.Now())
 						}
 					}
 				case reflect.Struct:
 					// 处理单个记录创建的情况
 					if _, isZero := timeField.ValueOf(db.Statement.Context, db.Statement.ReflectValue); isZero && db.Statement.ReflectValue.CanAddr() {
-						timeField.Set(db.Statement.Context, db.Statement.ReflectValue, time.Now())
+						_ = timeField.Set(db.Statement.Context, db.Statement.ReflectValue, time.Now())
 					}
 				}
 			}
@@ -52,7 +52,7 @@ func initDBCallbacks(gormDB *gorm.DB) {
 	})
 
 	// 更新前修改updateTime字段
-	gormDB.Callback().Update().Before("gorm:update").Register("update:updateTime", func(db *gorm.DB) {
+	_ = gormDB.Callback().Update().Before("gorm:update").Register("update:updateTime", func(db *gorm.DB) {
 		if db.Statement.Schema == nil {
 			return
 		}
@@ -60,7 +60,7 @@ func initDBCallbacks(gormDB *gorm.DB) {
 		timeFieldsToInit := []string{"UpdateTime", "UpdatedAt"}
 		for _, field := range timeFieldsToInit {
 			if timeField := db.Statement.Schema.LookUpField(field); timeField != nil && db.Statement.ReflectValue.CanAddr() {
-				timeField.Set(db.Statement.Context, db.Statement.ReflectValue, time.Now())
+				_ = timeField.Set(db.Statement.Context, db.Statement.ReflectValue, time.Now())
 			}
 		}
 	})

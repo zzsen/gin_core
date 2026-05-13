@@ -107,7 +107,7 @@ func TestTryLock_AlreadyHeld(t *testing.T) {
 	if err != nil {
 		t.Fatalf("第一次获取锁失败: %v", err)
 	}
-	defer lock1.Unlock(ctx)
+	defer func() { _ = lock1.Unlock(ctx) }()
 
 	// 第二个客户端尝试获取同一把锁
 	_, err = locker.TryLock(ctx, "test-key")
@@ -155,7 +155,7 @@ func TestLock_BlockingAcquire(t *testing.T) {
 	// 在后台释放锁
 	go func() {
 		time.Sleep(200 * time.Millisecond)
-		lock1.Unlock(ctx)
+		_ = lock1.Unlock(ctx)
 	}()
 
 	// 第二个客户端阻塞等待
@@ -166,7 +166,7 @@ func TestLock_BlockingAcquire(t *testing.T) {
 	if err != nil {
 		t.Fatalf("阻塞获取锁失败: %v", err)
 	}
-	defer lock2.Unlock(ctx)
+	defer func() { _ = lock2.Unlock(ctx) }()
 
 	if elapsed < 150*time.Millisecond {
 		t.Errorf("锁获取太快，应该等待锁释放: %v", elapsed)
@@ -202,7 +202,7 @@ func TestLock_Timeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("第一次获取锁失败: %v", err)
 	}
-	defer lock1.Unlock(ctx)
+	defer func() { _ = lock1.Unlock(ctx) }()
 
 	// 第二个客户端尝试获取应该超时
 	_, err = locker.Lock(ctx, "test-key")
@@ -239,7 +239,7 @@ func TestLock_ContextCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("第一次获取锁失败: %v", err)
 	}
-	defer lock1.Unlock(ctx)
+	defer func() { _ = lock1.Unlock(ctx) }()
 
 	// 使用可取消的 context
 	ctx2, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -324,7 +324,7 @@ func TestExtend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("获取锁失败: %v", err)
 	}
-	defer lock.Unlock(ctx)
+	defer func() { _ = lock.Unlock(ctx) }()
 
 	// 获取初始 TTL
 	ttl1, err := lock.TTL(ctx)
@@ -394,7 +394,7 @@ func TestWatchdog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("获取锁失败: %v", err)
 	}
-	defer lock.Unlock(ctx)
+	defer func() { _ = lock.Unlock(ctx) }()
 
 	// 等待足够长的时间，让看门狗续期多次
 	time.Sleep(700 * time.Millisecond)
@@ -464,7 +464,7 @@ func TestConcurrentLock(t *testing.T) {
 			// 模拟业务处理
 			time.Sleep(10 * time.Millisecond)
 
-			lock.Unlock(ctx)
+			_ = lock.Unlock(ctx)
 		}()
 	}
 
@@ -600,7 +600,7 @@ func TestStats(t *testing.T) {
 
 	ctx := context.Background()
 	lock, _ := locker.TryLock(ctx, "test")
-	defer lock.Unlock(ctx)
+	defer func() { _ = lock.Unlock(ctx) }()
 
 	stats = locker.Stats()
 	if stats["activeLocks"] != 1 {

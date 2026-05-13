@@ -60,7 +60,7 @@ func getParsedBody(ctx *gin.Context) map[string]any {
 	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(b))
 
 	m := map[string]any{}
-	json.Unmarshal(b, &m)
+	_ = json.Unmarshal(b, &m)
 
 	ctx.Set(parsedBodyKey, m)
 	return m

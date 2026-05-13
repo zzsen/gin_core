@@ -100,7 +100,7 @@ func initSingleDB(dbConfig config.DbInfo) (*gorm.DB, error) {
 	}
 
 	// 配置数据库连接池参数
-	initDBConnConfig(DB, dbConfig)
+	_ = initDBConnConfig(DB, dbConfig)
 
 	// 执行数据库迁移（根据配置的迁移模式）
 	Migrate(DB, dbConfig.Migrate)

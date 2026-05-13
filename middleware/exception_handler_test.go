@@ -332,25 +332,6 @@ func TestExceptionHandler_MultipleRequests(t *testing.T) {
 
 // ==================== Validator 异常转换测试 ====================
 
-// mockValidationError 模拟 validator 校验错误
-type mockValidationError struct {
-	field string
-	tag   string
-}
-
-func (e mockValidationError) Tag() string                     { return e.tag }
-func (e mockValidationError) ActualTag() string               { return e.tag }
-func (e mockValidationError) Namespace() string               { return "" }
-func (e mockValidationError) StructNamespace() string         { return "" }
-func (e mockValidationError) Field() string                   { return e.field }
-func (e mockValidationError) StructField() string             { return e.field }
-func (e mockValidationError) Value() interface{}              { return nil }
-func (e mockValidationError) Param() string                   { return "" }
-func (e mockValidationError) Kind() interface{}               { return nil }
-func (e mockValidationError) Type() interface{}               { return nil }
-func (e mockValidationError) Translate(ut interface{}) string { return "" }
-func (e mockValidationError) Error() string                   { return e.field + " " + e.tag }
-
 // TestExceptionHandler_ValidatorError 测试 validator 校验异常的转换
 //
 // 【功能点】验证 validator.ValidationErrors 被转换为 InvalidParam
