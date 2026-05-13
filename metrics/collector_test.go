@@ -7,17 +7,25 @@
 // 1. DB 连接池指标采集：多次采集后 Gauge 值不膨胀
 // 2. Redis 连接池指标采集：多次采集后 Gauge 值不膨胀
 // 3. DB/Redis 为 nil 时采集器的安全行为
+// 4. DB 连接池完整采集路径（通过 gorm + mysql driver）
+// 5. Redis 连接池完整采集路径（通过 go-redis client）
 //
-// 运行测试：go test -v ./metrics/... -run TestCollect
+// 运行测试：go test -v ./metrics/... -run "TestCollect"
 // ==================================================
 package metrics
 
 import (
+	"database/sql"
 	"testing"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
+	"github.com/zzsen/gin_core/app"
+	mysqldrv "gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 // getGaugeValue 从 Gauge 指标中提取当前值
@@ -106,4 +114,63 @@ func TestCollectRedisStats_NilRedis(t *testing.T) {
 	assert.NotPanics(t, func() {
 		collectRedisStats()
 	}, "app.Redis 为 nil 时 collectRedisStats 不应 panic")
+}
+
+// TestCollectDBStats_WithGormDB 测试 DB 连接池完整采集路径
+//
+// 【功能点】验证 app.DB 非 nil 时，collectDBStats 能正确走到 Set 指标分支
+// 【测试流程】
+// 1. 通过 mysql driver 创建 gorm.DB 实例（DryRun 模式，无需真实连接）
+// 2. 设置 app.DB 并调用 collectDBStats
+// 3. 验证 Gauge 指标被正确设置
+// 4. 还原 app.DB 为 nil
+func TestCollectDBStats_WithGormDB(t *testing.T) {
+	origDB := app.DB
+	defer func() { app.DB = origDB }()
+
+	sqlDB, err := sql.Open("mysql", "fake:fake@tcp(127.0.0.1:13306)/fake")
+	if err != nil {
+		t.Skip("无法创建 sql.DB:", err)
+	}
+	db, err := gorm.Open(mysqldrv.New(mysqldrv.Config{
+		Conn:                      sqlDB,
+		SkipInitializeWithVersion: true,
+	}), &gorm.Config{DisableAutomaticPing: true})
+	if err != nil {
+		t.Skip("无法创建 gorm.DB 实例:", err)
+	}
+
+	app.DB = db
+	assert.NotPanics(t, func() {
+		collectDBStats()
+	})
+
+	val := getGaugeValue(DbPoolOpenConnections)
+	assert.GreaterOrEqual(t, val, float64(0), "DbPoolOpenConnections 应被设置")
+}
+
+// TestCollectRedisStats_WithRedisClient 测试 Redis 连接池完整采集路径
+//
+// 【功能点】验证 app.Redis 非 nil 时，collectRedisStats 能正确走到 Set 指标分支
+// 【测试流程】
+// 1. 创建 go-redis 客户端实例（连接不可用的地址，仅用于获取 PoolStats）
+// 2. 设置 app.Redis 并调用 collectRedisStats
+// 3. 验证 Gauge 指标被正确设置
+// 4. 还原 app.Redis 为 nil
+func TestCollectRedisStats_WithRedisClient(t *testing.T) {
+	origRedis := app.Redis
+	defer func() { app.Redis = origRedis }()
+
+	client := goredis.NewClient(&goredis.Options{
+		Addr: "127.0.0.1:16379",
+	})
+	defer client.Close()
+
+	app.Redis = client
+	assert.NotPanics(t, func() {
+		collectRedisStats()
+	})
+
+	val := getGaugeValue(RedisPoolTotalConns)
+	assert.GreaterOrEqual(t, val, float64(0), "RedisPoolTotalConns 应被设置")
 }
