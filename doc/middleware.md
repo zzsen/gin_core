@@ -63,7 +63,7 @@ func TimeoutHandler(timeout time.Duration) gin.HandlerFunc {
 		endTime := time.Now()
 		tookTime := endTime.Sub(startTime)
         // 这里以记录日志为例, 实际上可以做很多事情
-        if tookTime > timeout * time.Second {
+        if tookTime > timeout {
             fmt.Println("请求耗时:", tookTime)
         }
 	}
@@ -95,7 +95,7 @@ func TimeoutHandler() gin.HandlerFunc {
 		endTime := time.Now()
 		tookTime := endTime.Sub(startTime)
         // 这里以记录日志为例, 实际上可以做很多事情
-        if tookTime > timeout * time.Second {
+        if tookTime > timeout {
             fmt.Println("请求耗时:", tookTime)
         }
 	}
@@ -160,8 +160,8 @@ func TimeoutHandler() gin.HandlerFunc {
 2. 单路由使用
 
    ```go
-   r.GET("test", func(c *gin.Context) {
-       c.JSON(200, middleware.TimeoutHandler(2 * time.Second), gin.H{
+   r.GET("test", middleware.TimeoutHandler(2 * time.Second), func(c *gin.Context) {
+       c.JSON(200, gin.H{
            "message": "success",
        })
    })

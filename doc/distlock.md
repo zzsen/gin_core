@@ -7,7 +7,7 @@
 - **基于 Redis 实现**：使用 SETNX + Lua 脚本保证原子性
 - **看门狗机制**：自动续期防止业务执行时间过长导致锁过期
 - **阻塞与非阻塞**：支持 `TryLock`（非阻塞）和 `Lock`（阻塞等待）
-- **可重入支持**：同一客户端可重复获取同一把锁
+- **幂等获取**：同一客户端可重复调用获取操作（基于 token 匹配自动续期），但非引用计数式可重入锁，释放一次即完全释放
 - **安全释放**：只有持有锁的客户端才能释放锁
 - **回调通知**：支持获取锁、释放锁、续期失败回调
 
@@ -448,7 +448,7 @@ func ProcessTask(ctx context.Context, taskID string) error {
 
 ```lua
 if redis.call("GET", KEYS[1]) == ARGV[1] then
-    -- 已持有锁，刷新过期时间（可重入）
+    -- 已持有锁，刷新过期时间（幂等获取：同 token 重复调用不会死锁）
     redis.call("PEXPIRE", KEYS[1], ARGV[2])
     return 1
 elseif redis.call("SET", KEYS[1], ARGV[1], "NX", "PX", ARGV[2]) then
