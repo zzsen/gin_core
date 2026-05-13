@@ -213,7 +213,7 @@ func TestParseCmdArgs_EdgeCases(t *testing.T) {
 
 		// 未知标志会导致panic，所以我们需要捕获它
 		assert.Panics(t, func() {
-			parseCmdArgs()
+			_, _ = parseCmdArgs()
 		})
 	})
 
@@ -233,7 +233,7 @@ func TestParseCmdArgs_EdgeCases(t *testing.T) {
 
 		// 标志没有值会导致panic
 		assert.Panics(t, func() {
-			parseCmdArgs()
+			_, _ = parseCmdArgs()
 		})
 	})
 

@@ -39,7 +39,7 @@ func AddOptionFunc(optionFunc ...gin.OptionFunc) {
 	optionFuncList = append(optionFuncList, optionFunc...)
 }
 
-// healthDetactEngine 健康检查路由配置函数
+// healthDetectEngine 健康检查路由配置函数
 // 为应用添加健康检查端点，用于监控服务状态
 // 提供标准的健康检查接口，便于负载均衡器、监控系统等外部服务检查应用状态
 //
@@ -47,7 +47,7 @@ func AddOptionFunc(optionFunc ...gin.OptionFunc) {
 //   - GET /healthy       - 存活检查（liveness），始终返回健康状态
 //   - GET /healthy/ready - 就绪检查（readiness），检查所有依赖服务状态
 //   - GET /healthy/stats - 连接池统计信息
-var healthDetactEngine = func(e *gin.Engine) {
+var healthDetectEngine = func(e *gin.Engine) {
 	r := e.Group("healthy")
 
 	// 存活检查 - 只要服务运行就返回健康
@@ -154,7 +154,7 @@ func initEngine() *gin.Engine {
 	engine.NoRoute(NotFound)
 
 	// 添加健康检查路由，用于检测服务是否正常运行
-	AddOptionFunc(healthDetactEngine)
+	AddOptionFunc(healthDetectEngine)
 	// 添加 Prometheus 指标端点
 	AddOptionFunc(metricsEngine)
 

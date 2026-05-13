@@ -5,7 +5,7 @@
 //
 // 测试覆盖内容：
 // 1. AddOptionFunc - 选项函数注册（单个/多个/空/nil）
-// 2. healthDetactEngine - 健康检查路由配置
+// 2. healthDetectEngine - 健康检查路由配置
 // 3. initEngine - 引擎初始化（路由前缀/中间件/自定义选项）
 // 4. 引擎特性 - Recovery中间件/405处理/404处理/健康检查
 // 5. 自定义路由 - 路由前缀与自定义路由组合
@@ -99,10 +99,10 @@ func TestAddOptionFunc(t *testing.T) {
 	})
 }
 
-// ==================== healthDetactEngine 测试 ====================
+// ==================== healthDetectEngine 测试 ====================
 // 测试健康检查路由配置
 
-// TestHealthDetactEngine 测试healthDetactEngine函数
+// TestHealthDetectEngine 测试healthDetectEngine函数
 //
 // 【功能点】验证健康检查路由的正确配置
 // 【测试流程】
@@ -110,13 +110,13 @@ func TestAddOptionFunc(t *testing.T) {
 //  2. 发送GET /healthy请求
 //  3. 验证返回200状态码和正确的JSON响应
 //  4. 测试路径重定向行为（/healthy/ → /healthy）
-func TestHealthDetactEngine(t *testing.T) {
+func TestHealthDetectEngine(t *testing.T) {
 	t.Run("health check route", func(t *testing.T) {
 		// 创建测试引擎
 		engine := gin.New()
 
 		// 应用健康检查路由配置
-		healthDetactEngine(engine)
+		healthDetectEngine(engine)
 
 		// 创建测试请求
 		req := httptest.NewRequest("GET", "/healthy", nil)
@@ -143,7 +143,7 @@ func TestHealthDetactEngine(t *testing.T) {
 		engine := gin.New()
 
 		// 应用健康检查路由配置
-		healthDetactEngine(engine)
+		healthDetectEngine(engine)
 
 		// 测试不同的路径
 		req := httptest.NewRequest("GET", "/healthy/", nil)
@@ -232,7 +232,7 @@ func TestInitEngine(t *testing.T) {
 		middleWareMap = make(map[string]func() gin.HandlerFunc)
 
 		// 注册测试中间件
-		RegisterMiddleware("testMiddleware", func() gin.HandlerFunc {
+		_ = RegisterMiddleware("testMiddleware", func() gin.HandlerFunc {
 			return gin.HandlerFunc(func(c *gin.Context) {
 				c.Next()
 			})
