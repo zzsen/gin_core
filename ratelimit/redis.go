@@ -56,7 +56,21 @@ else
 end
 `
 
-// Allow 检查是否允许请求（滑动窗口算法）
+// Allow 使用滑动窗口算法检查请求是否被允许。
+//
+// 算法原理：
+//  1. 以 Redis Sorted Set 存储请求记录，score 为请求时间戳（毫秒）
+//  2. 每次请求先移除窗口（1 秒）外的旧记录
+//  3. 统计窗口内的请求数，若未超过限制则写入新记录并放行
+//
+// 当 burst > ratePerSecond 时，使用 burst 作为窗口内的请求数上限，
+// 从而允许短时间内的突发流量。
+//
+// 参数：
+//   - ctx: 上下文，支持超时取消
+//   - key: 限流键
+//   - ratePerSecond: 每秒允许的请求数
+//   - burst: 突发容量上限
 func (rl *RedisLimiter) Allow(ctx context.Context, key string, ratePerSecond int, burst int) (bool, error) {
 	if rl.client == nil {
 		return false, fmt.Errorf("redis client is nil")
@@ -117,8 +131,21 @@ else
 end
 `
 
-// AllowTokenBucket 检查是否允许请求（令牌桶算法）
-// 这是另一种实现方式，支持更好的突发流量处理
+// AllowTokenBucket 使用令牌桶算法检查请求是否被允许。
+//
+// 算法原理：
+//  1. 以 Redis Hash 存储桶状态（当前令牌数 tokens 和上次更新时间 last_time）
+//  2. 每次请求按 elapsed * rate 补充令牌，令牌数上限为 burst
+//  3. 令牌充足（>= 1）时消耗一个令牌并放行，否则拒绝
+//
+// 与滑动窗口的区别：令牌桶天然支持突发流量——桶满时可瞬间消耗 burst 个令牌，
+// 之后按 ratePerSecond 匀速恢复，适合对突发流量更宽容的场景。
+//
+// 参数：
+//   - ctx: 上下文，支持超时取消
+//   - key: 限流键（自动添加 "tb:" 前缀与滑动窗口的键隔离）
+//   - ratePerSecond: 每秒令牌恢复速率
+//   - burst: 令牌桶容量上限
 func (rl *RedisLimiter) AllowTokenBucket(ctx context.Context, key string, ratePerSecond int, burst int) (bool, error) {
 	if rl.client == nil {
 		return false, fmt.Errorf("redis client is nil")
