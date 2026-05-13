@@ -10,7 +10,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -56,11 +55,11 @@ func (t *TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	ctx, span := StartSpan(ctx, spanName,
 		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(
-			semconv.HTTPMethod(req.Method),
-			semconv.HTTPURL(req.URL.String()),
-			semconv.NetPeerName(req.URL.Host),
-			attribute.String("http.scheme", req.URL.Scheme),
-			attribute.String("http.path", req.URL.Path),
+			attribute.String("http.request.method", req.Method),
+			attribute.String("url.full", req.URL.String()),
+			attribute.String("server.address", req.URL.Host),
+			attribute.String("url.scheme", req.URL.Scheme),
+			attribute.String("url.path", req.URL.Path),
 		),
 	)
 	defer span.End()
@@ -81,7 +80,7 @@ func (t *TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	}
 
 	// 记录响应状态码
-	span.SetAttributes(semconv.HTTPStatusCode(resp.StatusCode))
+	span.SetAttributes(attribute.Int("http.response.status_code", resp.StatusCode))
 
 	// 标记错误状态
 	if resp.StatusCode >= 400 {

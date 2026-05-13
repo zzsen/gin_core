@@ -11,7 +11,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -56,9 +55,9 @@ func (h *RedisTracingHook) DialHook(next redis.DialHook) redis.DialHook {
 		ctx, span := StartSpan(ctx, "redis.dial",
 			trace.WithSpanKind(trace.SpanKindClient),
 			trace.WithAttributes(
-				semconv.DBSystemRedis,
-				semconv.NetPeerName(addr),
-				attribute.String("net.transport", network),
+				attribute.String("db.system", "redis"),
+				attribute.String("server.address", addr),
+				attribute.String("network.transport", network),
 			),
 		)
 		defer span.End()
@@ -90,8 +89,8 @@ func (h *RedisTracingHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook
 		ctx, span := StartSpan(ctx, spanName,
 			trace.WithSpanKind(trace.SpanKindClient),
 			trace.WithAttributes(
-				semconv.DBSystemRedis,
-				semconv.NetPeerName(h.addr),
+				attribute.String("db.system", "redis"),
+				attribute.String("server.address", h.addr),
 				attribute.String("redis.alias", h.aliasName),
 				attribute.Int("db.redis.database_index", h.db),
 				attribute.String("db.statement", h.formatCmd(cmd)),
@@ -122,8 +121,8 @@ func (h *RedisTracingHook) ProcessPipelineHook(next redis.ProcessPipelineHook) r
 		ctx, span := StartSpan(ctx, "redis.pipeline",
 			trace.WithSpanKind(trace.SpanKindClient),
 			trace.WithAttributes(
-				semconv.DBSystemRedis,
-				semconv.NetPeerName(h.addr),
+				attribute.String("db.system", "redis"),
+				attribute.String("server.address", h.addr),
 				attribute.String("redis.alias", h.aliasName),
 				attribute.Int("db.redis.database_index", h.db),
 				attribute.Int("redis.pipeline.commands_count", len(cmds)),

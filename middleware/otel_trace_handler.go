@@ -8,7 +8,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
-	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/zzsen/gin_core/tracing"
@@ -48,17 +47,15 @@ func OtelTraceHandler() gin.HandlerFunc {
 		ctx, span := tracing.StartSpan(ctx, spanName,
 			trace.WithSpanKind(trace.SpanKindServer),
 			trace.WithAttributes(
-				// HTTP 语义属性
-				semconv.HTTPMethod(c.Request.Method),
-				semconv.HTTPURL(c.Request.URL.String()),
-				semconv.HTTPRoute(c.FullPath()),
-				semconv.HTTPScheme(getScheme(c)),
-				semconv.HTTPTarget(c.Request.URL.RequestURI()),
-				// 网络属性
-				attribute.String("net.peer.ip", c.ClientIP()),
-				semconv.NetHostName(c.Request.Host),
-				// 自定义属性
-				attribute.String("http.user_agent", c.Request.UserAgent()),
+				attribute.String("http.request.method", c.Request.Method),
+				attribute.String("url.full", c.Request.URL.String()),
+				attribute.String("http.route", c.FullPath()),
+				attribute.String("url.scheme", getScheme(c)),
+				attribute.String("url.path", c.Request.URL.Path),
+				attribute.String("url.query", c.Request.URL.RawQuery),
+				attribute.String("client.address", c.ClientIP()),
+				attribute.String("server.address", c.Request.Host),
+				attribute.String("user_agent.original", c.Request.UserAgent()),
 				attribute.String("http.request_id", c.GetString("requestId")),
 			),
 		)
@@ -85,7 +82,7 @@ func OtelTraceHandler() gin.HandlerFunc {
 
 		// 记录响应状态
 		statusCode := c.Writer.Status()
-		span.SetAttributes(semconv.HTTPStatusCode(statusCode))
+		span.SetAttributes(attribute.Int("http.response.status_code", statusCode))
 
 		// 记录响应体大小
 		span.SetAttributes(attribute.Int("http.response_content_length", c.Writer.Size()))
