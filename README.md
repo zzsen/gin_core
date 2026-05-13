@@ -167,8 +167,9 @@ main()
 | `app.ES` | Elasticsearch 客户端 |
 | `app.Etcd` | Etcd 客户端 |
 | `app.SendRabbitMqMsg(...)` | 发送 MQ 消息 |
-| `app.SendRabbitMqMsgWithConfirm(...)` | 发送 MQ 消息（带确认） |
+| `app.SendRabbitMqMsgWithConfirm(...)` | 发送 MQ 消息（带发布确认） |
 | `app.SendRabbitMqMsgBatch(...)` | 批量发送 MQ 消息 |
+| `app.SendRabbitMqMsgBatchWithContext(...)` | 批量发送 MQ 消息（带 Context） |
 | `app.BaseConfig` | 框架基础配置 |
 
 ## 内置中间件
