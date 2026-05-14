@@ -184,13 +184,43 @@ func TestCreateSampler(t *testing.T) {
 
 // TestCreatePropagator 测试传播器创建
 //
-// 【功能点】验证默认和 b3 传播器类型
+// 【功能点】验证 b3/b3multi/tracecontext/空值四种格式全覆盖
+// 【测试流程】
+// 1. 空值/tracecontext → 返回 CompositeTextMapPropagator
+// 2. "b3" → 返回 B3 SingleHeader propagator
+// 3. "b3multi" → 返回 B3 MultipleHeader propagator
 func TestCreatePropagator(t *testing.T) {
-	defaultP := createPropagator(&config.TracingConfig{PropagatorType: ""})
-	assert.NotNil(t, defaultP)
+	tests := []struct {
+		name           string
+		propagatorType string
+	}{
+		{"空值默认 tracecontext", ""},
+		{"tracecontext 显式", "tracecontext"},
+		{"b3 single header", "b3"},
+		{"b3 multiple header", "b3multi"},
+	}
 
-	b3P := createPropagator(&config.TracingConfig{PropagatorType: "b3"})
-	assert.NotNil(t, b3P)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := createPropagator(&config.TracingConfig{PropagatorType: tt.propagatorType})
+			assert.NotNil(t, p)
+			// 验证 Fields() 返回非空（所有 propagator 都有 Fields 方法）
+			assert.NotNil(t, p.Fields())
+		})
+	}
+}
+
+// TestCreatePropagator_B3Inject 测试 B3 propagator 注入能力
+//
+// 【功能点】验证 B3 propagator 能正确注入 B3 头
+func TestCreatePropagator_B3Inject(t *testing.T) {
+	b3Single := createPropagator(&config.TracingConfig{PropagatorType: "b3"})
+	fields := b3Single.Fields()
+	assert.Contains(t, fields, "b3")
+
+	b3Multi := createPropagator(&config.TracingConfig{PropagatorType: "b3multi"})
+	fieldsMulti := b3Multi.Fields()
+	assert.True(t, len(fieldsMulti) > 0)
 }
 
 // --- createResource 测试 ---

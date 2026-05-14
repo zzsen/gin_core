@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -161,13 +162,10 @@ func createSampler(cfg *config.TracingConfig) sdktrace.Sampler {
 func createPropagator(cfg *config.TracingConfig) propagation.TextMapPropagator {
 	switch cfg.PropagatorType {
 	case "b3":
-		// B3 格式需要额外的包，这里暂时使用 TraceContext
-		return propagation.NewCompositeTextMapPropagator(
-			propagation.TraceContext{},
-			propagation.Baggage{},
-		)
+		return b3.New(b3.WithInjectEncoding(b3.B3SingleHeader))
+	case "b3multi":
+		return b3.New(b3.WithInjectEncoding(b3.B3MultipleHeader))
 	default:
-		// 默认使用 W3C Trace Context 标准
 		return propagation.NewCompositeTextMapPropagator(
 			propagation.TraceContext{},
 			propagation.Baggage{},
