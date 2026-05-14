@@ -548,3 +548,66 @@ func TestConcurrentEngineInit(t *testing.T) {
 		assert.NotNil(t, engine.RouterGroup)
 	})
 }
+
+// --- 日志级别端点测试 ---
+
+// TestLogLevelEndpoint 测试日志级别 HTTP 端点
+//
+// 【功能点】验证 GET/PUT /healthy/log-level 路由
+// 【测试流程】
+// 1. GET 返回当前级别
+// 2. PUT 有效级别返回 200
+// 3. PUT 无效级别返回 400
+// 4. PUT 缺少 level 字段返回 400
+func TestLogLevelEndpoint(t *testing.T) {
+	engine := gin.New()
+	healthDetectEngine(engine)
+
+	t.Run("GET returns current level", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/healthy/log-level", nil)
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		data := resp["data"].(map[string]interface{})
+		assert.NotEmpty(t, data["level"])
+	})
+
+	t.Run("PUT valid level", func(t *testing.T) {
+		body := bytes.NewBufferString(`{"level":"warn"}`)
+		req := httptest.NewRequest("PUT", "/healthy/log-level", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.NoError(t, err)
+		data := resp["data"].(map[string]interface{})
+		assert.Equal(t, "warning", data["level"])
+	})
+
+	t.Run("PUT invalid level", func(t *testing.T) {
+		body := bytes.NewBufferString(`{"level":"invalid"}`)
+		req := httptest.NewRequest("PUT", "/healthy/log-level", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("PUT missing level", func(t *testing.T) {
+		body := bytes.NewBufferString(`{}`)
+		req := httptest.NewRequest("PUT", "/healthy/log-level", body)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}

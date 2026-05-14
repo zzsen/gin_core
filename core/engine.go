@@ -1,6 +1,7 @@
 package core
 
 import (
+	"net/http"
 	"os"
 	"sync"
 
@@ -83,6 +84,37 @@ var healthDetectEngine = func(e *gin.Engine) {
 	r.GET("/stats", func(c *gin.Context) {
 		stats := app.GetPoolStats()
 		response.OkWithDetail(c, "stats", stats)
+	})
+
+	// 日志级别查询
+	r.GET("/log-level", func(c *gin.Context) {
+		response.OkWithDetail(c, "current log level", gin.H{
+			"level": logger.GetLevel(),
+		})
+	})
+
+	// 日志级别动态调整
+	r.PUT("/log-level", func(c *gin.Context) {
+		var req struct {
+			Level string `json:"level" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code": 40000,
+				"msg":  "invalid request: level is required",
+			})
+			return
+		}
+		if err := logger.SetLevel(req.Level); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code": 40000,
+				"msg":  err.Error(),
+			})
+			return
+		}
+		response.OkWithDetail(c, "log level updated", gin.H{
+			"level": logger.GetLevel(),
+		})
 	})
 }
 
