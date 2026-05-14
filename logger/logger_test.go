@@ -591,3 +591,95 @@ func TestCallerInfo_Structure(t *testing.T) {
 	assert.True(t, strings.Contains(info.File, ":"), "File 应包含行号分隔符")
 	assert.NotEmpty(t, info.Func)
 }
+
+// --- SetLevel / GetLevel 测试 ---
+
+// TestSetLevel_Valid 测试有效级别设置
+//
+// 【功能点】验证 SetLevel 对所有合法级别的支持
+// 【测试流程】
+// 1. 遍历 trace/debug/info/warn/warning/error/fatal/panic
+// 2. 每种级别 SetLevel 后 GetLevel 应返回规范化名称
+func TestSetLevel_Valid(t *testing.T) {
+	setupTestLogger()
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"trace", "trace"},
+		{"debug", "debug"},
+		{"info", "info"},
+		{"warn", "warning"},
+		{"warning", "warning"},
+		{"error", "error"},
+		{"fatal", "fatal"},
+		{"panic", "panic"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			err := SetLevel(tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, GetLevel())
+		})
+	}
+}
+
+// TestSetLevel_CaseInsensitive 测试大小写不敏感
+//
+// 【功能点】验证 SetLevel 大小写不敏感
+func TestSetLevel_CaseInsensitive(t *testing.T) {
+	setupTestLogger()
+
+	cases := []string{"DEBUG", "Debug", "dEbUg"}
+	for _, c := range cases {
+		err := SetLevel(c)
+		require.NoError(t, err)
+		assert.Equal(t, "debug", GetLevel())
+	}
+}
+
+// TestSetLevel_Empty 测试空字符串
+//
+// 【功能点】空字符串应返回 error
+func TestSetLevel_Empty(t *testing.T) {
+	setupTestLogger()
+
+	err := SetLevel("")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot be empty")
+}
+
+// TestSetLevel_Invalid 测试无效级别
+//
+// 【功能点】无效级别字符串应返回 error
+func TestSetLevel_Invalid(t *testing.T) {
+	setupTestLogger()
+
+	err := SetLevel("invalid_level")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid log level")
+}
+
+// TestSetLevel_Concurrent 测试并发安全
+//
+// 【功能点】多 goroutine 并发 SetLevel 无 data race
+func TestSetLevel_Concurrent(t *testing.T) {
+	setupTestLogger()
+
+	levels := []string{"debug", "info", "warn", "error"}
+	done := make(chan struct{})
+
+	for i := 0; i < 50; i++ {
+		go func(idx int) {
+			defer func() { done <- struct{}{} }()
+			_ = SetLevel(levels[idx%len(levels)])
+			_ = GetLevel()
+		}(i)
+	}
+
+	for i := 0; i < 50; i++ {
+		<-done
+	}
+}

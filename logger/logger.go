@@ -432,3 +432,23 @@ func TraceWithFields(fields map[string]any, msg string, arg ...any) {
 	entry := withCallerFields(3).WithFields(SanitizeFields(fields))
 	entry.Trace(sanitizeLog(msg, arg...))
 }
+
+// SetLevel 动态设置日志级别
+// 支持的级别：trace, debug, info, warn/warning, error, fatal, panic
+// 大小写不敏感
+func SetLevel(level string) error {
+	if level == "" {
+		return fmt.Errorf("log level cannot be empty")
+	}
+	parsed, err := logrus.ParseLevel(strings.ToLower(level))
+	if err != nil {
+		return fmt.Errorf("invalid log level %q: %w", level, err)
+	}
+	Logger.SetLevel(parsed)
+	return nil
+}
+
+// GetLevel 获取当前日志级别
+func GetLevel() string {
+	return Logger.GetLevel().String()
+}
