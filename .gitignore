@@ -3,3 +3,6 @@
 /log
 /logDB
 *.log
+*.out
+dev-plan
+commit-plan
