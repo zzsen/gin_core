@@ -11,6 +11,8 @@
 | `GET /healthy` | 存活检查，始终返回 200 | Kubernetes `livenessProbe` |
 | `GET /healthy/ready` | 就绪检查，校验所有依赖服务 | Kubernetes `readinessProbe` |
 | `GET /healthy/stats` | 连接池统计信息 | 运维监控、性能分析 |
+| `GET /healthy/log-level` | 查询当前日志级别 | 运维排查 |
+| `PUT /healthy/log-level` | 动态修改日志级别 | 临时调试 |
 
 > 如果配置了路由前缀（`service.routePrefix`），健康检查路径会自动添加前缀。例如前缀为 `/api/v1` 时，路径变为 `/api/v1/healthy`。
 
@@ -135,7 +137,41 @@
 [连接池] MySQL 连接使用率过高: 85/100 (85.0%)
 ```
 
-## 七、Kubernetes 配置示例
+## 七、日志级别管理
+
+调用链：[healthDetectEngine](../core/engine.go) → `GET/PUT /healthy/log-level`
+
+### 查询当前级别
+
+```bash
+curl http://localhost:8080/healthy/log-level
+```
+
+响应：
+
+```json
+{
+  "code": 20000,
+  "msg": "current log level",
+  "data": {
+    "level": "info"
+  }
+}
+```
+
+### 动态修改级别
+
+```bash
+curl -X PUT http://localhost:8080/healthy/log-level \
+  -H "Content-Type: application/json" \
+  -d '{"level": "debug"}'
+```
+
+支持的级别：`trace`、`debug`、`info`、`warn`、`error`、`fatal`、`panic`
+
+> **安全提示**：生产环境建议限制该端点的访问权限，避免误设低级别日志导致磁盘打满。
+
+## 八、Kubernetes 配置示例
 
 ```yaml
 livenessProbe:

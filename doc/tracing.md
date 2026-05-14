@@ -22,7 +22,7 @@
 | 数据库追踪 | 追踪 MySQL 查询、插入、更新、删除操作 |
 | Redis 追踪 | 追踪 Redis 命令执行 |
 | HTTP 客户端追踪 | 追踪出站 HTTP 请求，支持跨服务传播 |
-| 上下文传播 | 支持 W3C Trace Context 标准 |
+| 上下文传播 | 支持 W3C Trace Context、B3 Single Header、B3 Multiple Header |
 
 ### 支持的后端
 
@@ -109,7 +109,8 @@ tracing:
   
   # 上下文传播格式
   # - "tracecontext": W3C Trace Context 标准（默认）
-  # - "b3": Zipkin B3 格式
+  # - "b3": Zipkin B3 Single Header 格式（单头 `b3: {TraceId}-{SpanId}-{SamplingState}`）
+  # - "b3multi": Zipkin B3 Multiple Header 格式（多头 `X-B3-TraceId`、`X-B3-SpanId` 等）
   propagatorType: "tracecontext"
   
   # 是否追踪数据库操作

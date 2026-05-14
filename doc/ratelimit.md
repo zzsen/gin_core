@@ -431,6 +431,51 @@ default:
 
 > user 限流会依次尝试从 Gin Context 中读取 `"userID"` 和 `"user_id"` 两个 key，均不存在时自动降级为 IP 限流。
 
+## 详细统计（DetailedStats）
+
+限流器实现了 `StatsProvider` 接口，提供运行时请求统计：
+
+```go
+import "github.com/zzsen/gin_core/ratelimit"
+
+// MemoryLimiter 和 RedisLimiter 均实现该接口
+type StatsProvider interface {
+    DetailedStats() *LimiterStats
+}
+```
+
+### 统计数据结构
+
+```go
+type LimiterStats struct {
+    Type          string     `json:"type"`           // "memory" 或 "redis"
+    TotalAllowed  int64      `json:"total_allowed"`  // 总允许请求数
+    TotalRejected int64      `json:"total_rejected"` // 总拒绝请求数
+    ActiveKeys    int        `json:"active_keys"`    // 当前活跃限流键数
+    TopKeys       []KeyStats `json:"top_keys"`       // Top 10 热点键
+}
+
+type KeyStats struct {
+    Key      string `json:"key"`
+    Allowed  int64  `json:"allowed"`
+    Rejected int64  `json:"rejected"`
+}
+```
+
+### 使用示例
+
+```go
+limiter := ratelimit.NewMemoryLimiter(time.Minute)
+
+// 业务逻辑...
+
+stats := limiter.DetailedStats()
+fmt.Printf("总允许: %d, 总拒绝: %d, 活跃键: %d\n",
+    stats.TotalAllowed, stats.TotalRejected, stats.ActiveKeys)
+```
+
+> 统计使用原子计数器实现，线程安全且无锁开销。
+
 ## 相关文档
 
 - [熔断器](circuitbreaker.md)

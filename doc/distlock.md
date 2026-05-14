@@ -569,3 +569,90 @@ locker := distlock.NewRedisLocker(app.Redis,
     distlock.WithWatchdogInterval(1*time.Minute),
 )
 ```
+
+## Etcd 分布式锁
+
+除 Redis 实现外，框架还提供基于 Etcd 的分布式锁实现，基于 Raft 共识协议保证强一致性。
+
+### 特性对比
+
+| 特性 | Redis | Etcd |
+|------|-------|------|
+| 一致性 | 弱（单节点 OK，集群依赖 Redlock） | 强（基于 Raft） |
+| 看门狗 | 手动 goroutine 续期 | Lease KeepAlive 自动续期 |
+| 依赖 | `redis.UniversalClient` | `clientv3.Client` |
+| 适用场景 | 高性能、容忍极端情况丢锁 | 强一致性要求（如分布式选主） |
+
+### 基本使用
+
+```go
+import (
+    "context"
+    "time"
+
+    clientv3 "go.etcd.io/etcd/client/v3"
+    "github.com/zzsen/gin_core/distlock"
+)
+
+// 创建 Etcd 客户端
+client, _ := clientv3.New(clientv3.Config{
+    Endpoints:   []string{"localhost:2379"},
+    DialTimeout: 5 * time.Second,
+})
+
+// 创建 Etcd 分布式锁客户端
+locker, err := distlock.NewEtcdLocker(client,
+    distlock.WithKeyPrefix("myapp:lock:"),
+    distlock.WithDefaultTTL(30*time.Second),
+)
+if err != nil {
+    panic(err)
+}
+defer locker.Close()
+
+// 使用方式与 Redis 完全一致
+ctx := context.Background()
+lock, err := locker.TryLock(ctx, "critical-resource")
+if err != nil {
+    // 处理错误
+}
+defer lock.Unlock(ctx)
+
+// 执行临界区逻辑
+```
+
+### 接口兼容
+
+`EtcdLocker` 实现了 `Locker` 接口，与 `RedisLocker` 完全兼容：
+
+```go
+var locker distlock.Locker
+
+if useEtcd {
+    locker, _ = distlock.NewEtcdLocker(etcdClient)
+} else {
+    locker = distlock.NewRedisLocker(redisClient)
+}
+
+// 统一调用
+lock, err := locker.TryLock(ctx, "key")
+```
+
+### 看门狗机制
+
+Etcd 实现使用 `concurrency.Session` 内置的 KeepAlive 机制自动续期 Lease，Session 失效时触发 `OnWatchdogError` 回调：
+
+```go
+locker, _ := distlock.NewEtcdLocker(client,
+    distlock.WithOnWatchdogError(func(key, token string, err error) {
+        log.Printf("Etcd session expired: %v", err)
+    }),
+)
+```
+
+### 统计信息
+
+```go
+stats := locker.Stats()
+// {"type": "etcd", "active_locks": 2, "session_ttl": "30s", "closed": false}
+```

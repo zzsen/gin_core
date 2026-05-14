@@ -326,3 +326,34 @@ logger.TraceWithFields(map[string]any{
     "responseTime": responseTime,
 }, "请求日志")
 ```
+
+## 动态级别调整
+
+运行时可通过代码或 HTTP 端点动态修改日志级别，无需重启服务。
+
+### 代码调用
+
+```go
+import "github.com/zzsen/gin_core/logger"
+
+// 设置日志级别（大小写不敏感）
+err := logger.SetLevel("debug")
+
+// 获取当前日志级别
+level := logger.GetLevel() // "debug"
+```
+
+支持的级别：`trace`、`debug`、`info`、`warn`/`warning`、`error`、`fatal`、`panic`
+
+### HTTP 端点
+
+框架自动在健康检查路由组注册日志级别管理端点：
+
+```
+GET  /healthy/log-level    → 查询当前级别
+PUT  /healthy/log-level    → 修改级别（Body: {"level": "debug"}）
+```
+
+详见 [健康检查文档](healthcheck.md)。
+
+> **注意**：生产环境误设 `trace`/`debug` 级别会导致日志量暴增，仅限临时调试使用。

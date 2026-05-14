@@ -533,6 +533,47 @@ func (cb *CircuitBreaker) State() State {
 → 业务函数 
 → [afterRequest()](../circuitbreaker/breaker.go)
 
+## Prometheus 指标集成
+
+通过 `EnableMetrics` 启用 Prometheus 指标采集，自动暴露熔断器状态和请求统计：
+
+```go
+import "github.com/zzsen/gin_core/circuitbreaker"
+
+// 启用 Prometheus 指标（幂等，多次调用安全）
+collector := circuitbreaker.EnableMetrics(circuitbreaker.GetRegistry())
+```
+
+### 暴露的指标
+
+| 指标名 | 类型 | 标签 | 说明 |
+|--------|------|------|------|
+| `circuit_breaker_state` | Gauge | `name` | 当前状态（0=Closed, 1=Open, 2=HalfOpen） |
+| `circuit_breaker_requests_total` | Counter | `name`, `result` | 请求总数（result: success/failure） |
+| `circuit_breaker_rejected_total` | Counter | `name` | 被熔断拒绝的请求数 |
+| `circuit_breaker_state_transitions_total` | Counter | `name`, `from`, `to` | 状态转换次数 |
+
+### 手动记录指标
+
+```go
+collector.RecordSuccess("user-service")
+collector.RecordFailure("user-service")
+collector.RecordRejected("user-service")
+collector.RecordStateTransition("user-service", circuitbreaker.StateClosed, circuitbreaker.StateOpen)
+```
+
+### 与 OnStateChange 结合
+
+```go
+config := circuitbreaker.NewConfig("user-service",
+    circuitbreaker.WithOnStateChange(func(name string, from, to circuitbreaker.State) {
+        if collector != nil {
+            collector.RecordStateTransition(name, from, to)
+        }
+    }),
+)
+```
+
 ## 最佳实践
 
 1. **合理设置阈值**：根据服务特点设置合适的失败阈值和超时时间
@@ -540,6 +581,7 @@ func (cb *CircuitBreaker) State() State {
 3. **监控告警**：使用 `OnStateChange` 回调实现状态变更告警
 4. **降级策略**：熔断时提供合理的降级方案（缓存、默认值等）
 5. **定期重置**：在维护窗口期可以手动重置熔断器
+6. **启用 Prometheus 指标**：使用 `EnableMetrics` 实时监控熔断器状态
 
 ## 相关文档
 
