@@ -345,3 +345,162 @@ func BenchmarkMemoryLimiter_Allow_DifferentKeys(b *testing.B) {
 		_, _ = limiter.Allow(ctx, key, rate, burst)
 	}
 }
+
+// ==================== DetailedStats 测试 ====================
+
+// TestMemoryLimiter_DetailedStats 测试 MemoryLimiter 详细统计
+//
+// 【功能点】验证 DetailedStats 返回正确的统计数据
+// 【测试流程】
+// 1. 创建限流器并发送请求
+// 2. 验证 TotalAllowed/TotalRejected 计数正确
+// 3. 验证 ActiveKeys 数量正确
+// 4. 验证 TopKeys 排序正确
+func TestMemoryLimiter_DetailedStats(t *testing.T) {
+	limiter := NewMemoryLimiter(time.Minute)
+	defer limiter.Close()
+
+	ctx := context.Background()
+
+	// 发送 5 个请求（rate=2, burst=2）：前 2 个允许，后 3 个拒绝
+	for i := 0; i < 5; i++ {
+		_, _ = limiter.Allow(ctx, "key-a", 2, 2)
+	}
+
+	stats := limiter.DetailedStats()
+	if stats == nil {
+		t.Fatal("DetailedStats should not return nil")
+	}
+
+	if stats.Type != "memory" {
+		t.Errorf("Type = %q, want %q", stats.Type, "memory")
+	}
+	if stats.TotalAllowed < 1 {
+		t.Error("TotalAllowed should be > 0")
+	}
+	if stats.TotalAllowed+stats.TotalRejected != 5 {
+		t.Errorf("TotalAllowed(%d) + TotalRejected(%d) should = 5",
+			stats.TotalAllowed, stats.TotalRejected)
+	}
+	if stats.ActiveKeys != 1 {
+		t.Errorf("ActiveKeys = %d, want 1", stats.ActiveKeys)
+	}
+}
+
+// TestMemoryLimiter_DetailedStats_MultipleKeys 测试多 key 统计
+//
+// 【功能点】验证 TopKeys 排序正确（按 allowed+rejected 降序）
+// 【测试流程】
+// 1. 对 key-a 发 10 次请求
+// 2. 对 key-b 发 3 次请求
+// 3. TopKeys[0] 应为 key-a
+func TestMemoryLimiter_DetailedStats_MultipleKeys(t *testing.T) {
+	limiter := NewMemoryLimiter(time.Minute)
+	defer limiter.Close()
+
+	ctx := context.Background()
+
+	for i := 0; i < 10; i++ {
+		_, _ = limiter.Allow(ctx, "key-a", 100, 100)
+	}
+	for i := 0; i < 3; i++ {
+		_, _ = limiter.Allow(ctx, "key-b", 100, 100)
+	}
+
+	stats := limiter.DetailedStats()
+	if stats.ActiveKeys != 2 {
+		t.Errorf("ActiveKeys = %d, want 2", stats.ActiveKeys)
+	}
+	if len(stats.TopKeys) < 2 {
+		t.Fatal("TopKeys should have at least 2 entries")
+	}
+	if stats.TopKeys[0].Key != "key-a" {
+		t.Errorf("TopKeys[0].Key = %q, want %q", stats.TopKeys[0].Key, "key-a")
+	}
+}
+
+// TestMemoryLimiter_DetailedStats_Concurrent 测试并发下统计原子性
+//
+// 【功能点】多 goroutine 并发 Allow 下计数器原子性
+func TestMemoryLimiter_DetailedStats_Concurrent(t *testing.T) {
+	limiter := NewMemoryLimiter(time.Minute)
+	defer limiter.Close()
+
+	ctx := context.Background()
+	var wg sync.WaitGroup
+	totalRequests := int64(1000)
+
+	for i := int64(0); i < totalRequests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = limiter.Allow(ctx, "concurrent-key", 10000, 10000)
+		}()
+	}
+	wg.Wait()
+
+	stats := limiter.DetailedStats()
+	actualTotal := stats.TotalAllowed + stats.TotalRejected
+	if actualTotal != totalRequests {
+		t.Errorf("total requests = %d, want %d", actualTotal, totalRequests)
+	}
+}
+
+// TestTopNKeys_Empty 测试空 map
+func TestTopNKeys_Empty(t *testing.T) {
+	result := topNKeys(nil, 10)
+	if result != nil {
+		t.Errorf("topNKeys(nil) = %v, want nil", result)
+	}
+
+	result = topNKeys(map[string]*keyCounter{}, 10)
+	if result != nil {
+		t.Errorf("topNKeys(empty) = %v, want nil", result)
+	}
+}
+
+// TestTopNKeys_Overflow 测试 N > 实际数量
+func TestTopNKeys_Overflow(t *testing.T) {
+	stats := map[string]*keyCounter{
+		"a": {},
+		"b": {},
+	}
+	stats["a"].allowed.Store(5)
+	stats["b"].allowed.Store(3)
+
+	result := topNKeys(stats, 100)
+	if len(result) != 2 {
+		t.Errorf("len = %d, want 2", len(result))
+	}
+}
+
+// TestStatsProvider_Interface 验证 MemoryLimiter 实现 StatsProvider 接口
+func TestStatsProvider_Interface(t *testing.T) {
+	var _ StatsProvider = (*MemoryLimiter)(nil)
+	var _ StatsProvider = (*RedisLimiter)(nil)
+}
+
+// TestMemoryLimiter_DetailedStats_RaceDetection 竞态检测测试
+func TestMemoryLimiter_DetailedStats_RaceDetection(t *testing.T) {
+	limiter := NewMemoryLimiter(time.Minute)
+	defer limiter.Close()
+
+	ctx := context.Background()
+	var wg sync.WaitGroup
+
+	// 并发写入和读取
+	var totalOps atomic.Int64
+	for i := 0; i < 50; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_, _ = limiter.Allow(ctx, "race-key", 10000, 10000)
+			totalOps.Add(1)
+		}()
+		go func() {
+			defer wg.Done()
+			_ = limiter.DetailedStats()
+		}()
+	}
+	wg.Wait()
+}

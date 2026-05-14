@@ -32,6 +32,7 @@ type MemoryLimiter struct {
 	mu       sync.Mutex    // 用于创建限流器时的互斥锁
 	stopCh   chan struct{} // 停止清理协程的信号
 	interval time.Duration // 清理间隔
+	stats    statsCollector
 }
 
 // limiterEntry 限流器条目
@@ -65,7 +66,13 @@ func (ml *MemoryLimiter) Allow(ctx context.Context, key string, ratePerSecond in
 	entry.lastAccess = time.Now()
 
 	// 检查是否允许
-	return entry.limiter.Allow(), nil
+	allowed := entry.limiter.Allow()
+	if allowed {
+		ml.stats.recordAllow(key)
+	} else {
+		ml.stats.recordReject(key)
+	}
+	return allowed, nil
 }
 
 // getOrCreate 获取或创建限流器
@@ -162,4 +169,9 @@ func (ml *MemoryLimiter) Stats() map[string]interface{} {
 		"count":    count,
 		"interval": ml.interval.String(),
 	}
+}
+
+// DetailedStats 获取详细限流统计
+func (ml *MemoryLimiter) DetailedStats() *LimiterStats {
+	return ml.stats.snapshot("memory")
 }

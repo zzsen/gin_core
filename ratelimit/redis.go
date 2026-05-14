@@ -16,6 +16,7 @@ import (
 type RedisLimiter struct {
 	client    redis.UniversalClient
 	keyPrefix string
+	stats     statsCollector
 }
 
 // NewRedisLimiter 创建 Redis 限流器
@@ -91,7 +92,13 @@ func (rl *RedisLimiter) Allow(ctx context.Context, key string, ratePerSecond int
 		return false, fmt.Errorf("redis eval error: %w", err)
 	}
 
-	return result == 1, nil
+	allowed := result == 1
+	if allowed {
+		rl.stats.recordAllow(key)
+	} else {
+		rl.stats.recordReject(key)
+	}
+	return allowed, nil
 }
 
 // tokenBucketScript 令牌桶限流 Lua 脚本
@@ -159,7 +166,13 @@ func (rl *RedisLimiter) AllowTokenBucket(ctx context.Context, key string, ratePe
 		return false, fmt.Errorf("redis eval error: %w", err)
 	}
 
-	return result == 1, nil
+	allowed := result == 1
+	if allowed {
+		rl.stats.recordAllow(key)
+	} else {
+		rl.stats.recordReject(key)
+	}
+	return allowed, nil
 }
 
 // Close 关闭限流器
@@ -174,4 +187,9 @@ func (rl *RedisLimiter) Stats() map[string]interface{} {
 		"type":      "redis",
 		"keyPrefix": rl.keyPrefix,
 	}
+}
+
+// DetailedStats 获取详细限流统计
+func (rl *RedisLimiter) DetailedStats() *LimiterStats {
+	return rl.stats.snapshot("redis")
 }
