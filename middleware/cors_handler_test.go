@@ -23,6 +23,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/model/config"
 )
@@ -425,6 +427,34 @@ func TestIsOriginAllowed(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("isOriginAllowed(%s, %v) = %v, want %v", tt.origin, tt.allowOrigins, result, tt.expected)
 			}
+		})
+	}
+}
+
+// TestExtractHost 中文描述：从 Origin URL 解析主机名（无端口）
+//
+// 【功能点】覆盖 extractHost 合法 URL、IPv6、解析失败等分支
+// 【测试流程】
+// 1. 准备多种 origin 字符串
+// 2. 调用 extractHost
+// 3. 断言 hostname 与期望一致
+func TestExtractHost(t *testing.T) {
+	tests := []struct {
+		name   string
+		origin string
+		want   string
+	}{
+		{"标准 http 含端口", "http://api.example.com:8080/path", "api.example.com"},
+		{"https 默认端口", "https://example.com", "example.com"},
+		{"IPv6 含端口", "https://[2001:db8::1]:8443/", "2001:db8::1"},
+		{"无效 URL", "://broken", ""},
+		{"非 URL", "not-a-url", ""},
+		{"空字符串", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, extractHost(tt.origin))
 		})
 	}
 }

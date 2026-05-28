@@ -208,6 +208,23 @@ func TestResolver_GetDependencyOrder(t *testing.T) {
 	assert.Equal(t, []string{"A", "B", "C"}, order)
 }
 
+// TestResolver_GetDependencyOrder_UnknownService 查询不存在的服务名返回完整拓扑序
+//
+// 【功能点】GetDependencyOrder 在 serviceName 未出现时遍历全部层后返回完整扁平序列
+// 【测试流程】
+// 1. 构造 A→B 链
+// 2. GetDependencyOrder("Z") 返回 [A,B]
+func TestResolver_GetDependencyOrder_UnknownService(t *testing.T) {
+	services := map[string]Service{
+		"A": newMock("A", 1),
+		"B": newMock("B", 1, "A"),
+	}
+	resolver := NewDependencyResolver(services)
+	order, err := resolver.GetDependencyOrder("Z")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"A", "B"}, order)
+}
+
 // TestResolver_Empty 测试空服务列表
 //
 // 【功能点】空服务列表应返回空层级

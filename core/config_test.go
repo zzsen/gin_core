@@ -18,13 +18,17 @@
 package core
 
 import (
+	"bufio"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/constant"
+	"github.com/zzsen/gin_core/utils/encrypt"
 )
 
 // ==================== InitCustomConfig 测试 ====================
@@ -169,6 +173,32 @@ func TestGetEnvFromFile(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, "test_env", env)
 	})
+
+	t.Run("env file first line empty after scan", func(t *testing.T) {
+		envFile := "env"
+		content := "\nvalid_but_ignored\n"
+		err := os.WriteFile(envFile, []byte(content), 0644)
+		assert.Nil(t, err)
+		defer os.Remove(envFile)
+
+		env, err := getEnvFromFile()
+		assert.Error(t, err)
+		assert.Equal(t, "", env)
+		assert.Contains(t, err.Error(), "环境文件首行内容无效")
+	})
+
+	t.Run("env file scanner token too long", func(t *testing.T) {
+		envFile := "env"
+		longLine := strings.Repeat("a", bufio.MaxScanTokenSize+1)
+		err := os.WriteFile(envFile, []byte(longLine), 0644)
+		assert.Nil(t, err)
+		defer os.Remove(envFile)
+
+		env, err := getEnvFromFile()
+		assert.Error(t, err)
+		assert.Equal(t, "", env)
+		assert.Contains(t, err.Error(), "扫描环境文件时发生错误")
+	})
 }
 
 // ==================== getDateTime 测试 ====================
@@ -248,6 +278,7 @@ func TestCheckConfType(t *testing.T) {
 //  2. 测试无效 YAML 语法 - 返回错误
 //  3. 测试文件不存在 - 返回错误
 //  4. 测试空文件 - 正确处理
+//  5. 测试路径为目录 - Stat 成功但读取阶段报错
 func TestLoadYamlFile(t *testing.T) {
 	t.Run("valid yaml file", func(t *testing.T) {
 		// 创建临时YAML文件
@@ -295,6 +326,17 @@ func TestLoadYamlFile(t *testing.T) {
 		data, err := loadYamlFile(yamlFile)
 		assert.Nil(t, err)
 		assert.Equal(t, content, string(data))
+	})
+
+	t.Run("path is directory io read fails after open", func(t *testing.T) {
+		// 路径存在且 os.Stat 成功，但内容为目录：后续读取失败，覆盖 ReadAll/Open 错误分支
+		dirPath := filepath.Join(t.TempDir(), "fake.yml")
+		err := os.Mkdir(dirPath, 0755)
+		assert.NoError(t, err)
+
+		data, err := loadYamlFile(dirPath)
+		assert.Error(t, err)
+		assert.Nil(t, data)
 	})
 }
 
@@ -484,23 +526,6 @@ func TestDecryptConfig(t *testing.T) {
 		assert.Equal(t, yamlData, result) // 应该返回原内容
 	})
 
-	t.Run("valid encrypted content", func(t *testing.T) {
-		// 使用AES ECB加密测试数据
-		key := "testkey123456789"
-		plaintext := "secret_password"
-
-		// 这里需要实际的加密数据，我们使用一个模拟的测试
-		// 在实际测试中，应该使用真实的加密数据
-		yamlData := []byte("password: CIPHER(" + plaintext + ")\n")
-
-		// 由于我们没有真实的加密数据，这个测试会失败
-		// 在实际项目中，应该使用真实的加密数据进行测试
-		result, err := decryptConfig(yamlData, key)
-		// 这个测试会失败，因为plaintext不是有效的加密数据
-		assert.Error(t, err)
-		assert.Nil(t, result)
-	})
-
 	t.Run("invalid encrypted placeholder", func(t *testing.T) {
 		yamlData := []byte("password: CIPHER(\n")
 
@@ -519,6 +544,33 @@ password2: CIPHER(encrypted2)
 		result, err := decryptConfig(yamlData, "")
 		assert.Nil(t, err)
 		assert.Equal(t, yamlData, result) // 没有密钥时返回原内容
+	})
+
+	t.Run("valid aes cipher replaces placeholder", func(t *testing.T) {
+		key := "1234567890123456"
+		plain := "secret_password"
+		cipherB64, encErr := encrypt.AesEcbEncrypt(plain, key)
+		assert.NoError(t, encErr)
+
+		yamlData := []byte("password: CIPHER(" + cipherB64 + ")\n")
+		result, err := decryptConfig(yamlData, key)
+		assert.NoError(t, err)
+		assert.Contains(t, string(result), "password: "+plain)
+	})
+
+	t.Run("invalid base64 ciphertext with key returns error", func(t *testing.T) {
+		yamlData := []byte("password: CIPHER(!!!not-base64!!!)\n")
+		result, err := decryptConfig(yamlData, "1234567890123456")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("valid base64 wrong block length with key returns error", func(t *testing.T) {
+		// "dGVzdA==" decodes to 4 bytes — not multiple of AES block size
+		yamlData := []byte("password: CIPHER(dGVzdA==)\n")
+		result, err := decryptConfig(yamlData, "1234567890123456")
+		assert.Error(t, err)
+		assert.Nil(t, result)
 	})
 }
 
@@ -606,6 +658,20 @@ database:
 		err = loadYamlConfig(yamlFile, config, "")
 		assert.Error(t, err)
 	})
+
+	t.Run("decrypt failure propagates from decryptConfig", func(t *testing.T) {
+		yamlFile := "cipher_bad_integration.yaml"
+		content := "secret: CIPHER(!!!bad!!!)\n"
+		err := os.WriteFile(yamlFile, []byte(content), 0644)
+		assert.Nil(t, err)
+		defer os.Remove(yamlFile)
+
+		type TestConfig struct{}
+		cfg := &TestConfig{}
+
+		err = loadYamlConfig(yamlFile, cfg, "1234567890123456")
+		assert.Error(t, err)
+	})
 }
 
 // ==================== loadConfig 测试 ====================
@@ -618,15 +684,20 @@ database:
 //  2. 检测配置文件类型（YAML/JSON）
 //  3. 调用对应的加载函数
 //  4. 设置全局配置变量
+//  5. 补充：仅存在环境配置文件而无 config.default.yml（非默认环境）
+//  6. 补充：命令行显式 -env default 仅加载默认配置
+//  7. 补充：默认环境下无 env 文件且无默认 YAML 时不改写业务配置指针
 func TestLoadConfig(t *testing.T) {
 	// 保存原始状态
 	originalArgs := os.Args
 	originalConfig := app.Config
 	originalEnv := app.Env
+	originalBase := app.BaseConfig
 	defer func() {
 		os.Args = originalArgs
 		app.Config = originalConfig
 		app.Env = originalEnv
+		app.BaseConfig = originalBase
 	}()
 
 	t.Run("load config with command line args", func(t *testing.T) {
@@ -759,6 +830,150 @@ port: 8080
 		assert.Equal(t, "default_app", config.Name)
 		assert.Equal(t, 8080, config.Port)
 		assert.Equal(t, constant.DefaultEnv, app.Env)
+	})
+
+	t.Run("load config env file invalid first line uses default env", func(t *testing.T) {
+		os.Args = []string{"program", "-config", "./test_conf_invalid_env"}
+
+		envFile := "env"
+		err := os.WriteFile(envFile, []byte("@#!\n"), 0644)
+		assert.Nil(t, err)
+		defer os.Remove(envFile)
+
+		testConfDir := "test_conf_invalid_env"
+		err = os.MkdirAll(testConfDir, 0755)
+		assert.Nil(t, err)
+		defer os.RemoveAll(testConfDir)
+
+		defaultConfigFile := filepath.Join(testConfDir, constant.DefaultConfigFileName)
+		defaultContent := `
+name: only_default
+port: 1111
+`
+		err = os.WriteFile(defaultConfigFile, []byte(defaultContent), 0644)
+		assert.Nil(t, err)
+
+		type TestConfig struct {
+			Name string `yaml:"name"`
+			Port int    `yaml:"port"`
+		}
+		config := &TestConfig{}
+
+		loadConfig(config)
+
+		assert.Equal(t, constant.DefaultEnv, app.Env)
+		assert.Equal(t, "only_default", config.Name)
+		assert.Equal(t, 1111, config.Port)
+	})
+
+	t.Run("load config prod env sets gin release mode", func(t *testing.T) {
+		prevMode := gin.Mode()
+		defer gin.SetMode(prevMode)
+
+		os.Args = []string{"program", "-env", "prod", "-config", "./test_conf_prod"}
+
+		testConfDir := "test_conf_prod"
+		err := os.MkdirAll(testConfDir, 0755)
+		assert.Nil(t, err)
+		defer os.RemoveAll(testConfDir)
+
+		defaultConfigFile := filepath.Join(testConfDir, constant.DefaultConfigFileName)
+		defaultContent := `
+name: prod_default
+port: 8080
+`
+		err = os.WriteFile(defaultConfigFile, []byte(defaultContent), 0644)
+		assert.Nil(t, err)
+
+		envConfigFile := filepath.Join(testConfDir, constant.CustomConfigFileNamePrefix+"prod"+constant.CustomConfigFileNameSuffix)
+		envContent := `
+name: prod_app
+port: 9090
+`
+		err = os.WriteFile(envConfigFile, []byte(envContent), 0644)
+		assert.Nil(t, err)
+
+		type TestConfig struct {
+			Name string `yaml:"name"`
+			Port int    `yaml:"port"`
+		}
+		config := &TestConfig{}
+
+		loadConfig(config)
+
+		assert.Equal(t, constant.ProdEnv, app.Env)
+		assert.Equal(t, gin.ReleaseMode, gin.Mode())
+		assert.Equal(t, "prod_app", config.Name)
+		assert.Equal(t, 9090, config.Port)
+	})
+
+	t.Run("non-default env loads only custom yaml when default file missing", func(t *testing.T) {
+		tmp := t.TempDir()
+		os.Args = []string{"program", "-env", "staging", "-config", tmp}
+
+		customName := constant.CustomConfigFileNamePrefix + "staging" + constant.CustomConfigFileNameSuffix
+		customPath := filepath.Join(tmp, customName)
+		envContent := `
+name: staging_only
+port: 7777
+`
+		err := os.WriteFile(customPath, []byte(envContent), 0644)
+		assert.NoError(t, err)
+
+		type TestConfig struct {
+			Name string `yaml:"name"`
+			Port int    `yaml:"port"`
+		}
+		config := &TestConfig{}
+
+		loadConfig(config)
+
+		assert.Equal(t, "staging", app.Env)
+		assert.Equal(t, "staging_only", config.Name)
+		assert.Equal(t, 7777, config.Port)
+	})
+
+	t.Run("explicit default env loads default yaml only", func(t *testing.T) {
+		tmp := t.TempDir()
+		os.Args = []string{"program", "-env", "default", "-config", tmp}
+
+		defaultPath := filepath.Join(tmp, constant.DefaultConfigFileName)
+		defaultContent := `
+name: explicit_default_env
+port: 6060
+`
+		err := os.WriteFile(defaultPath, []byte(defaultContent), 0644)
+		assert.NoError(t, err)
+
+		type TestConfig struct {
+			Name string `yaml:"name"`
+			Port int    `yaml:"port"`
+		}
+		config := &TestConfig{}
+
+		loadConfig(config)
+
+		assert.Equal(t, constant.DefaultEnv, app.Env)
+		assert.Equal(t, "explicit_default_env", config.Name)
+		assert.Equal(t, 6060, config.Port)
+	})
+
+	t.Run("default env without env file and without default yaml skips loading", func(t *testing.T) {
+		tmp := t.TempDir()
+		os.Args = []string{"program", "-config", tmp}
+		_ = os.Remove("env")
+
+		type TestConfig struct {
+			Name string `yaml:"name"`
+			Port int    `yaml:"port"`
+		}
+		config := &TestConfig{Name: "preset", Port: 4242}
+
+		loadConfig(config)
+
+		assert.Equal(t, constant.DefaultEnv, app.Env)
+		assert.Equal(t, "preset", config.Name)
+		assert.Equal(t, 4242, config.Port)
 	})
 }
 

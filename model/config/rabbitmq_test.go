@@ -7,6 +7,7 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/stretchr/testify/assert"
 )
 
 // ==================== 单元测试文件（不需要 RabbitMQ 连接） ====================
@@ -1070,6 +1071,239 @@ func TestMessageQueue_InitChannelForProducer_WithConfirm(t *testing.T) {
 	if err == nil {
 		t.Error("无效连接应返回错误")
 	}
+}
+
+// dlqSetupStub 用于在不连接 RabbitMQ 的情况下演练 initDeadLetterQueue 的错误分支。
+type dlqSetupStub struct {
+	exchangeErr error
+	queueErr    error
+	bindErr     error
+}
+
+func (s *dlqSetupStub) ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error {
+	return s.exchangeErr
+}
+
+func (s *dlqSetupStub) QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
+	if s.queueErr != nil {
+		return amqp.Queue{}, s.queueErr
+	}
+	return amqp.Queue{Name: name}, nil
+}
+
+func (s *dlqSetupStub) QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error {
+	return s.bindErr
+}
+
+// recordingAck 记录 Ack/Nack 调用，用于演练 handleMessage 分支。
+type recordingAck struct {
+	ackCalls int
+	nacks    []struct {
+		multiple bool
+		requeue  bool
+	}
+}
+
+func (r *recordingAck) Ack(tag uint64, multiple bool) error {
+	r.ackCalls++
+	return nil
+}
+
+func (r *recordingAck) Nack(tag uint64, multiple, requeue bool) error {
+	r.nacks = append(r.nacks, struct {
+		multiple bool
+		requeue  bool
+	}{multiple, requeue})
+	return nil
+}
+
+func (r *recordingAck) Reject(tag uint64, requeue bool) error {
+	return nil
+}
+
+// TestMessageQueue_initDeadLetterQueue 验证 initDeadLetterQueue 在无 AMQP 连接下的分支覆盖（rabbitMQDeadLetterSetup 桩）
+//
+// 【功能点】验证死信交换机/队列声明与绑定阶段的错误包装及成功路径
+// 【测试流程】
+// 1. 构造启用 DeadLetter 的 MessageQueue
+// 2. 注入 dlqSetupStub 模拟 ExchangeDeclare、QueueDeclare、QueueBind 各自的失败与成功
+func TestMessageQueue_initDeadLetterQueue(t *testing.T) {
+	newDLQMQ := func(messageTTL int64) *MessageQueue {
+		return &MessageQueue{
+			QueueName:    "q",
+			ExchangeName: "ex",
+			ExchangeType: "direct",
+			RoutingKey:   "rk",
+			DeadLetter: DeadLetterConfig{
+				Enabled:    true,
+				MessageTTL: messageTTL,
+			},
+		}
+	}
+
+	t.Run("ExchangeDeclare失败", func(t *testing.T) {
+		mq := newDLQMQ(0)
+		stub := &dlqSetupStub{exchangeErr: errors.New("x-decl-fail")}
+		err := mq.initDeadLetterQueue(stub)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "声明死信交换机失败")
+	})
+
+	t.Run("QueueDeclare失败", func(t *testing.T) {
+		mq := newDLQMQ(0)
+		stub := &dlqSetupStub{queueErr: errors.New("q-decl-fail")}
+		err := mq.initDeadLetterQueue(stub)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "创建死信队列失败")
+	})
+
+	t.Run("QueueBind失败", func(t *testing.T) {
+		mq := newDLQMQ(0)
+		stub := &dlqSetupStub{bindErr: errors.New("bind-fail")}
+		err := mq.initDeadLetterQueue(stub)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "死信队列绑定失败")
+	})
+
+	t.Run("全部成功", func(t *testing.T) {
+		mq := newDLQMQ(0)
+		stub := &dlqSetupStub{}
+		err := mq.initDeadLetterQueue(stub)
+		assert.NoError(t, err)
+	})
+
+	t.Run("MessageTTL生成队列参数仍可走成功路径", func(t *testing.T) {
+		mq := newDLQMQ(5000)
+		stub := &dlqSetupStub{}
+		err := mq.initDeadLetterQueue(stub)
+		assert.NoError(t, err)
+	})
+}
+
+// TestMessageQueue_handleMessageBranches 验证 handleMessage 在各 Fun/FunWithCtx/重试组合下的 Ack/Nack 分支（recordingAck 桩）
+//
+// 【功能点】验证无处理函数直接 Ack；成功 Ack；失败时按重试次数 Nack(requeue) / Nack(!requeue)
+// 【测试流程】
+// 1. 构造带 Acknowledger 桩的 amqp.Delivery
+// 2. 调用 handleMessage 并断言 Ack/Nack 次数与 requeue 参数
+func TestMessageQueue_handleMessageBranches(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("无处理函数直接Ack", func(t *testing.T) {
+		ack := &recordingAck{}
+		msg := amqp.Delivery{Body: []byte("raw"), Acknowledger: ack}
+		mq := MessageQueue{}
+		mq.handleMessage(ctx, msg)
+		assert.Equal(t, 1, ack.ackCalls)
+		assert.Empty(t, ack.nacks)
+	})
+
+	t.Run("FunWithCtx成功Ack", func(t *testing.T) {
+		ack := &recordingAck{}
+		msg := amqp.Delivery{Body: []byte("ok"), Acknowledger: ack}
+		mq := MessageQueue{
+			FunWithCtx: func(_ context.Context, s string) error {
+				assert.Equal(t, "ok", s)
+				return nil
+			},
+			ConsumeConfig: ConsumeConfig{MaxRetry: 3},
+		}
+		mq.handleMessage(ctx, msg)
+		assert.Equal(t, 1, ack.ackCalls)
+		assert.Empty(t, ack.nacks)
+	})
+
+	t.Run("Fun成功Ack", func(t *testing.T) {
+		ack := &recordingAck{}
+		msg := amqp.Delivery{Body: []byte("legacy"), Acknowledger: ack}
+		mq := MessageQueue{
+			Fun: func(s string) error {
+				assert.Equal(t, "legacy", s)
+				return nil
+			},
+		}
+		mq.handleMessage(ctx, msg)
+		assert.Equal(t, 1, ack.ackCalls)
+		assert.Empty(t, ack.nacks)
+	})
+
+	t.Run("FunWithCtx优先于Fun", func(t *testing.T) {
+		var funCalled, ctxCalled bool
+		ack := &recordingAck{}
+		msg := amqp.Delivery{Body: []byte("prio"), Acknowledger: ack}
+		mq := MessageQueue{
+			Fun: func(string) error {
+				funCalled = true
+				return nil
+			},
+			FunWithCtx: func(context.Context, string) error {
+				ctxCalled = true
+				return nil
+			},
+		}
+		mq.handleMessage(ctx, msg)
+		assert.True(t, ctxCalled)
+		assert.False(t, funCalled)
+		assert.Equal(t, 1, ack.ackCalls)
+	})
+
+	t.Run("FunWithCtx失败且未超限则重新入队", func(t *testing.T) {
+		ack := &recordingAck{}
+		msg := amqp.Delivery{Body: []byte("bad"), Acknowledger: ack}
+		mq := MessageQueue{
+			FunWithCtx: func(_ context.Context, s string) error {
+				assert.Equal(t, "bad", s)
+				return errors.New("fail")
+			},
+			ConsumeConfig: ConsumeConfig{MaxRetry: 3},
+		}
+		mq.handleMessage(ctx, msg)
+		assert.Equal(t, 0, ack.ackCalls)
+		assert.Len(t, ack.nacks, 1)
+		assert.False(t, ack.nacks[0].multiple)
+		assert.True(t, ack.nacks[0].requeue)
+	})
+
+	t.Run("Fun失败超过最大重试则丢弃", func(t *testing.T) {
+		ack := &recordingAck{}
+		msg := amqp.Delivery{
+			Body:         []byte("dead"),
+			Acknowledger: ack,
+			Headers: amqp.Table{
+				"x-death": []interface{}{
+					amqp.Table{"count": int64(10)},
+				},
+			},
+		}
+		mq := MessageQueue{
+			FunWithCtx: func(_ context.Context, s string) error {
+				return errors.New("fail")
+			},
+			ConsumeConfig: ConsumeConfig{MaxRetry: 3},
+		}
+		mq.handleMessage(ctx, msg)
+		assert.Equal(t, 0, ack.ackCalls)
+		assert.Len(t, ack.nacks, 1)
+		assert.False(t, ack.nacks[0].requeue)
+	})
+}
+
+// TestMessageQueue_waitForConfirm_nilChan 验证未初始化 Publisher Confirm 通道时的错误返回
+//
+// 【功能点】验证 waitForConfirm 在 confirmChan 为 nil 时返回可读错误（无需真实 MQ）
+// 【测试流程】
+// 1. 构造 confirmChan 为零值的 MessageQueue
+// 2. 调用 waitForConfirm 并断言错误文案包含「确认通道未初始化」
+func TestMessageQueue_waitForConfirm_nilChan(t *testing.T) {
+	mq := MessageQueue{
+		MQName:       "stub-mq",
+		QueueName:    "q",
+		ExchangeName: "ex",
+	}
+	ctx := context.Background()
+	err := mq.waitForConfirm(ctx)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "确认通道未初始化")
 }
 
 // ==================== 单元测试：消费者配置应用（不需要 RabbitMQ 连接） ====================

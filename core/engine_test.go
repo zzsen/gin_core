@@ -167,6 +167,8 @@ func TestHealthDetectEngine(t *testing.T) {
 //  3. 测试带中间件初始化 - 验证注册的中间件被正确加载
 //  4. 测试未知中间件处理 - 验证配置正确设置
 //  5. 测试自定义选项函数 - 验证选项函数被执行
+//  6. 测试 Middlewares 为 nil 与不注册自定义中间件分支，并验证根路径健康检查
+//  7. 测试 Metrics.Enabled 开启时注册自定义 Prometheus 路径
 func TestInitEngine(t *testing.T) {
 	// 保存原始配置
 	originalConfig := app.BaseConfig
@@ -193,6 +195,11 @@ func TestInitEngine(t *testing.T) {
 		engine := initEngine()
 		assert.NotNil(t, engine)
 		assert.NotNil(t, engine.RouterGroup)
+
+		req := httptest.NewRequest("GET", "/healthy", nil)
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("init engine with route prefix", func(t *testing.T) {
@@ -214,6 +221,33 @@ func TestInitEngine(t *testing.T) {
 		engine := initEngine()
 		assert.NotNil(t, engine)
 		assert.NotNil(t, engine.RouterGroup)
+	})
+
+	t.Run("init engine with route prefix and middlewares", func(t *testing.T) {
+		optionFuncList = make([]gin.OptionFunc, 0)
+
+		app.BaseConfig = config.BaseConfig{
+			Service: config.ServiceInfo{
+				RoutePrefix: "/api/v2",
+				Middlewares: []string{"mwCombined"},
+			},
+		}
+
+		middleWareMap = make(map[string]func() gin.HandlerFunc)
+		_ = RegisterMiddleware("mwCombined", func() gin.HandlerFunc {
+			return gin.HandlerFunc(func(c *gin.Context) {
+				c.Next()
+			})
+		})
+
+		engine := initEngine()
+		assert.NotNil(t, engine)
+		assert.NotNil(t, engine.RouterGroup)
+
+		req := httptest.NewRequest("GET", "/api/v2/healthy", nil)
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("init engine with middlewares", func(t *testing.T) {
@@ -262,6 +296,52 @@ func TestInitEngine(t *testing.T) {
 		// 这个测试会调用os.Exit(1)，所以我们需要在子进程中运行
 		// 这里我们只验证配置设置正确
 		assert.Equal(t, "unknownMiddleware", app.BaseConfig.Service.Middlewares[0])
+	})
+
+	t.Run("init engine with nil middleware slice uses no custom middleware", func(t *testing.T) {
+		optionFuncList = make([]gin.OptionFunc, 0)
+
+		app.BaseConfig = config.BaseConfig{
+			Service: config.ServiceInfo{
+				RoutePrefix: "",
+				Middlewares: nil,
+			},
+		}
+
+		middleWareMap = make(map[string]func() gin.HandlerFunc)
+
+		engine := initEngine()
+		assert.NotNil(t, engine)
+
+		req := httptest.NewRequest("GET", "/healthy", nil)
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("init engine metrics enabled registers custom path", func(t *testing.T) {
+		optionFuncList = make([]gin.OptionFunc, 0)
+
+		app.BaseConfig = config.BaseConfig{
+			Service: config.ServiceInfo{
+				RoutePrefix: "",
+				Middlewares: []string{},
+			},
+			Metrics: config.MetricsConfig{
+				Enabled: true,
+				Path:    "/prom/custom",
+			},
+		}
+
+		middleWareMap = make(map[string]func() gin.HandlerFunc)
+
+		engine := initEngine()
+		assert.NotNil(t, engine)
+
+		req := httptest.NewRequest("GET", "/prom/custom", nil)
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("init engine with custom option functions", func(t *testing.T) {

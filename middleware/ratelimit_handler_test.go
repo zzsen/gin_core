@@ -20,14 +20,25 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/model/config"
 )
 
 // ==================== 测试辅助函数 ====================
+
+// resetRateLimiterGlobals 重置限流单例状态，便于分支测试互不干扰
+func resetRateLimiterGlobals(t *testing.T) {
+	t.Helper()
+	limiterOnce = sync.Once{}
+	globalLimiter = nil
+}
 
 // setupRateLimitTestConfig 设置测试配置
 // 备份原始配置，设置测试配置，返回清理函数
@@ -490,6 +501,104 @@ func TestGenerateRateLimitKey(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestToString_ViaGenerateRateLimitKey 中文描述：验证 user 限流键中对上下文字段的字符串化
+//
+// 【功能点】覆盖 toString 对各类型及 default 分支（含 nil、float、bool）
+// 【测试流程】
+// 1. 向上下文写入不同类型的 userID
+// 2. 调用 generateRateLimitKey(..., "user", ...)
+// 3. 断言键前缀符合预期
+func TestToString_ViaGenerateRateLimitKey(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name string
+		val  interface{}
+		want string
+	}{
+		{"string", "abc", "user:abc:/api/p"},
+		{"int", 42, "user:42:/api/p"},
+		{"int64", int64(-3), "user:-3:/api/p"},
+		{"uint", uint(9), "user:9:/api/p"},
+		{"uint64", uint64(100), "user:100:/api/p"},
+		{"float64", 3.14, "user:3.14:/api/p"},
+		{"bool", true, "user:true:/api/p"},
+		{"nil", nil, "user:<nil>:/api/p"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request, _ = http.NewRequest("GET", "/api/p", nil)
+			c.Request.RemoteAddr = "192.168.0.1:1"
+			c.Set("userID", tt.val)
+
+			got := generateRateLimitKey(c, "user", "/api/p")
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestGetLimiter_CloseLimiter 中文描述：获取与关闭全局限流器
+//
+// 【功能点】验证 GetLimiter 初始化内存限流器，CloseLimiter 可重复调用且返回 nil
+// 【测试流程】
+// 1. 重置单例并配置 memory 存储
+// 2. 调用 GetLimiter 断言非 nil
+// 3. 调用 CloseLimiter 断言无错误（内存实现单次关闭合法）
+func TestGetLimiter_CloseLimiter(t *testing.T) {
+	resetRateLimiterGlobals(t)
+	defer resetRateLimiterGlobals(t)
+	cleanup := setupRateLimitTestConfig(config.RateLimitConfig{
+		Enabled: true,
+		Store:   "memory",
+	})
+	defer cleanup()
+
+	limiter := GetLimiter()
+	require.NotNil(t, limiter)
+	assert.NoError(t, CloseLimiter())
+}
+
+// TestCloseLimiter_BeforeInit 中文描述：未初始化时限流器关闭路径
+//
+// 【功能点】globalLimiter 为 nil 时 CloseLimiter 返回 nil
+// 【测试流程】
+// 1. 重置单例且不触发 RateLimitHandler/GetLimiter
+// 2. 调用 CloseLimiter
+func TestCloseLimiter_BeforeInit(t *testing.T) {
+	resetRateLimiterGlobals(t)
+
+	assert.NoError(t, CloseLimiter())
+}
+
+// TestInitLimiter_RedisStore_RedNilFallsBackToMemory 中文描述：Redis 存储配置但客户端未初始化时降级
+//
+// 【功能点】覆盖 initLimiter 在 store=redis 且 app.Redis==nil 时使用内存限流器
+// 【测试流程】
+// 1. 重置单例，备份并清空 app.Redis
+// 2. 配置 RateLimit.Store 为 redis 且启用限流
+// 3. 调用 GetLimiter 触发初始化
+// 4. 断言返回非 nil；关闭并恢复 Redis
+func TestInitLimiter_RedisStore_RedNilFallsBackToMemory(t *testing.T) {
+	resetRateLimiterGlobals(t)
+	defer resetRateLimiterGlobals(t)
+	origRedis := app.Redis
+	app.Redis = nil
+	defer func() { app.Redis = origRedis }()
+
+	cleanup := setupRateLimitTestConfig(config.RateLimitConfig{
+		Enabled: true,
+		Store:   "redis",
+	})
+	defer cleanup()
+
+	limiter := GetLimiter()
+	require.NotNil(t, limiter)
+	assert.NoError(t, CloseLimiter())
 }
 
 // ==================== 基准测试 ====================

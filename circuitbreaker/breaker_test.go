@@ -27,6 +27,9 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // ==================== 基础功能测试 ====================
@@ -788,6 +791,109 @@ func TestExecuteFunction(t *testing.T) {
 	if err != nil {
 		t.Errorf("Execute 应成功，错误: %v", err)
 	}
+}
+
+// TestRegistry_SetConfigFactory 中文描述：运行时替换配置工厂
+//
+// 【功能点】验证 SetConfigFactory 后新建的熔断器使用新配置的阈值
+// 【测试流程】
+// 1. NewRegistry 后 SetConfigFactory 将 FailureThreshold 固定为 1
+// 2. Get 创建熔断器并执行一次失败调用
+// 3. 断言状态变为 Open
+func TestRegistry_SetConfigFactory(t *testing.T) {
+	reg := NewRegistry(nil)
+	reg.SetConfigFactory(func(name string) *Config {
+		return NewConfig(name, WithFailureThreshold(1))
+	})
+
+	cb := reg.Get("svc-factory")
+	ctx := context.Background()
+	_ = cb.Execute(ctx, func() error { return errors.New("down") })
+
+	assert.Equal(t, StateOpen, cb.State())
+}
+
+// TestRegistry_GetWithConfig 中文描述：按指定 Config 获取或创建熔断器
+//
+// 【功能点】验证 GetWithConfig 对同名返回同一实例
+// 【测试流程】
+// 1. 两次 GetWithConfig 传入同 Name 的配置
+// 2. 断言指针相同
+func TestRegistry_GetWithConfig(t *testing.T) {
+	reg := NewRegistry(nil)
+	cfg := NewConfig("cfg-svc", WithFailureThreshold(99))
+
+	a := reg.GetWithConfig(cfg)
+	b := reg.GetWithConfig(cfg)
+
+	assert.Same(t, a, b)
+}
+
+// TestRegistry_Register_Remove 中文描述：手动注册与移除熔断器
+//
+// 【功能点】验证 Register 覆盖映射；Remove 后 Get 会新建实例
+// 【测试流程】
+// 1. Register 自定义熔断器，Get 同名应返回该实例
+// 2. Remove 后再次 Get，断言新实例与旧实例不同
+func TestRegistry_Register_Remove(t *testing.T) {
+	reg := NewRegistry(nil)
+	custom := New(NewConfig("manual-svc", WithFailureThreshold(10)))
+	reg.Register(custom)
+
+	assert.Same(t, custom, reg.Get("manual-svc"))
+
+	prev := reg.Get("volatile")
+	reg.Remove("volatile")
+	next := reg.Get("volatile")
+
+	assert.NotSame(t, prev, next)
+}
+
+// TestRegistry_Reset_ByName 中文描述：按名称重置注册表中的熔断器
+//
+// 【功能点】验证 Registry.Reset 将已打开熔断器恢复为 Closed
+// 【测试流程】
+// 1. GetWithConfig 创建低阈值熔断器并触发 Open
+// 2. 调用 Reset(name)
+// 3. 断言同一实例状态为 Closed
+func TestRegistry_Reset_ByName(t *testing.T) {
+	reg := NewRegistry(nil)
+	cb := reg.GetWithConfig(NewConfig("reset-me", WithFailureThreshold(1)))
+
+	ctx := context.Background()
+	_ = cb.Execute(ctx, func() error { return errors.New("err") })
+	require.Equal(t, StateOpen, cb.State())
+
+	reg.Reset("reset-me")
+
+	assert.Equal(t, StateClosed, reg.Get("reset-me").State())
+}
+
+// TestGetBreaker_ResetBreaker 中文描述：全局 GetBreaker 与 ResetBreaker 便捷方法
+//
+// 【功能点】验证全局注册表上的熔断器可被 ResetBreaker 恢复
+// 【测试流程】
+// 1. 重置全局 Registry 单例
+// 2. GetBreaker 获取熔断器并触发熔断
+// 3. ResetBreaker 后状态回到 Closed
+func TestGetBreaker_ResetBreaker(t *testing.T) {
+	registryOnce = sync.Once{}
+	defaultRegistry = nil
+	defer func() {
+		registryOnce = sync.Once{}
+		defaultRegistry = nil
+	}()
+
+	GetRegistry().Register(New(NewConfig("global-edge", WithFailureThreshold(1))))
+	cb := GetBreaker("global-edge")
+
+	ctx := context.Background()
+	_ = cb.Execute(ctx, func() error { return errors.New("err") })
+	require.Equal(t, StateOpen, cb.State())
+
+	ResetBreaker("global-edge")
+
+	assert.Equal(t, StateClosed, GetBreaker("global-edge").State())
 }
 
 // ==================== 基准测试 ====================

@@ -17,11 +17,18 @@
 package middleware
 
 import (
+	"context"
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/zzsen/gin_core/model/config"
+	"github.com/zzsen/gin_core/tracing"
 )
 
 // ==================== 测试辅助函数 ====================
@@ -205,7 +212,104 @@ func TestOtelTraceHandler_MultipleRequests(t *testing.T) {
 	}
 }
 
+// TestOtelTraceHandler_TracingEnabled_BasicFlow 中文描述：启用 tracing 时中间件完整链路
+//
+// 【功能点】使用 stdout 导出器初始化 OTel，覆盖 OtelTraceHandler 中 Span 创建、响应头与状态记录
+// 【测试流程】
+// 1. InitTracer 启用 tracing（stdout、全采样）
+// 2. defer 关闭 Provider 并回落到 Enabled=false
+// 3. 走完整路由，断言 200 且响应含 X-Trace-ID
+func TestOtelTraceHandler_TracingEnabled_BasicFlow(t *testing.T) {
+	shutdown, err := tracing.InitTracer(&config.TracingConfig{
+		Enabled:        true,
+		ServiceName:    "gin-core-mw-test",
+		ExporterType:   "stdout",
+		SampleRate:     1.0,
+		PropagatorType: "tracecontext",
+	})
+	require.NoError(t, err)
+	defer func() {
+		_ = shutdown(context.Background())
+		_, _ = tracing.InitTracer(&config.TracingConfig{Enabled: false})
+	}()
+
+	router := createOtelTestRouter(OtelTraceHandler())
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/test", nil)
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.NotEmpty(t, w.Header().Get("X-Trace-ID"))
+	assert.NotEmpty(t, w.Header().Get("X-Span-ID"))
+}
+
+// TestOtelTraceHandler_W3CTraceContextPropagation 中文描述：从 traceparent 注入父上下文
+//
+// 【功能点】验证 propagator.Extract 与 Span 衔接（覆盖 Extract 分支）
+// 【测试流程】
+// 1. 初始化 tracer（同上）
+// 2. 请求携带合法 traceparent 头
+// 3. 断言请求仍可完成且带上追踪响应头
+func TestOtelTraceHandler_W3CTraceContextPropagation(t *testing.T) {
+	shutdown, err := tracing.InitTracer(&config.TracingConfig{
+		Enabled:        true,
+		ServiceName:    "gin-core-mw-test",
+		ExporterType:   "stdout",
+		SampleRate:     1.0,
+		PropagatorType: "tracecontext",
+	})
+	require.NoError(t, err)
+	defer func() {
+		_ = shutdown(context.Background())
+		_, _ = tracing.InitTracer(&config.TracingConfig{Enabled: false})
+	}()
+
+	router := createOtelTestRouter(OtelTraceHandler())
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/test", nil)
+	req.Header.Set("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.NotEmpty(t, w.Header().Get("X-Trace-ID"))
+}
+
 // ==================== getScheme 辅助函数测试 ====================
+
+// TestGetScheme_TLSConnection 中文描述：直连 TLS 时 scheme 为 https
+//
+// 【功能点】覆盖 getScheme 在无 X-Forwarded-Proto 时依据 TLS 返回 https
+// 【测试流程】
+// 1. 构造 gin.Context，Request.TLS 非空
+// 2. 断言 getScheme 返回 https
+func TestGetScheme_TLSConnection(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request, _ = http.NewRequest("GET", "/test", nil)
+	c.Request.TLS = &tls.ConnectionState{}
+
+	assert.Equal(t, "https", getScheme(c))
+}
+
+// TestGetScheme_XForwardedProtoOverridesTLS 中文描述：代理头优先于 TLS 标记
+//
+// 【功能点】同时存在 X-Forwarded-Proto 与 TLS 时以前者为准
+// 【测试流程】
+// 1. 设置 TLS 与 X-Forwarded-Proto: http
+// 2. 断言 scheme 为 http
+func TestGetScheme_XForwardedProtoOverridesTLS(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request, _ = http.NewRequest("GET", "/test", nil)
+	c.Request.TLS = &tls.ConnectionState{}
+	c.Request.Header.Set("X-Forwarded-Proto", "http")
+
+	assert.Equal(t, "http", getScheme(c))
+}
 
 // TestGetScheme 测试 getScheme 函数
 //

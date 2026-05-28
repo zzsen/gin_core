@@ -151,3 +151,21 @@ circuit_breaker_state_transitions_total{from="closed",name="svc-d",to="open"} 1
 	err := testutil.CollectAndCompare(collector.metrics.transitionsTotal, strings.NewReader(expected))
 	assert.NoError(t, err)
 }
+
+// TestEnableMetrics_IsMetricsEnabled 中文描述：启用指标开关与全局标志
+//
+// 【功能点】验证 EnableMetrics 将 IsMetricsEnabled 置为 true 并返回 Collector
+// 【测试流程】
+// 1. 若进程内已启用则 Skip（避免 prometheus.MustRegister 重复panic）
+// 2. 调用 EnableMetrics(NewRegistry(nil))
+// 3. 断言返回值非空且 IsMetricsEnabled() 为 true
+func TestEnableMetrics_IsMetricsEnabled(t *testing.T) {
+	if IsMetricsEnabled() {
+		t.Skip("EnableMetrics 仅首次注册到默认 Prometheus Registry；已启用则跳过以防 MustRegister 冲突")
+	}
+
+	reg := NewRegistry(nil)
+	col := EnableMetrics(reg)
+	require.NotNil(t, col)
+	assert.True(t, IsMetricsEnabled())
+}
