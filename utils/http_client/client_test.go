@@ -25,12 +25,14 @@ package http_client
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -536,4 +538,150 @@ func TestDoRequest_NoTimeout(t *testing.T) {
 	resp := GetWithContext(context.Background(), srv.URL, 0, nil)
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, "no-timeout", resp.Body)
+}
+
+// roundTripperFunc 用于测试的 RoundTripper 适配器
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+// fakeTimeoutNetError 实现 net.Error 且 Timeout 为 true，供 isRetryableError 识别（不经 url.Error 包装时可直接判定）
+type fakeTimeoutNetError struct{}
+
+func (fakeTimeoutNetError) Error() string   { return "fake timeout" }
+func (fakeTimeoutNetError) Timeout() bool   { return true }
+func (fakeTimeoutNetError) Temporary() bool { return true }
+
+// TestDoWithRetry_SucceedsAfterDialFailures 重试后请求成功
+//
+// 【功能点】doWithRetry 在多次可重试的网络超时错误后最终返回成功响应
+// 【测试流程】
+// 1. 自定义 Transport 前两次返回 fakeTimeoutNetError，第三次委托真实 Transport
+// 2. Client.Do 最终 200 且尝试次数大于 1
+func TestDoWithRetry_SucceedsAfterDialFailures(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`ok`))
+	}))
+	defer srv.Close()
+
+	cfg := DefaultClientConfig()
+	cfg.EnableTracing = false
+	cfg.MaxRetries = 5
+	cfg.RetryInterval = 5 * time.Millisecond
+	client := NewClient(cfg)
+
+	var attempts int32
+	base := client.httpClient.Transport
+	client.httpClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		n := atomic.AddInt32(&attempts, 1)
+		if n < 3 {
+			return nil, fakeTimeoutNetError{}
+		}
+		return base.RoundTrip(req)
+	})
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL, nil)
+	require.NoError(t, err)
+	resp, err := client.Do(context.Background(), req)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	_ = resp.Body.Close()
+	assert.GreaterOrEqual(t, atomic.LoadInt32(&attempts), int32(3))
+}
+
+// TestPostFormWithContext_FileReaderCopyError fileMap 读取失败
+//
+// 【功能点】io.Copy 复制 fileMap 失败时返回带错误的 ResponseWrapper
+// 【测试流程】
+// 1. 传入 Read 始终失败的 io.Reader
+// 2. 断言 Body 包含「复制文件内容失败」
+func TestPostFormWithContext_FileReaderCopyError(t *testing.T) {
+	badReader := io.NopCloser(errReader{})
+	resp := PostFormWithContext(
+		context.Background(),
+		"http://example.com",
+		nil, nil,
+		map[string]io.Reader{"f": badReader},
+		nil, 5,
+	)
+	assert.True(t, resp.HasError())
+	assert.Contains(t, resp.Body, "复制文件内容失败")
+}
+
+type errReader struct{}
+
+func (errReader) Read(_ []byte) (int, error) {
+	return 0, errors.New("simulated read error")
+}
+
+// TestDeleteWithContext_InvalidURL DELETE 非法 URL
+//
+// 【功能点】DeleteWithContext 在构造请求失败时返回 HasError
+func TestDeleteWithContext_InvalidURL(t *testing.T) {
+	resp := DeleteWithContext(context.Background(), "http://a b", 5, nil)
+	assert.True(t, resp.HasError())
+	assert.Contains(t, resp.Body, "创建HTTP请求错误")
+}
+
+// TestPostParamsWithContext_InvalidURL POST 参数非法 URL
+//
+// 【功能点】PostParamsWithContext 构造请求失败路径
+func TestPostParamsWithContext_InvalidURL(t *testing.T) {
+	resp := PostParamsWithContext(context.Background(), "://bad", "a=b", 5, nil)
+	assert.True(t, resp.HasError())
+	assert.Contains(t, resp.Body, "创建HTTP请求错误")
+}
+
+// TestPostJSONWithContext_InvalidURL POST JSON 非法 URL
+//
+// 【功能点】PostJSONWithContext 构造请求失败路径
+func TestPostJSONWithContext_InvalidURL(t *testing.T) {
+	resp := PostJSONWithContext(context.Background(), ":/noop", `{}`, 5, nil)
+	assert.True(t, resp.HasError())
+	assert.Contains(t, resp.Body, "创建HTTP请求错误")
+}
+
+// TestPutJSONWithContext_InvalidURL PUT JSON 非法 URL
+//
+// 【功能点】PutJSONWithContext 构造请求失败路径
+func TestPutJSONWithContext_InvalidURL(t *testing.T) {
+	resp := PutJSONWithContext(context.Background(), "", `{}`, 5, nil)
+	assert.True(t, resp.HasError())
+}
+
+// TestDoRequest_ReadBodyError 响应体读取失败
+//
+// 【功能点】doRequest 在 io.ReadAll 失败时填充 Error 与 Body 文案
+// 【测试流程】
+// 1. 替换默认 Client 的 Transport 返回自定义 Body，Read 失败
+// 2. 通过 GetWithContext 走 doRequest
+func TestDoRequest_ReadBodyError(t *testing.T) {
+	cfg := DefaultClientConfig()
+	cfg.EnableTracing = false
+	client := NewClient(cfg)
+
+	client.httpClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(errReader{}),
+			Request:    req,
+		}, nil
+	})
+
+	dc := GetDefaultClient()
+	origTransport := dc.httpClient.Transport
+	dc.httpClient.Transport = client.httpClient.Transport
+	defer func() { dc.httpClient.Transport = origTransport }()
+
+	srv := httptest.NewServer(http.NotFoundHandler())
+	defer srv.Close()
+
+	resp := GetWithContext(context.Background(), srv.URL, 5, nil)
+	assert.True(t, resp.HasError())
+	assert.Contains(t, resp.Body, "读取HTTP请求返回值失败")
 }

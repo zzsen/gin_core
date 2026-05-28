@@ -21,6 +21,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/zzsen/gin_core/app"
 	"github.com/zzsen/gin_core/model/config"
 )
@@ -109,9 +111,7 @@ func TestInitialRabbitMqProducer_Empty(t *testing.T) {
 	// 空列表不应 panic
 	InitialRabbitMqProducer()
 
-	if getProducerTestRabbitMQProducerListLength() != 0 {
-		t.Errorf("空列表初始化后，生产者列表应为空，实际长度: %d", getProducerTestRabbitMQProducerListLength())
-	}
+	assert.Equal(t, 0, getProducerTestRabbitMQProducerListLength())
 }
 
 // TestInitialRabbitMqProducer_NoMQConfig 测试无 MQ 配置时的初始化

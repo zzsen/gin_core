@@ -1,3 +1,5 @@
+// Package file 提供文件系统相关的工具函数，
+// 包括文件 MD5 计算和路径存在性检查。
 package file
 
 import (

@@ -1,3 +1,5 @@
+// Package ginContext 提供从 Gin 上下文中提取请求数据的工具函数，
+// 支持按优先级从 URL 参数、查询参数和请求体中获取指定键的值。
 package ginContext
 
 import (

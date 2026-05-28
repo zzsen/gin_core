@@ -35,13 +35,18 @@ type SmtpConfig struct {
 // 返回：
 //   - error: 发送失败时返回错误
 func SendHtmlByTLS(conf SmtpConfig, receiver string, subject string, text string) error {
+	em := buildHtmlEmail(conf, receiver, subject, text)
+
+	return em.Send(fmt.Sprintf("%s:%d", conf.Host, conf.Port), smtp.PlainAuth("", conf.Username, conf.Password, conf.Host))
+}
+
+func buildHtmlEmail(conf SmtpConfig, receiver, subject, text string) *email.Email {
 	em := email.NewEmail()
 	em.From = conf.Sender
 	em.To = []string{receiver}
 	em.Subject = subject
 	em.HTML = []byte(text)
-
-	return em.Send(fmt.Sprintf("%s:%d", conf.Host, conf.Port), smtp.PlainAuth("", conf.Username, conf.Password, conf.Host))
+	return em
 }
 
 // SendHtml 通过直接 TLS 连接发送 HTML 邮件。
@@ -103,11 +108,7 @@ func SendHtml(conf SmtpConfig, receiver string, subject string, text string) err
 		return err
 	}
 
-	em := email.NewEmail()
-	em.From = conf.Sender
-	em.To = []string{receiver}
-	em.Subject = subject
-	em.HTML = []byte(text)
+	em := buildHtmlEmail(conf, receiver, subject, text)
 
 	raw, err := em.Bytes()
 	if err != nil {
