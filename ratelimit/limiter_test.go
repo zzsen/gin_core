@@ -147,14 +147,15 @@ func TestMemoryLimiter_Allow_RateRecovery(t *testing.T) {
 // TestMemoryLimiter_Allow_Concurrent 测试并发安全性
 //
 // 【功能点】验证多协程并发访问同一 key 不会 panic 且限流正确
-// 【测试流程】50 个协程各发 10 次请求，验证总允许数不超过 burst
+// 【测试流程】50 个协程各发 10 次请求，验证总允许数不超过 burst + 合理补充量
 func TestMemoryLimiter_Allow_Concurrent(t *testing.T) {
 	limiter := NewMemoryLimiter(time.Minute)
 	defer limiter.Close()
 
 	ctx := context.Background()
 	key := "concurrent-test"
-	rate := 1000
+	// 令牌补充速率设为 1/s，确保测试期间（毫秒级）几乎不补充令牌
+	rateVal := 1
 	burst := 100
 
 	var wg sync.WaitGroup
@@ -167,7 +168,7 @@ func TestMemoryLimiter_Allow_Concurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < requestsPerGoroutine; j++ {
-				allowed, err := limiter.Allow(ctx, key, rate, burst)
+				allowed, err := limiter.Allow(ctx, key, rateVal, burst)
 				if err != nil {
 					t.Errorf("Allow 返回错误: %v", err)
 					return
@@ -181,8 +182,8 @@ func TestMemoryLimiter_Allow_Concurrent(t *testing.T) {
 
 	wg.Wait()
 
-	// 允许的请求数不应远超 burst（token bucket 在高并发下存在微量竞态，允许 ±2 的容差）
-	if allowedCount > int32(burst)+2 {
+	// burst=100, rate=1/s, 测试在毫秒级完成，最多额外补充 1-2 个令牌
+	if allowedCount > int32(burst)+5 {
 		t.Errorf("允许的请求数 %d 远超 burst %d", allowedCount, burst)
 	}
 

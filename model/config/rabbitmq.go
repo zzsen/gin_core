@@ -262,13 +262,20 @@ func (m *MessageQueue) initChannel() error {
 	return nil
 }
 
+// rabbitMQDeadLetterSetup 封装 initDeadLetterQueue 所需的 Channel 操作；*amqp.Channel 天然满足该接口，测试中可用桩替换。
+type rabbitMQDeadLetterSetup interface {
+	ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error
+	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error)
+	QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error
+}
+
 // initDeadLetterQueue 初始化死信队列
 //
 // 执行流程：
 // 1. 声明死信交换机（类型与主交换机相同）
 // 2. 声明死信队列（可选配置 TTL）
 // 3. 将死信队列绑定到死信交换机
-func (m *MessageQueue) initDeadLetterQueue(ch *amqp.Channel) error {
+func (m *MessageQueue) initDeadLetterQueue(ch rabbitMQDeadLetterSetup) error {
 	queueInfo := m.GetInfo()
 	dlxExchange := m.getDeadLetterExchange()
 	dlxQueue := m.getDeadLetterQueue()
