@@ -20,6 +20,7 @@ package lifecycle
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -393,4 +394,105 @@ func TestRegistry_InitService_Initializing(t *testing.T) {
 	err := r.InitService(context.Background(), "svc-a")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "正在初始化中")
+}
+
+// TestRegistry_CloseService_BeforeCloseHookError_ContinuesClose 关闭前钩子失败仍继续关闭
+//
+// 【功能点】BeforeClose 钩子返回错误时仅记日志，Close 仍执行且最终 StateClosed
+// 【测试流程】
+// 1. 注册服务并置为 Ready，注册失败的 BeforeClose 钩子
+// 2. CloseService 成功返回且 closeFn 被调用
+func TestRegistry_CloseService_BeforeCloseHookError_ContinuesClose(t *testing.T) {
+	r := NewServiceRegistry()
+	var closed bool
+	svc := newMock("svc-a", 1)
+	svc.closeFn = func(context.Context) error {
+		closed = true
+		return nil
+	}
+	require.NoError(t, r.Register(svc))
+	r.SetState("svc-a", StateReady)
+
+	r.RegisterHook("svc-a", Hook{
+		Phase: BeforeClose,
+		Fn:    func(context.Context, string) error { return errors.New("before-close-hook") },
+	})
+
+	err := r.CloseService(context.Background(), "svc-a")
+	require.NoError(t, err)
+	assert.True(t, closed)
+	assert.Equal(t, StateClosed, r.GetState("svc-a"))
+}
+
+// TestRegistry_CloseService_AfterCloseHookError_StillClosed AfterClose 钩子失败仍置为已关闭
+//
+// 【功能点】AfterClose 钩子失败仅记日志，服务状态仍为 StateClosed
+// 【测试流程】
+// 1. BeforeClose 成功、Close 成功、AfterClose 返回错误
+// 2. CloseService 返回 nil，状态为 Closed
+func TestRegistry_CloseService_AfterCloseHookError_StillClosed(t *testing.T) {
+	r := NewServiceRegistry()
+	svc := newMock("svc-a", 1)
+	require.NoError(t, r.Register(svc))
+	r.SetState("svc-a", StateReady)
+
+	r.RegisterHook("svc-a", Hook{
+		Phase: AfterClose,
+		Fn:    func(context.Context, string) error { return errors.New("after-close-hook") },
+	})
+
+	err := r.CloseService(context.Background(), "svc-a")
+	require.NoError(t, err)
+	assert.Equal(t, StateClosed, r.GetState("svc-a"))
+}
+
+// TestRegistry_CloseService_CloseReturnsError 关闭实现返回错误
+//
+// 【功能点】service.Close 返回错误时 CloseService 返回该错误且不进入 AfterClose
+// 【测试流程】
+// 1. closeFn 返回错误
+// 2. CloseService 返回错误，状态保持 Ready
+func TestRegistry_CloseService_CloseReturnsError(t *testing.T) {
+	r := NewServiceRegistry()
+	var afterCalls int32
+	svc := newMock("svc-a", 1)
+	svc.closeFn = func(context.Context) error { return errors.New("close-failed") }
+	require.NoError(t, r.Register(svc))
+	r.SetState("svc-a", StateReady)
+
+	r.RegisterHook("svc-a", Hook{
+		Phase: AfterClose,
+		Fn: func(context.Context, string) error {
+			atomic.AddInt32(&afterCalls, 1)
+			return nil
+		},
+	})
+
+	err := r.CloseService(context.Background(), "svc-a")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "close-failed")
+	assert.Equal(t, StateReady, r.GetState("svc-a"))
+	assert.Equal(t, int32(0), atomic.LoadInt32(&afterCalls))
+}
+
+// TestRegistry_CloseService_AlreadyClosed 重复关闭已关闭状态的服务
+//
+// 【功能点】状态非 Ready 时 CloseService 静默跳过，不调用 Close
+// 【测试流程】
+// 1. 将状态设为 StateClosed
+// 2. CloseService 返回 nil 且 closeFn 不被调用
+func TestRegistry_CloseService_AlreadyClosed(t *testing.T) {
+	r := NewServiceRegistry()
+	var closeCalls int32
+	svc := newMock("svc-a", 1)
+	svc.closeFn = func(context.Context) error {
+		atomic.AddInt32(&closeCalls, 1)
+		return nil
+	}
+	require.NoError(t, r.Register(svc))
+	r.SetState("svc-a", StateClosed)
+
+	err := r.CloseService(context.Background(), "svc-a")
+	require.NoError(t, err)
+	assert.Equal(t, int32(0), atomic.LoadInt32(&closeCalls))
 }

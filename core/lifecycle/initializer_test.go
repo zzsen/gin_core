@@ -416,3 +416,61 @@ func TestInitializer_SingleServiceLayer(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, StateReady, r.GetState("a"))
 }
+
+// TestInitializer_Close_ResolveFails_FallbackSequential 依赖成环时 Close 降级逐个关闭
+//
+// 【功能点】ParallelInitializer.Close 在 Resolve 失败时按注册顺序逐个调用 CloseService
+// 【测试流程】
+// 1. 构造 A↔B 循环依赖并手动置为 Ready（跳过 Init）
+// 2. Close 应降级关闭，最终均为 StateClosed
+func TestInitializer_Close_ResolveFails_FallbackSequential(t *testing.T) {
+	a := newMock("A", 1, "B")
+	b := newMock("B", 1, "A")
+	r := buildRegistry(a, b)
+	r.SetState("A", StateReady)
+	r.SetState("B", StateReady)
+
+	p := NewParallelInitializer(r, DefaultInitConfig)
+	err := p.Close(context.Background(), &config.BaseConfig{})
+	require.NoError(t, err)
+	assert.Equal(t, StateClosed, r.GetState("A"))
+	assert.Equal(t, StateClosed, r.GetState("B"))
+}
+
+// TestInitializer_Close_ParallelLayerError 同层关闭任一失败时记录错误但整体返回 nil
+//
+// 【功能点】errgroup.Wait 返回错误时仅打日志，Close 方法仍返回 nil
+// 【测试流程】
+// 1. 两个无依赖服务同层，其中一个 Close 返回错误
+// 2. Close(context) 返回 nil
+func TestInitializer_Close_ParallelLayerError(t *testing.T) {
+	a := newMock("a", 1)
+	b := newMock("b", 2)
+	a.closeFn = func(context.Context) error { return errors.New("close-a-fail") }
+	b.closeFn = func(context.Context) error { return nil }
+
+	r := buildRegistry(a, b)
+	r.SetState("a", StateReady)
+	r.SetState("b", StateReady)
+
+	p := NewParallelInitializer(r, DefaultInitConfig)
+	err := p.Close(context.Background(), &config.BaseConfig{})
+	require.NoError(t, err)
+}
+
+// TestInitializer_Init_ValidateDependenciesWarnPath 存在缺失依赖时 Init 仍继续
+//
+// 【功能点】Resolve 前缺失依赖仅告警，不影响后续层级初始化
+// 【测试流程】
+// 1. 注册依赖不存在服务的节点与叶子节点
+// 2. Init 成功且叶子服务就绪
+func TestInitializer_Init_ValidateDependenciesWarnPath(t *testing.T) {
+	child := newMock("child", 1, "missing-parent")
+	leaf := newMock("leaf", 2)
+	r := buildRegistry(child, leaf)
+	p := NewParallelInitializer(r, DefaultInitConfig)
+
+	require.NoError(t, p.Init(context.Background(), &config.BaseConfig{}))
+	assert.Equal(t, StateReady, r.GetState("child"))
+	assert.Equal(t, StateReady, r.GetState("leaf"))
+}

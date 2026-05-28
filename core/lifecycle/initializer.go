@@ -196,25 +196,33 @@ func (p *ParallelInitializer) initServiceWithTimeout(ctx context.Context, name s
 	}
 }
 
-// Close 按逆序关闭所有服务
+// Close 按依赖层级逆序关闭所有已初始化的服务
+// ctx: 关闭上下文，可用于传递取消信号
+// baseConfig: 基础配置，用于筛选需要关闭的服务
+//
+// 执行流程：
+// 1. 获取需要关闭的服务列表并构建服务映射
+// 2. 解析依赖关系获取初始化层级（解析失败时降级为逐个关闭）
+// 3. 按层级逆序（先关闭最外层依赖者，后关闭底层被依赖者）
+// 4. 同一层级内使用 errgroup 并行关闭，层间串行
+// 5. 单层关闭出错仅记录日志，不中断后续层的关闭
 func (p *ParallelInitializer) Close(ctx context.Context, baseConfig *config.BaseConfig) error {
-	// 获取需要关闭的服务
+	// 1. 获取需要关闭的服务
 	services := p.registry.GetServicesToInit(baseConfig)
 	if len(services) == 0 {
 		return nil
 	}
 
-	// 构建服务映射
+	// 2. 构建服务映射并解析依赖关系
 	serviceMap := make(map[string]Service)
 	for _, s := range services {
 		serviceMap[s.Name()] = s
 	}
 
-	// 解析依赖关系获取层级
 	resolver := NewDependencyResolver(serviceMap)
 	layers, err := resolver.Resolve()
 	if err != nil {
-		// 如果解析失败，按注册顺序关闭
+		// 2a. 解析失败时降级为逐个关闭
 		logger.Warn("[并行初始化] 解析依赖关系失败，按默认顺序关闭: %v", err)
 		for _, service := range services {
 			_ = p.registry.CloseService(ctx, service.Name())
@@ -224,12 +232,12 @@ func (p *ParallelInitializer) Close(ctx context.Context, baseConfig *config.Base
 
 	logger.Info("[服务关闭] 开始关闭服务，共 %d 层", len(layers))
 
-	// 逆序关闭
+	// 3. 按层级逆序关闭
 	for i := len(layers) - 1; i >= 0; i-- {
 		layer := layers[i]
 		logger.Info("[服务关闭] 正在关闭第 %d 层: %v", i+1, layer)
 
-		// 层内可以并行关闭
+		// 4. 同一层级内并行关闭
 		g, ctx := errgroup.WithContext(ctx)
 		for _, name := range layer {
 			name := name

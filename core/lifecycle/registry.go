@@ -63,7 +63,9 @@ func (r *ServiceRegistry) RegisterHook(serviceName string, hook Hook) {
 	r.hooks[serviceName] = append(r.hooks[serviceName], hook)
 }
 
-// GetService 获取服务
+// GetService 根据名称查找已注册的服务
+// name: 服务名称（与 Service.Name() 返回值一致）
+// 返回值: 服务实例和是否存在的标识
 func (r *ServiceRegistry) GetService(name string) (Service, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -72,7 +74,9 @@ func (r *ServiceRegistry) GetService(name string) (Service, bool) {
 	return service, exists
 }
 
-// GetState 获取服务状态
+// GetState 获取指定服务的当前生命周期状态
+// name: 服务名称
+// 返回值: 服务状态，未注册的服务返回 StateUninitialized
 func (r *ServiceRegistry) GetState(name string) ServiceState {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -84,7 +88,9 @@ func (r *ServiceRegistry) GetState(name string) ServiceState {
 	return state
 }
 
-// SetState 设置服务状态
+// SetState 设置指定服务的生命周期状态
+// name: 服务名称
+// state: 目标状态（StateUninitialized / StateInitializing / StateReady / StateFailed / StateClosed）
 func (r *ServiceRegistry) SetState(name string, state ServiceState) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -92,7 +98,8 @@ func (r *ServiceRegistry) SetState(name string, state ServiceState) {
 	r.states[name] = state
 }
 
-// GetAllServices 获取所有服务
+// GetAllServices 获取所有已注册服务的快照副本
+// 返回值: 服务名称到服务实例的映射（返回的是副本，修改不影响注册中心）
 func (r *ServiceRegistry) GetAllServices() map[string]Service {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -105,6 +112,8 @@ func (r *ServiceRegistry) GetAllServices() map[string]Service {
 }
 
 // GetServicesToInit 获取需要初始化的服务列表
+// cfg: 基础配置，用于调用各服务的 ShouldInit 方法判断是否需要初始化
+// 返回值: 通过 ShouldInit 校验的服务切片
 func (r *ServiceRegistry) GetServicesToInit(cfg *config.BaseConfig) []Service {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -118,7 +127,11 @@ func (r *ServiceRegistry) GetServicesToInit(cfg *config.BaseConfig) []Service {
 	return result
 }
 
-// ExecuteHooks 执行指定阶段的钩子
+// ExecuteHooks 执行指定服务在指定阶段的所有钩子
+// ctx: 执行上下文
+// serviceName: 服务名称
+// phase: 钩子阶段（BeforeInit / AfterInit / BeforeClose / AfterClose）
+// 返回值: 钩子按优先级排序后依次执行，任一失败则立即返回错误
 func (r *ServiceRegistry) ExecuteHooks(ctx context.Context, serviceName string, phase HookPhase) error {
 	r.mu.RLock()
 	hooks := r.hooks[serviceName]
@@ -141,31 +154,42 @@ func (r *ServiceRegistry) ExecuteHooks(ctx context.Context, serviceName string, 
 }
 
 // InitService 初始化单个服务
+// ctx: 初始化上下文，可用于超时控制和取消
+// name: 服务名称（必须已通过 Register 注册）
+// 返回值: 初始化失败时返回错误，已就绪或正在初始化时分别跳过或报错
+//
+// 执行流程：
+// 1. 查找服务并校验当前状态（已就绪则跳过，初始化中则报错）
+// 2. 将状态置为 StateInitializing
+// 3. 执行 BeforeInit 阶段钩子（失败则置 StateFailed 并返回）
+// 4. 调用服务的 Init 方法执行实际初始化（失败则置 StateFailed 并返回）
+// 5. 执行 AfterInit 阶段钩子（失败则置 StateFailed 并返回）
+// 6. 将状态置为 StateReady
 func (r *ServiceRegistry) InitService(ctx context.Context, name string) error {
+	// 1. 查找服务并校验状态
 	service, exists := r.GetService(name)
 	if !exists {
 		return fmt.Errorf("服务 '%s' 未注册", name)
 	}
 
-	// 检查状态
 	state := r.GetState(name)
 	if state == StateReady {
-		return nil // 已初始化
+		return nil
 	}
 	if state == StateInitializing {
 		return fmt.Errorf("服务 '%s' 正在初始化中", name)
 	}
 
-	// 设置为初始化中
+	// 2. 设置为初始化中
 	r.SetState(name, StateInitializing)
 
-	// 执行初始化前钩子
+	// 3. 执行初始化前钩子
 	if err := r.ExecuteHooks(ctx, name, BeforeInit); err != nil {
 		r.SetState(name, StateFailed)
 		return err
 	}
 
-	// 执行初始化
+	// 4. 执行实际初始化
 	logger.Info("[服务初始化] 正在初始化服务: %s", name)
 	if err := service.Init(ctx); err != nil {
 		r.SetState(name, StateFailed)
@@ -173,20 +197,31 @@ func (r *ServiceRegistry) InitService(ctx context.Context, name string) error {
 		return err
 	}
 
-	// 执行初始化后钩子
+	// 5. 执行初始化后钩子
 	if err := r.ExecuteHooks(ctx, name, AfterInit); err != nil {
 		r.SetState(name, StateFailed)
 		return err
 	}
 
-	// 设置为就绪
+	// 6. 设置为就绪
 	r.SetState(name, StateReady)
 	logger.Info("[服务初始化] 服务 %s 初始化成功", name)
 	return nil
 }
 
 // CloseService 关闭单个服务
+// ctx: 关闭上下文
+// name: 服务名称
+// 返回值: 服务未注册或非就绪状态时静默返回 nil；关闭失败时返回错误
+//
+// 执行流程：
+// 1. 查找服务并校验状态（未注册或非 StateReady 时跳过）
+// 2. 执行 BeforeClose 阶段钩子（失败仅记录日志，不阻止关闭）
+// 3. 调用服务的 Close 方法执行实际关闭（失败则返回错误）
+// 4. 执行 AfterClose 阶段钩子（失败仅记录日志）
+// 5. 将状态置为 StateClosed
 func (r *ServiceRegistry) CloseService(ctx context.Context, name string) error {
+	// 1. 查找服务并校验状态
 	service, exists := r.GetService(name)
 	if !exists {
 		return nil
@@ -194,26 +229,27 @@ func (r *ServiceRegistry) CloseService(ctx context.Context, name string) error {
 
 	state := r.GetState(name)
 	if state != StateReady {
-		return nil // 未初始化或已关闭
+		return nil
 	}
 
-	// 执行关闭前钩子
+	// 2. 执行关闭前钩子
 	if err := r.ExecuteHooks(ctx, name, BeforeClose); err != nil {
 		logger.Error("[服务关闭] 执行关闭前钩子失败 [%s]: %v", name, err)
 	}
 
-	// 执行关闭
+	// 3. 执行实际关闭
 	logger.Info("[服务关闭] 正在关闭服务: %s", name)
 	if err := service.Close(ctx); err != nil {
 		logger.Error("[服务关闭] 服务 %s 关闭失败: %v", name, err)
 		return err
 	}
 
-	// 执行关闭后钩子
+	// 4. 执行关闭后钩子
 	if err := r.ExecuteHooks(ctx, name, AfterClose); err != nil {
 		logger.Error("[服务关闭] 执行关闭后钩子失败 [%s]: %v", name, err)
 	}
 
+	// 5. 设置为已关闭
 	r.SetState(name, StateClosed)
 	logger.Info("[服务关闭] 服务 %s 已关闭", name)
 	return nil
@@ -303,4 +339,21 @@ func GetServiceState(name string) ServiceState {
 // GetGlobalRegistry 获取全局注册中心
 func GetGlobalRegistry() *ServiceRegistry {
 	return globalRegistry
+}
+
+// ResetGlobalStateForTest 清空全局注册中心中的应用钩子、服务、服务级钩子与状态，并重置消息队列/定时任务累积列表及并行初始化配置。
+// 仅供单元测试在顺序执行场景下恢复干净全局状态使用；不要在生产代码中调用。
+func ResetGlobalStateForTest() {
+	globalRegistry.mu.Lock()
+	globalRegistry.services = make(map[string]Service)
+	globalRegistry.hooks = make(map[string][]Hook)
+	globalRegistry.appHooks = nil
+	globalRegistry.states = make(map[string]ServiceState)
+	globalRegistry.mu.Unlock()
+
+	messageQueueConsumerList = nil
+	messageQueueProducerList = nil
+	scheduleList = nil
+
+	globalInitConfig = DefaultInitConfig
 }
