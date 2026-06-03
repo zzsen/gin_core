@@ -1,3 +1,23 @@
+// Package distlock Redis 分布式锁功能测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含 RedisLocker 的单元测试，使用 miniredis 模拟 Redis，不需要外部依赖。
+//
+// 测试覆盖内容：
+// 1. TryLock 基本获取锁成功
+// 2. TryLock 锁已被持有时失败
+// 3. Lock 阻塞等待获取锁
+// 4. Lock 超时与 Context 取消
+// 5. Unlock 未持有锁时的错误处理
+// 6. Extend 续期锁 TTL
+// 7. Watchdog 自动续期机制
+// 8. 并发锁竞争安全性
+// 9. 回调函数（OnAcquired/OnReleased/OnExtended/OnWatchdogError）
+// 10. Stats 锁统计信息
+// 11. Close 后操作返回 ErrClientClosed
+//
+// 运行测试：go test -v ./distlock/... -run "TestTryLock|TestLock|TestUnlock|TestExtend|TestWatchdog|TestConcurrent|TestCallbacks|TestStats|TestClientClosed"
+// ==================================================
 package distlock
 
 import (

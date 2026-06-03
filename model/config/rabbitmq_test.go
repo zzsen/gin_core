@@ -1,3 +1,26 @@
+// Package config RabbitMQ 配置模型单元测试
+//
+// ==================== 测试说明 ====================
+// 本文件包含 RabbitMQ 消息队列配置模型的单元测试，不需要真实 RabbitMQ 连接。
+//
+// 测试覆盖内容：
+// 1. RabbitMQInfo.Url 连接字符串拼接
+// 2. RabbitMqListInfo.Url 多实例连接字符串
+// 3. MessageQueue.GetInfo 配置信息获取
+// 4. MessageQueue.GetFuncInfo 函数信息获取
+// 5. 死信配置（getDeadLetterExchange / Queue / RoutingKey）
+// 6. ConsumeConfig 默认值与自定义值
+// 7. PublishConfirmConfig 发布确认配置
+// 8. getRetryCount 重试次数
+// 9. 完整配置组合验证
+// 10. Publish/Consume 无连接时的错误处理
+// 11. handleMessage 分支覆盖（FunWithCtx / Fun / Error）
+// 12. waitForConfirm nil channel 处理
+// 13. initDeadLetterQueue 初始化
+// 14. Close nil 连接和 Channel 安全处理
+//
+// 运行测试：go test -v ./model/config/... -run "TestRabbitMQ|TestMessage"
+// ==================================================
 package config
 
 import (
@@ -9,14 +32,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 )
-
-// ==================== 单元测试文件（不需要 RabbitMQ 连接） ====================
-//
-// 本文件中的所有测试都是单元测试，不需要真实的 RabbitMQ 连接。
-// 这些测试主要验证：
-// - 配置结构的方法（Url、GetInfo 等）
-// - 消息队列配置的处理逻辑
-// - 错误处理（使用无效连接验证错误返回）
 //
 // 如需测试真实 MQ 连接，请运行集成测试：
 // go test -tags=integration -v ./model/config/...

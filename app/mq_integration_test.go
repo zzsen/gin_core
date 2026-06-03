@@ -1,16 +1,29 @@
 //go:build integration
 // +build integration
 
-// ==================== 集成测试文件（需要 RabbitMQ 连接） ====================
+// Package app RabbitMQ 消息队列集成测试
 //
-// 本文件中的所有测试都是集成测试，需要真实的 RabbitMQ 连接。
+// ==================== 集成测试说明 ====================
+// 本文件包含 RabbitMQ 消息发送功能的集成测试，需要真实的 RabbitMQ 连接。
 // 如果 RabbitMQ 连接失败，测试将直接失败（而非跳过）。
 //
-// 运行方式: go test -tags=integration -v ./app/...
+// 测试覆盖内容：
+// 1. SendRabbitMqMsg 单条消息发送
+// 2. SendRabbitMqMsg 多实例消息发送
+// 3. SendRabbitMqMsgBatch 批量消息发送
+// 4. SendRabbitMqMsgBatchWithContext 带 Context 批量发送
+// 5. SendRabbitMqMsgBatchWithContext Context 取消处理
+// 6. SendRabbitMqMsgWithConfirm 发布确认模式
+// 7. EndToEnd 发送与消费完整流程
+// 8. EndToEnd JSON 消息序列化
+// 9. ConcurrentSend 并发发送
 //
-// 请确保在运行测试前：
+// 前置条件：
 // 1. RabbitMQ 服务已启动
 // 2. 下方的连接配置（Host/Port/Username/Password）正确
+//
+// 运行测试：go test -tags=integration -v ./app/... -run TestIntegration
+// ==================================================
 
 package app
 

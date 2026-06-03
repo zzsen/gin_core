@@ -1,16 +1,30 @@
 //go:build integration
 // +build integration
 
-// ==================== 集成测试文件（需要 RabbitMQ 连接） ====================
+// Package config RabbitMQ 消息队列集成测试
 //
-// 本文件中的所有测试都是集成测试，需要真实的 RabbitMQ 连接。
+// ==================== 集成测试说明 ====================
+// 本文件包含 MessageQueue 的集成测试，需要真实的 RabbitMQ 连接。
 // 如果 RabbitMQ 连接失败，测试将直接失败（而非跳过）。
 //
-// 运行方式: go test -tags=integration -v ./model/config/...
+// 测试覆盖内容：
+// 1. Publish 单条消息发布
+// 2. PublishWithContext 带 Context 发布
+// 3. PublishBatch 批量消息发布
+// 4. PublishWithConfirm 发布确认模式
+// 5. Consume 单条消息消费
+// 6. Consume 多条消息批量消费
+// 7. Consume 优雅关闭
+// 8. DeadLetterQueue 死信队列流转
+// 9. JSON 消息序列化与反序列化
+// 10. ConcurrentPublish 并发发布
 //
-// 请确保在运行测试前：
+// 前置条件：
 // 1. RabbitMQ 服务已启动
 // 2. 下方的连接配置（Host/Port/Username/Password）正确
+//
+// 运行测试：go test -tags=integration -v ./model/config/... -run TestIntegration
+// ==================================================
 
 package config
 
