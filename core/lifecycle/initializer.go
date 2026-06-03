@@ -22,8 +22,8 @@ type InitConfig struct {
 var DefaultInitConfig = InitConfig{
 	MaxConcurrency: 4,
 	Timeout:        30 * time.Second,
-	RetryCount:     0,
-	RetryInterval:  time.Second,
+	RetryCount:     3,
+	RetryInterval:  2 * time.Second,
 }
 
 // 全局初始化配置
