@@ -12,8 +12,8 @@
 // 6. 并发请求的独立超时处理
 // 7. 零超时配置跳过超时控制
 // 8. 超时上下文传播验证
-//
 // 9. 高并发压力测试（100 goroutine 混合场景）
+// 10. timeoutExcludePatterns 精确/正则匹配、不匹配、无效正则容错、多正则联合
 //
 // 运行测试：go test -v ./middleware/... -run TimeoutHandler
 // ==================================================
@@ -35,11 +35,13 @@ import (
 // ==================== 测试辅助函数 ====================
 
 // setupTimeoutTestConfig 设置超时测试配置
-func setupTimeoutTestConfig(timeout int) func() {
+// patterns 为可选的 timeoutExcludePatterns 正则列表
+func setupTimeoutTestConfig(timeout int, patterns ...string) func() {
 	originalConfig := app.BaseConfig
 	app.BaseConfig = config.BaseConfig{
 		Service: config.ServiceInfo{
-			ApiTimeout: timeout,
+			ApiTimeout:             timeout,
+			TimeoutExcludePatterns: patterns,
 		},
 	}
 	return func() {
@@ -505,6 +507,143 @@ func TestTimeoutHandler_ConcurrentStress(t *testing.T) {
 	}
 	if slowTimeout != expectedCount["/slow"] {
 		t.Errorf("慢速请求：期望 %d 个超时，实际 %d 个", expectedCount["/slow"], slowTimeout)
+	}
+}
+
+// ==================== timeoutExcludePatterns 测试 ====================
+
+// TestTimeoutHandler_ExcludeExactPath 测试精确路径排除
+//
+// 【功能点】命中排除正则的路径不注入 deadline，长耗时仍返回 200
+// 【测试流程】
+// 1. 配置 apiTimeout=1 与排除模式 ^/ws/v1/setting$
+// 2. 处理器 sleep 1.5s 后写 200
+// 3. 验证状态码 200 且 context 无 deadline
+func TestTimeoutHandler_ExcludeExactPath(t *testing.T) {
+	cleanup := setupTimeoutTestConfig(1, `^/ws/v1/setting$`)
+	defer cleanup()
+
+	router := createTimeoutTestRouter(TimeoutHandler())
+	router.GET("/ws/v1/setting", func(c *gin.Context) {
+		if _, ok := c.Request.Context().Deadline(); ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "unexpected deadline"})
+			return
+		}
+		time.Sleep(1500 * time.Millisecond)
+		c.JSON(http.StatusOK, gin.H{"message": "ws ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/ws/v1/setting", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("排除路径期望 200, 实际 %d, body=%s", w.Code, w.Body.String())
+	}
+}
+
+// TestTimeoutHandler_ExcludeRegexPath 测试动态段正则排除
+//
+// 【功能点】含 \\d+ 的正则可匹配动态路径并跳过超时
+// 【测试流程】配置 /video/\\d+/crawlStream，请求 /video/42/crawlStream，sleep 超过超时仍 200
+func TestTimeoutHandler_ExcludeRegexPath(t *testing.T) {
+	cleanup := setupTimeoutTestConfig(1, `/video/\d+/crawlStream`)
+	defer cleanup()
+
+	router := createTimeoutTestRouter(TimeoutHandler())
+	router.GET("/video/:id/crawlStream", func(c *gin.Context) {
+		time.Sleep(1500 * time.Millisecond)
+		c.JSON(http.StatusOK, gin.H{"message": "stream ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/video/42/crawlStream", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("正则排除路径期望 200, 实际 %d", w.Code)
+	}
+}
+
+// TestTimeoutHandler_ExcludeMissStillTimeout 测试未命中排除时仍超时
+//
+// 【功能点】不匹配排除模式的请求保持原超时语义
+// 【测试流程】排除 /ws/，请求 /api/slow 且 sleep > timeout，期望超时消息
+func TestTimeoutHandler_ExcludeMissStillTimeout(t *testing.T) {
+	cleanup := setupTimeoutTestConfig(1, `/ws/`)
+	defer cleanup()
+
+	router := createTimeoutTestRouter(TimeoutHandler())
+	router.GET("/api/slow", func(c *gin.Context) {
+		select {
+		case <-time.After(2 * time.Second):
+			c.JSON(http.StatusOK, gin.H{"message": "should not reach"})
+		case <-c.Request.Context().Done():
+			return
+		}
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/slow", nil)
+	router.ServeHTTP(w, req)
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("解析响应失败: %v, body=%s", err, w.Body.String())
+	}
+	if resp["msg"] != "Request timed out" {
+		t.Errorf("未排除路径期望超时消息，实际 %v", resp)
+	}
+}
+
+// TestTimeoutHandler_ExcludeInvalidPattern 测试无效正则容错
+//
+// 【功能点】非法正则被跳过，合法正则仍生效
+// 【测试流程】patterns=[非法, /ws/]，请求 /ws/ok 长耗时仍 200
+func TestTimeoutHandler_ExcludeInvalidPattern(t *testing.T) {
+	cleanup := setupTimeoutTestConfig(1, `([invalid`, `/ws/`)
+	defer cleanup()
+
+	router := createTimeoutTestRouter(TimeoutHandler())
+	router.GET("/ws/ok", func(c *gin.Context) {
+		time.Sleep(1500 * time.Millisecond)
+		c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/ws/ok", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("无效正则容错后合法排除仍应生效，期望 200, 实际 %d", w.Code)
+	}
+}
+
+// TestTimeoutHandler_ExcludeMultiplePatterns 测试多正则联合
+//
+// 【功能点】任一模式命中即可跳过超时
+// 【测试流程】配置两条模式，分别请求命中路径，均超过超时仍 200
+func TestTimeoutHandler_ExcludeMultiplePatterns(t *testing.T) {
+	cleanup := setupTimeoutTestConfig(1, `/script/execStream/`, `/ws/`)
+	defer cleanup()
+
+	router := createTimeoutTestRouter(TimeoutHandler())
+	router.GET("/script/execStream/run", func(c *gin.Context) {
+		time.Sleep(1200 * time.Millisecond)
+		c.JSON(http.StatusOK, gin.H{"message": "script"})
+	})
+	router.GET("/ws/v1/setting", func(c *gin.Context) {
+		time.Sleep(1200 * time.Millisecond)
+		c.JSON(http.StatusOK, gin.H{"message": "ws"})
+	})
+
+	for _, path := range []string{"/script/execStream/run", "/ws/v1/setting"} {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", path, nil)
+		router.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("路径 %s 期望 200, 实际 %d", path, w.Code)
+		}
 	}
 }
 

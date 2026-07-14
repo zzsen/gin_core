@@ -5,6 +5,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,15 +23,17 @@ import (
 //
 // 执行流程：
 // 1. 从配置中获取 API 超时时间，若为 0 则跳过超时控制
-// 2. 通过 context.WithTimeout 为请求设置截止时间
-// 3. 同步调用 c.Next() 执行后续处理链
-// 4. 检查上下文是否超时，未写入响应时返回 408
-// 5. 记录响应时长，对接近超时的请求发出警告
+// 2. 预编译 timeoutExcludePatterns；请求路径命中则跳过超时控制
+// 3. 通过 context.WithTimeout 为请求设置截止时间
+// 4. 同步调用 c.Next() 执行后续处理链
+// 5. 检查上下文是否超时，未写入响应时返回 408
+// 6. 记录响应时长，对接近超时的请求发出警告
 //
 // 返回：
 //   - gin.HandlerFunc: Gin中间件函数
 func TimeoutHandler() gin.HandlerFunc {
 	timeout := time.Duration(app.BaseConfig.Service.ApiTimeout) * time.Second
+	excludeMatchers := compileTimeoutExcludePatterns(app.BaseConfig.Service.TimeoutExcludePatterns)
 
 	return func(c *gin.Context) {
 		// 1. 超时时间无效时跳过超时控制，直接执行后续处理链
@@ -39,19 +42,25 @@ func TimeoutHandler() gin.HandlerFunc {
 			return
 		}
 
-		// 2. 通过 context.WithTimeout 为请求设置截止时间
+		// 2. 路径命中排除正则时跳过超时控制（长连接：SSE / WebSocket 等）
+		if matchTimeoutExclude(c.Request.URL.Path, excludeMatchers) {
+			c.Next()
+			return
+		}
+
+		// 3. 通过 context.WithTimeout 为请求设置截止时间
 		ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
 		defer cancel()
 		c.Request = c.Request.WithContext(ctx)
 
 		startTime := time.Now()
 
-		// 3. 同步调用 c.Next()，在同一 goroutine 中执行，避免并发访问 gin.Context
+		// 4. 同步调用 c.Next()，在同一 goroutine 中执行，避免并发访问 gin.Context
 		c.Next()
 
 		duration := time.Since(startTime)
 
-		// 4. 检查上下文是否超时
+		// 5. 检查上下文是否超时
 		if ctx.Err() == context.DeadlineExceeded {
 			if !c.Writer.Written() {
 				c.Abort()
@@ -63,9 +72,41 @@ func TimeoutHandler() gin.HandlerFunc {
 			return
 		}
 
-		// 5. 响应时长超过 80% 的超时时间，记录警告日志
+		// 6. 响应时长超过 80% 的超时时间，记录警告日志
 		if duration > timeout*8/10 {
 			logger.Warn("[timeout] Request to %s took %d ms, which is more than 80%% of the timeout (%v)", c.Request.URL.Path, duration.Milliseconds(), timeout)
 		}
 	}
+}
+
+// compileTimeoutExcludePatterns 预编译超时排除路径正则
+//
+// 流程：
+// 1. 遍历配置中的正则字符串
+// 2. 编译失败则打 warn 并跳过该条
+// 3. 返回可复用的 *regexp.Regexp 列表
+func compileTimeoutExcludePatterns(patterns []string) []*regexp.Regexp {
+	if len(patterns) == 0 {
+		return nil
+	}
+	matchers := make([]*regexp.Regexp, 0, len(patterns))
+	for _, pattern := range patterns {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			logger.Warn("[timeout] invalid exclude pattern %q: %v", pattern, err)
+			continue
+		}
+		matchers = append(matchers, re)
+	}
+	return matchers
+}
+
+// matchTimeoutExclude 判断请求路径是否命中任一排除正则
+func matchTimeoutExclude(path string, matchers []*regexp.Regexp) bool {
+	for _, re := range matchers {
+		if re.MatchString(path) {
+			return true
+		}
+	}
+	return false
 }

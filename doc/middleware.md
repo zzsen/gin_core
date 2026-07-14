@@ -178,7 +178,7 @@ func TimeoutHandler() gin.HandlerFunc {
 | `otelTraceHandler` | OpenTelemetry 链路追踪，支持 W3C Trace Context 标准 |
 | `traceIdHandler` | 请求追踪 ID，优先从上游请求头（`X-Trace-ID`、`X-Request-ID`）读取，未传递时生成 UUID，并注入上下文和响应头 |
 | `traceLogHandler` | 请求日志，记录请求方式、路由、状态码、耗时、IP 等信息 |
-| `timeoutHandler` | 请求超时控制，基于 `service.apiTimeout` 配置 |
+| `timeoutHandler` | 请求超时控制，基于 `service.apiTimeout`；可通过 `service.timeoutExcludePatterns` 按正则排除长连接路径 |
 | `rateLimitHandler` | API 限流，支持内存 / Redis 存储和多维度限流策略 |
 | `corsHandler` | CORS 跨域处理，支持预检请求（OPTIONS） |
 

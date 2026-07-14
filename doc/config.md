@@ -217,6 +217,8 @@ service:
   sessionExpire: 3600              # 会话过期时间，单位：秒 (1小时)
   sessionPrefix: "gin_"            # Redis中会话缓存的键前缀
   apiTimeout: 1                    # 单个API请求超时时间，单位：秒
+  timeoutExcludePatterns:          # 超时控制排除路径正则列表（命中则跳过超时，适用于 SSE/WebSocket）
+    - "/ws/"
   readTimeout: 60                  # HTTP请求读取超时时间，单位：秒
   writeTimeout: 60                 # HTTP响应写入超时时间，单位：秒
   shutdownTimeout: 5               # 优雅关闭超时时间，单位：秒，默认5秒
