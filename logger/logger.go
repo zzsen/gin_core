@@ -194,14 +194,23 @@ func initRotatelogs(globalConfig config.LoggersConfig,
 	}
 
 	// 创建支持轮转的日志写入器
-	logWriter, err := rotatelogs.New(
-		filePattern,                           // 文件命名模式
-		rotatelogs.WithLinkName(fullFileName), // 软链接名称
-		rotatelogs.WithMaxAge(time.Duration(maxAge*24)*time.Hour),            // 最大保存时间
-		rotatelogs.WithRotationTime(time.Duration(rotationTime)*time.Minute), // 轮转时间间隔
-		rotatelogs.WithRotationSize(int64(rotationSize)*1024),                // 轮转大小限制
-	)
+	// Windows 创建 symlink 常需额外权限，跳过 WithLinkName 避免刷屏报错
+	opts := []rotatelogs.Option{
+		rotatelogs.WithMaxAge(time.Duration(maxAge*24) * time.Hour),
+		rotatelogs.WithRotationTime(time.Duration(rotationTime) * time.Minute),
+		rotatelogs.WithRotationSize(int64(rotationSize) * 1024),
+	}
+	if useRotateLinkName() {
+		opts = append(opts, rotatelogs.WithLinkName(fullFileName))
+	}
+	logWriter, err := rotatelogs.New(filePattern, opts...)
 	return logWriter, err
+}
+
+// useRotateLinkName 是否为轮转日志创建软链
+// Windows 下 os.Symlink 常因权限失败，故跳过
+func useRotateLinkName() bool {
+	return runtime.GOOS != "windows"
 }
 
 // Add 函数用于添加带请求ID的结构化日志记录

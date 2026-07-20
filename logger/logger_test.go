@@ -23,6 +23,7 @@ package logger
 import (
 	"bytes"
 	"errors"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -548,6 +549,21 @@ func TestInitLogger_LevelOnlyJSON_ConsoleStaysText(t *testing.T) {
 }
 
 // --- initRotatelogs 测试 ---
+
+// TestUseRotateLinkName 测试是否启用轮转软链
+//
+// 【功能点】Windows 跳过软链，其他平台启用
+// 【测试流程】
+// 1. 读取 runtime.GOOS
+// 2. Windows 期望 false，非 Windows 期望 true
+func TestUseRotateLinkName(t *testing.T) {
+	got := useRotateLinkName()
+	if runtime.GOOS == "windows" {
+		assert.False(t, got)
+		return
+	}
+	assert.True(t, got)
+}
 
 // TestInitRotatelogs_Defaults 测试默认配置
 //
