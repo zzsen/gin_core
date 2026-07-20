@@ -12,7 +12,7 @@
 | **消息队列** | RabbitMQ | 生产者 / 消费者、死信队列、发布确认、批量发送 |
 | **搜索引擎** | Elasticsearch | Typed Client 集成 |
 | **配置中心** | Etcd | 服务发现、分布式配置 |
-| **日志** | Logrus | 结构化日志、按级别分文件、自动切割、敏感信息脱敏 |
+| **日志** | Logrus | 结构化日志、可配置 Text/JSON Formatter、按级别分文件、自动切割、敏感信息脱敏 |
 | **监控** | Prometheus | HTTP 指标采集、连接池指标、自定义 Collector |
 | **链路追踪** | OpenTelemetry | DB / Redis / HTTP 自动埋点、W3C Trace Context |
 | **限流** | 令牌桶 | 内存 / Redis 存储、按 IP / 用户 / 全局、路径规则匹配 |

@@ -1,11 +1,12 @@
 # 日志模块
 
-`logger` 模块提供统一的日志记录功能，基于 [logrus](https://github.com/sirupsen/logrus) 实现，支持日志轮转、多级别配置、结构化日志和敏感信息脱敏。
+`logger` 模块提供统一的日志记录功能，基于 [logrus](https://github.com/sirupsen/logrus) 实现，支持日志轮转、多级别配置、可配置 Text/JSON Formatter（`log.format` / `loggers[].format`）、结构化日志和敏感信息脱敏。
 
 ## 目录
 
 - [快速开始](#快速开始)
 - [配置说明](#配置说明)
+- [日志格式 Text / JSON](#日志格式-text--json)
 - [基础日志函数](#基础日志函数)
 - [结构化日志](#结构化日志)
 - [敏感信息脱敏](#敏感信息脱敏)
@@ -50,17 +51,22 @@ log:
   rotationTime: 1           # 轮转时间间隔（小时）
   rotationSize: 1024        # 轮转大小限制（KB）
   printCaller: true         # 是否打印调用者信息
+  format: "text"            # text | json，默认 text；非法值回退 text
   loggers:                  # 各级别单独配置（可选）
     - level: "info"
       fileName: "info"
+      format: "json"        # 可选，覆盖全局 format（仅该级别文件 hook）
       rotationSize: 2048    # 此级别日志的切割大小（KB）
       rotationTime: 4       # 此级别日志的切割时间间隔（小时）
       maxAge: 7             # 此级别日志的保存天数
     - level: "error"
       fileName: "error"
       filePath: "./log/error"  # 错误日志专用存储路径
+      format: "text"        # 可选，覆盖全局
       maxAge: 30            # 错误日志保存更久
 ```
+
+优先级：`loggers[].format` > `log.format` > `text`。控制台输出使用全局 `format`；各级别文件 hook 可按级覆盖。
 
 ### 配置参数说明
 
@@ -71,7 +77,21 @@ log:
 | `rotationTime` | int | 60 | 日志轮转时间间隔（分钟） |
 | `rotationSize` | int | 1024 | 日志轮转大小限制（KB） |
 | `printCaller` | bool | false | 是否打印调用者信息（文件、行号、函数名） |
+| `format` | string | `text` | 全局日志格式：`text` / `json`（大小写不敏感） |
 | `loggers` | array | - | 各日志级别单独配置 |
+| `loggers[].format` | string | （继承全局） | 覆盖该级别文件 hook 的格式 |
+
+### 日志格式 Text / JSON
+
+| 值 | Formatter | 典型场景 |
+|----|-----------|----------|
+| `text`（默认） | `logrus.TextFormatter` | 本地开发、人工阅读 |
+| `json` | `logrus.JSONFormatter` | ELK / Loki 等采集与检索 |
+
+- 未配置或非法值 → `text`（与历史行为一致）
+- 控制台（stdout）始终使用**全局** `format`
+- 文件 hook 按 `loggers[].format` 覆盖全局；未设置则继承全局
+- Text / JSON 共用时间戳布局 `2006-01-02 15:04:05`
 
 ### 日志级别
 

@@ -319,20 +319,25 @@ log:
   rotationTime: 1                  # 日志文件按时间切割间隔，单位：小时，默认1小时切割一次
   rotationSize: 1024               # 日志文件按大小切割阈值，单位：KB，达到此大小会切割新文件
   printCaller: true                # 是否在日志中打印调用者信息（函数名和文件位置）
+  format: "text"                   # 全局日志格式：text | json，默认 text；非法值回退 text
   loggers:                         # 分级别日志配置，支持不同级别使用不同的配置
     - level: "info"                # 日志级别：info级别日志配置
       fileName: "info"             # 日志文件名前缀
+      format: "json"               # 可选，覆盖全局 format（仅该级别文件 hook）
       rotationSize: 2048           # 此级别日志的切割大小，单位：KB
       rotationTime: 4              # 此级别日志的切割时间间隔，单位：小时
       maxAge: 7                    # 此级别日志的保存天数
     - level: "error"               # 日志级别：error级别日志配置
       fileName: "error"            # 错误日志文件名前缀
       filePath: "./log/error"      # 错误日志专用存储路径
+      format: "text"               # 可选，覆盖全局 format
       maxSize: 100                 # 最大文件大小，单位：MB
       maxAge: 30                   # 错误日志保存天数，通常保存更长时间
       rotationSize: 1024           # 错误日志切割大小，单位：KB
       rotationTime: 6              # 错误日志切割时间间隔，单位：小时
 ```
+
+优先级：`loggers[].format` > `log.format` > `text`。控制台使用全局 `format`；文件 hook 可按级别覆盖。详见 [日志模块](./logger.md)。
 
 ### 5.8 数据库配置 (db)
 
