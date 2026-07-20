@@ -11,6 +11,7 @@ type LoggersConfig struct {
 	RotationSize int            `yaml:"rotationSize"` // 日志轮转大小限制（KB），当日志文件达到指定大小时进行轮转
 	Loggers      []LoggerConfig `yaml:"loggers"`      // 日志级别配置列表，支持为不同级别配置不同的输出策略
 	PrintCaller  bool           `yaml:"printCaller"`  // 是否在日志中打印调用者信息（文件名和行号）
+	Format       string         `yaml:"format"`       // 全局日志格式：text / json，空则 text
 }
 
 // LoggerConfig 单个日志级别配置
@@ -22,6 +23,7 @@ type LoggerConfig struct {
 	MaxAge       int    `yaml:"maxAge"`       // 日志文件最大保存时间（天），覆盖全局配置
 	RotationTime int    `yaml:"rotationTime"` // 日志轮转时间间隔（分钟），覆盖全局配置
 	RotationSize int    `yaml:"rotationSize"` // 日志轮转大小限制（KB），覆盖全局配置
+	Format       string `yaml:"format"`       // 覆盖全局 format，空则用全局
 }
 
 // ToDbLoggerConfig 转换为数据库日志配置

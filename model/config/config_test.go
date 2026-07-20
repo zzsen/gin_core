@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 // ==================== RateLimitConfig ====================
@@ -197,6 +199,51 @@ func TestLoggersConfig_ToDbLoggerConfig_EmptyPath(t *testing.T) {
 	dbCfg := cfg.ToDbLoggerConfig()
 	assert.Empty(t, dbCfg.FilePath)
 	assert.Empty(t, dbCfg.Loggers[0].FileName)
+}
+
+// TestLoggersConfig_ToDbLoggerConfig_PreservesFormat 测试 Format 透传
+//
+// 【功能点】ToDbLoggerConfig 不修改全局/按级 Format 字段
+// 【测试流程】
+// 1. 设置全局 Format=json、级别 Format=text
+// 2. 调用 ToDbLoggerConfig
+// 3. Format 保持不变，FileName 仍加 DB 后缀
+func TestLoggersConfig_ToDbLoggerConfig_PreservesFormat(t *testing.T) {
+	cfg := LoggersConfig{
+		FilePath: "/var/log/app",
+		Format:   "json",
+		Loggers: []LoggerConfig{
+			{FileName: "info", FilePath: "/var/log/info", Format: "text"},
+		},
+	}
+	dbCfg := cfg.ToDbLoggerConfig()
+	assert.Equal(t, "json", dbCfg.Format)
+	assert.Equal(t, "text", dbCfg.Loggers[0].Format)
+	assert.Equal(t, "infoDB", dbCfg.Loggers[0].FileName)
+}
+
+// TestLoggersConfig_YAMLUnmarshalFormat YAML 反序列化 format 字段
+//
+// 【功能点】全局与按级 format 可从 YAML 正确映射
+// 【测试流程】
+// 1. 反序列化含 format / loggers[].format 的 YAML
+// 2. 字段值与 YAML 一致
+func TestLoggersConfig_YAMLUnmarshalFormat(t *testing.T) {
+	const raw = `
+filePath: "./log"
+format: json
+loggers:
+  - level: info
+    fileName: info
+    format: text
+`
+	var cfg LoggersConfig
+	err := yaml.Unmarshal([]byte(raw), &cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "json", cfg.Format)
+	require.Len(t, cfg.Loggers, 1)
+	assert.Equal(t, "info", cfg.Loggers[0].Level)
+	assert.Equal(t, "text", cfg.Loggers[0].Format)
 }
 
 // ==================== CORSConfig 自定义值分支 ====================
