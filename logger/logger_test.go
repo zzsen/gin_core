@@ -440,6 +440,113 @@ func TestInitLogger_DefaultFallback(t *testing.T) {
 	require.NotNil(t, l)
 }
 
+// TestInitLogger_GlobalJSONFormat 全局 json 时控制台 Formatter 为 JSON
+//
+// 【功能点】SetFormatter 使用全局 format
+// 【测试流程】
+// 1. Format=json 调用 InitLogger
+// 2. Logger.Formatter 为 JSONFormatter
+func TestInitLogger_GlobalJSONFormat(t *testing.T) {
+	cfg := config.LoggersConfig{
+		FilePath: t.TempDir(),
+		Format:   "json",
+		Loggers: []config.LoggerConfig{
+			{Level: "info", FileName: "info"},
+		},
+	}
+	l := InitLogger(cfg)
+	require.NotNil(t, l)
+	_, ok := l.Formatter.(*logrus.JSONFormatter)
+	assert.True(t, ok)
+}
+
+// TestInitLogger_DefaultTextFormat 未配置 format 时控制台为 Text
+//
+// 【功能点】默认 TextFormatter
+// 【测试流程】
+// 1. 不设置 Format
+// 2. Logger.Formatter 为 TextFormatter
+func TestInitLogger_DefaultTextFormat(t *testing.T) {
+	cfg := config.LoggersConfig{FilePath: t.TempDir()}
+	l := InitLogger(cfg)
+	require.NotNil(t, l)
+	_, ok := l.Formatter.(*logrus.TextFormatter)
+	assert.True(t, ok)
+}
+
+// TestInitLogger_LevelFormatOverride 按级 format 不影响控制台全局
+//
+// 【功能点】stdout 用全局；级别覆盖仅作用于该级 hook
+// 【测试流程】
+// 1. 全局 json，error 级别 text
+// 2. 控制台 Formatter 仍为 JSONFormatter
+func TestInitLogger_LevelFormatOverride(t *testing.T) {
+	cfg := config.LoggersConfig{
+		FilePath: t.TempDir(),
+		Format:   "json",
+		Loggers: []config.LoggerConfig{
+			{Level: "error", FileName: "error", Format: "text"},
+		},
+	}
+	l := InitLogger(cfg)
+	require.NotNil(t, l)
+	_, ok := l.Formatter.(*logrus.JSONFormatter)
+	assert.True(t, ok)
+}
+
+// TestInitLogger_InvalidGlobalFormatFallsBackToText 非法全局 format 回退 text
+//
+// 【功能点】InitLogger 对非法 format 不失败，控制台为 TextFormatter
+// 【测试流程】
+// 1. Format=bogus 调用 InitLogger
+// 2. 返回非 nil 且 Formatter 为 TextFormatter
+func TestInitLogger_InvalidGlobalFormatFallsBackToText(t *testing.T) {
+	cfg := config.LoggersConfig{
+		FilePath: t.TempDir(),
+		Format:   "bogus",
+	}
+	l := InitLogger(cfg)
+	require.NotNil(t, l)
+	_, ok := l.Formatter.(*logrus.TextFormatter)
+	assert.True(t, ok)
+}
+
+// TestInitLogger_GlobalJSONCaseInsensitive 全局 format 大小写不敏感
+//
+// 【功能点】JSON / Json 均解析为 JSONFormatter
+// 【测试流程】
+// 1. Format=JSON 初始化
+// 2. Formatter 为 JSONFormatter
+func TestInitLogger_GlobalJSONCaseInsensitive(t *testing.T) {
+	cfg := config.LoggersConfig{
+		FilePath: t.TempDir(),
+		Format:   "JSON",
+	}
+	l := InitLogger(cfg)
+	require.NotNil(t, l)
+	_, ok := l.Formatter.(*logrus.JSONFormatter)
+	assert.True(t, ok)
+}
+
+// TestInitLogger_LevelOnlyJSON_ConsoleStaysText 仅级别 json 时控制台仍用全局 text
+//
+// 【功能点】未配置全局 format 时控制台默认 Text；按级 json 不改变控制台
+// 【测试流程】
+// 1. 全局 Format 空，info 级别 Format=json
+// 2. 控制台 Formatter 仍为 TextFormatter
+func TestInitLogger_LevelOnlyJSON_ConsoleStaysText(t *testing.T) {
+	cfg := config.LoggersConfig{
+		FilePath: t.TempDir(),
+		Loggers: []config.LoggerConfig{
+			{Level: "info", FileName: "info", Format: "json"},
+		},
+	}
+	l := InitLogger(cfg)
+	require.NotNil(t, l)
+	_, ok := l.Formatter.(*logrus.TextFormatter)
+	assert.True(t, ok)
+}
+
 // --- initRotatelogs 测试 ---
 
 // TestInitRotatelogs_Defaults 测试默认配置

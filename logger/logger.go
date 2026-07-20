@@ -55,10 +55,9 @@ func init() {
 		writeMap[logLevel] = defaultLogWriter
 	}
 
-	// 添加 lfshook 到 Logger，设置时间格式
-	Logger.AddHook(lfshook.NewHook(writeMap, &logrus.TextFormatter{
-		TimestampFormat: "2006-01-02 15:04:05",
-	}))
+	// 添加 lfshook 到 Logger，默认 TextFormatter
+	Logger.SetFormatter(newFormatter(""))
+	Logger.AddHook(lfshook.NewHook(writeMap, newFormatter("")))
 }
 
 // InitLogger 根据配置初始化日志记录器
@@ -79,15 +78,20 @@ func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
 	// 设置日志级别为 Trace（最高级别，记录所有日志）
 	Logger.SetLevel(logrus.TraceLevel)
 
+	// 控制台使用全局 format（未配置则 text）
+	Logger.SetFormatter(newFormatter(resolveFormat(loggersConfig.Format, "")))
+
 	// 为每个日志级别配置对应的输出
 	for _, logLevel := range logrus.AllLevels {
 		// 配置 lfshook
 		writeMap := lfshook.WriterMap{}
+		levelFormat := ""
 
 		// 查找当前日志级别对应的配置
 		for _, loggerConfig := range loggersConfig.Loggers {
 			level, err := logrus.ParseLevel(loggerConfig.Level)
 			if err == nil && level == logLevel {
+				levelFormat = loggerConfig.Format
 				// 如果找到匹配的配置，使用该配置初始化日志轮转
 				if logWriter, err := initRotatelogs(loggersConfig, loggerConfig, level.String()); err == nil {
 					writeMap[level] = logWriter
@@ -105,12 +109,9 @@ func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
 			writeMap[logLevel] = defaultLogWriter
 		}
 
-		// 添加 lfshook 到 Logger，配置输出格式
-		Logger.AddHook(lfshook.NewHook(writeMap, &logrus.TextFormatter{
-			FullTimestamp:          true,                  // 显示完整时间戳
-			TimestampFormat:        "2006-01-02 15:04:05", // 时间格式
-			DisableLevelTruncation: true,                  // 禁用级别截断
-		}))
+		// 添加 lfshook：按级 format 覆盖全局
+		fmtter := newFormatter(resolveFormat(loggersConfig.Format, levelFormat))
+		Logger.AddHook(lfshook.NewHook(writeMap, fmtter))
 	}
 
 	// 保存是否打印调用者信息的配置（由包装函数使用）
