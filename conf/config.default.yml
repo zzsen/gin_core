@@ -41,6 +41,34 @@ log: # 日志系统配置
   rotationSize: 1024 # 日志文件按大小切割阈值，单位：KB，达到此大小会切割新文件
   printCaller: true # 是否在日志中打印调用者信息（函数名和文件位置）
   format: "json" # 全局日志格式：text | json，默认 text；非法值回退 text；可按 loggers[].format 覆盖
+  resource: # 公共资源字段（远程 Sink / 检索标签）
+    serviceName: "gin-core-service"
+    env: "dev"
+    # host: ""
+    # version: ""
+  # fieldMap: # 可选字段重命名，如 serviceName: service
+  outputs: # 非空则只启用列表内类型；未配置或 [] 时默认 file+stdout
+    - type: file
+    - type: stdout
+    - type: remote
+      enabled: true # 推 Loki；可去掉 file/stdout 实现仅远程
+      minLevel: info
+      remote:
+        driver: loki # 本期仅 loki；kafka/otlp 预留
+        format: json
+        queueSize: 2048
+        batchSize: 64
+        flushIntervalMs: 500
+        loki:
+          url: http://192.168.1.1:3101/loki/api/v1/push
+          timeoutMs: 3000
+          labels: [serviceName, env]
+          # bearerToken: ""
+          basicUser: "admin"
+          basicPassword: "Zapi@Loki#2025!Secure" # 含 # 须加引号
+        retry:
+          maxAttempts: 2
+          backoffMs: 100
   loggers: # 分级别日志配置，支持不同级别使用不同的配置
     - level: "info" # 日志级别：info级别日志配置
       fileName: "info" # 日志文件名前缀
