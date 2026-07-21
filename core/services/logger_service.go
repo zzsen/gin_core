@@ -25,14 +25,21 @@ func (s *LoggerService) ShouldInit(cfg *config.BaseConfig) bool {
 	return true
 }
 
-// Init 初始化日志
+// Init 初始化日志系统。
+//
+// 【流程】
+// 1. 按 app.BaseConfig.Log 调用 InitLogger（含文件轮转与可选远程 Sink）
+// 2. 同步到包级 logger.Logger 与 app.Logger
 func (s *LoggerService) Init(ctx context.Context) error {
 	logger.Logger = logger.InitLogger(app.BaseConfig.Log)
 	app.Logger = logger.Logger
 	return nil
 }
 
-// Close 关闭日志（通常不需要）
+// Close 关闭日志服务。
+//
+// 【功能】进程退出时刷出远程缓冲并关闭 Sink 管线，减少 at-most-once 场景下的丢失。
+// 【流程】委托 logger.CloseRemote（无远程管线时为空操作）
 func (s *LoggerService) Close(ctx context.Context) error {
-	return nil
+	return logger.CloseRemote(ctx)
 }
