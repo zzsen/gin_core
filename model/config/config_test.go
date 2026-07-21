@@ -222,6 +222,51 @@ func TestLoggersConfig_ToDbLoggerConfig_PreservesFormat(t *testing.T) {
 	assert.Equal(t, "infoDB", dbCfg.Loggers[0].FileName)
 }
 
+// TestLoggersConfig_YAMLUnmarshalOutputs YAML 反序列化 outputs / resource
+//
+// 【功能点】log.outputs、log.resource、remote.loki 可从 YAML 正确映射
+// 【测试流程】
+// 1. 反序列化含 resource / outputs(remote+loki) 的 YAML
+// 2. 字段值与 YAML 一致
+func TestLoggersConfig_YAMLUnmarshalOutputs(t *testing.T) {
+	yml := `
+format: json
+resource:
+  serviceName: gin-core
+  env: dev
+outputs:
+  - type: file
+  - type: remote
+    enabled: true
+    minLevel: warn
+    remote:
+      driver: loki
+      format: json
+      queueSize: 1000
+      batchSize: 50
+      flushIntervalMs: 200
+      loki:
+        url: http://localhost:3100/loki/api/v1/push
+        timeoutMs: 3000
+        labels:
+          - serviceName
+          - env
+`
+	var cfg LoggersConfig
+	require.NoError(t, yaml.Unmarshal([]byte(yml), &cfg))
+	assert.Equal(t, "json", cfg.Format)
+	require.NotNil(t, cfg.Resource)
+	assert.Equal(t, "gin-core", cfg.Resource.ServiceName)
+	require.Len(t, cfg.Outputs, 2)
+	assert.Equal(t, "remote", cfg.Outputs[1].Type)
+	assert.Equal(t, "warn", cfg.Outputs[1].MinLevel)
+	require.NotNil(t, cfg.Outputs[1].Remote)
+	assert.Equal(t, "loki", cfg.Outputs[1].Remote.Driver)
+	assert.Equal(t, 1000, cfg.Outputs[1].Remote.QueueSize)
+	require.NotNil(t, cfg.Outputs[1].Remote.Loki)
+	assert.Contains(t, cfg.Outputs[1].Remote.Loki.URL, "/loki/api/v1/push")
+}
+
 // TestLoggersConfig_YAMLUnmarshalFormat YAML 反序列化 format 字段
 //
 // 【功能点】全局与按级 format 可从 YAML 正确映射
