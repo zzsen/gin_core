@@ -4,6 +4,8 @@ package logger
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"path"
 	"regexp"
 	"runtime"
@@ -62,59 +64,64 @@ func init() {
 
 // InitLogger 根据配置初始化日志记录器
 // 该函数会：
-// 1. 创建新的logrus日志记录器
-// 2. 设置日志级别为Trace（最高级别）
-// 3. 为每个日志级别配置对应的输出
-// 4. 支持自定义日志配置和默认配置回退
+// 1. 创建新的 logrus 日志记录器
+// 2. 解析生效 outputs（nil/空 → file+stdout；非空 → 仅启用项）
+// 3. 按开关装配 stdout / file(lfshook) / remote
+// 4. 支持按级 loggers 配置与默认轮转回退
 // 参数：
 //   - loggersConfig: 日志配置信息
 //
 // 返回：
 //   - *logrus.Logger: 配置完成的日志记录器
 func InitLogger(loggersConfig config.LoggersConfig) *logrus.Logger {
-	// 初始化日志记录器
+	// 1. 创建记录器并设定级别与控制台格式
 	Logger := logrus.New()
-
-	// 设置日志级别为 Trace（最高级别，记录所有日志）
 	Logger.SetLevel(logrus.TraceLevel)
-
-	// 控制台使用全局 format（未配置则 text）
 	Logger.SetFormatter(newFormatter(resolveFormat(loggersConfig.Format, "")))
 
-	// 为每个日志级别配置对应的输出
-	for _, logLevel := range logrus.AllLevels {
-		// 配置 lfshook
-		writeMap := lfshook.WriterMap{}
-		levelFormat := ""
-
-		// 查找当前日志级别对应的配置
-		for _, loggerConfig := range loggersConfig.Loggers {
-			level, err := logrus.ParseLevel(loggerConfig.Level)
-			if err == nil && level == logLevel {
-				levelFormat = loggerConfig.Format
-				// 如果找到匹配的配置，使用该配置初始化日志轮转
-				if logWriter, err := initRotatelogs(loggersConfig, loggerConfig, level.String()); err == nil {
-					writeMap[level] = logWriter
-					break
-				}
-			}
-		}
-
-		// 如果没有找到匹配的配置，使用默认配置
-		if writeMap[logLevel] == nil {
-			defaultLogWriter, err := initRotatelogs(loggersConfig, config.LoggerConfig{}, logLevel.String())
-			if err != nil {
-				Logger.Errorf("[logger] 初始化日志轮转失败 [%s]: %v", logLevel.String(), err)
-			}
-			writeMap[logLevel] = defaultLogWriter
-		}
-
-		// 添加 lfshook：按级 format 覆盖全局
-		fmtter := newFormatter(resolveFormat(loggersConfig.Format, levelFormat))
-		Logger.AddHook(lfshook.NewHook(writeMap, fmtter))
+	// 2. 解析生效输出并装配 stdout
+	flags := flagsFromEffective(resolveEffectiveOutputs(loggersConfig.Outputs))
+	if flags.stdout {
+		Logger.SetOutput(os.Stdout)
+	} else {
+		Logger.SetOutput(io.Discard)
 	}
 
-	// 保存是否打印调用者信息的配置（由包装函数使用）
+	// 3. 按需装配文件轮转（lfshook）
+	if flags.file {
+		for _, logLevel := range logrus.AllLevels {
+			writeMap := lfshook.WriterMap{}
+			levelFormat := ""
+
+			for _, loggerConfig := range loggersConfig.Loggers {
+				level, err := logrus.ParseLevel(loggerConfig.Level)
+				if err == nil && level == logLevel {
+					levelFormat = loggerConfig.Format
+					if logWriter, err := initRotatelogs(loggersConfig, loggerConfig, level.String()); err == nil {
+						writeMap[level] = logWriter
+						break
+					}
+				}
+			}
+
+			if writeMap[logLevel] == nil {
+				defaultLogWriter, err := initRotatelogs(loggersConfig, config.LoggerConfig{}, logLevel.String())
+				if err != nil {
+					Logger.Errorf("[logger] 初始化日志轮转失败 [%s]: %v", logLevel.String(), err)
+				}
+				writeMap[logLevel] = defaultLogWriter
+			}
+
+			fmtter := newFormatter(resolveFormat(loggersConfig.Format, levelFormat))
+			Logger.AddHook(lfshook.NewHook(writeMap, fmtter))
+		}
+	}
+
+	// 4. 按需装配远程 Sink
+	if flags.remote {
+		attachRemoteSink(Logger, loggersConfig)
+	}
+
 	printCaller = loggersConfig.PrintCaller
 	return Logger
 }

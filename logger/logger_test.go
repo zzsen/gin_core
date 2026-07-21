@@ -22,9 +22,15 @@ package logger
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -527,6 +533,76 @@ func TestInitLogger_GlobalJSONCaseInsensitive(t *testing.T) {
 	require.NotNil(t, l)
 	_, ok := l.Formatter.(*logrus.JSONFormatter)
 	assert.True(t, ok)
+}
+
+// TestInitLogger_NoRemote_StillSetsFormatter 配置 outputs 但无 remote 时仍正常
+//
+// 【功能点】无启用 remote 时 InitLogger 行为与现网一致（JSON formatter）
+// 【测试流程】
+// 1. Outputs 仅 file，Format=json
+// 2. 返回非 nil 且控制台 Formatter 为 JSONFormatter
+func TestInitLogger_NoRemote_StillSetsFormatter(t *testing.T) {
+	dir := t.TempDir()
+	l := InitLogger(config.LoggersConfig{
+		FilePath: dir,
+		Format:   "json",
+		Outputs:  []config.LogOutputConfig{{Type: "file"}},
+	})
+	require.NotNil(t, l)
+	_, ok := l.Formatter.(*logrus.JSONFormatter)
+	assert.True(t, ok)
+}
+
+// TestInitLogger_RemoteLoki_PushesOnFlush 装配 Loki remote 后可推送
+//
+// 【功能点】InitLogger + remote loki → Info → CloseRemote 后服务端收到请求
+// 【测试流程】
+// 1. httptest 模拟 Loki
+// 2. InitLogger 配置 remote
+// 3. Info + CloseRemote，断言收到请求
+func TestInitLogger_RemoteLoki_PushesOnFlush(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.WriteHeader(204)
+	}))
+	defer srv.Close()
+	t.Cleanup(func() { _ = CloseRemote(context.Background()) })
+
+	// 避免 t.TempDir：rotatelogs 在 Windows 上会占用文件导致 TempDir 清理失败
+	dir, err := os.MkdirTemp("", "gin-core-loki-*")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+
+	enabled := true
+	l := InitLogger(config.LoggersConfig{
+		FilePath: dir,
+		Format:   "json",
+		Resource: &config.LogResourceConfig{ServiceName: "ut", Env: "test"},
+		Outputs: []config.LogOutputConfig{
+			{Type: "file"},
+			{
+				Type: "remote", Enabled: &enabled, MinLevel: "info",
+				Remote: &config.RemoteOutputConfig{
+					Driver: "loki", Format: "json",
+					QueueSize: 32, BatchSize: 8, FlushIntervalMs: 50,
+					Loki: &config.LokiOutputConfig{
+						URL: srv.URL + "/loki/api/v1/push", TimeoutMs: 2000,
+						Labels: []string{"serviceName", "env"},
+					},
+				},
+			},
+		},
+	})
+	require.NotNil(t, l)
+	Logger = l
+	require.NotNil(t, GetRemotePipeline(), "remote pipeline should be attached")
+	require.NotEmpty(t, l.Hooks[logrus.InfoLevel], "expected hooks at info level")
+	Info("remote-hello")
+	require.NoError(t, FlushRemote(context.Background()))
+	require.NoError(t, CloseRemote(context.Background()))
+	assert.Greater(t, hits.Load(), int32(0), "loki httptest should receive push")
 }
 
 // TestInitLogger_LevelOnlyJSON_ConsoleStaysText 仅级别 json 时控制台仍用全局 text
