@@ -402,7 +402,7 @@ func TestInitRedisClient_连接池默认值与Ping失败(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, cli)
-	defer cli.Close()
+	defer func() { _ = cli.Close() }()
 
 	_, err = initRedisClient(config.RedisInfo{
 		AliasName:    "cluster-fail",
@@ -452,50 +452,107 @@ func TestInitRedisList_某一实例失败时Panic带别名(t *testing.T) {
 	InitRedisList()
 }
 
-// TestInitEtcd_缺失配置时Panic
+// TestInitEtcd_缺失配置返回Error
 //
-// 【功能点】验证 InitEtcd 在 Etcd 配置缺失时 panic
-// 【测试流程】Etcd=nil；recover 校验 InitError
-func TestInitEtcd_缺失配置时Panic(t *testing.T) {
+// 【功能点】验证 InitEtcd 在 Etcd 配置缺失时返回配置错误（非 panic）
+// 【测试流程】Etcd=nil；断言 error 且 app.Etcd 仍为 nil
+func TestInitEtcd_缺失配置返回Error(t *testing.T) {
 	snap := saveInitializeGlobals()
 	defer restoreInitializeGlobals(t, snap)
 
+	app.Etcd = nil
 	app.BaseConfig = config.BaseConfig{Etcd: nil}
 
-	defer func() {
-		r := recover()
-		require.NotNil(t, r)
-		err, ok := r.(*exception.InitError)
-		require.True(t, ok)
-		assert.Equal(t, "etcd", err.Service)
-	}()
-
-	InitEtcd()
+	err := InitEtcd()
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrEtcdConfig)
+	assert.Nil(t, app.Etcd)
 }
 
-// TestInitEtcd_空Endpoints创建客户端失败时Panic
+// TestInitEtcd_空Endpoints返回Error
 //
-// 【功能点】验证 InitEtcd 在 clientv3.New 返回错误时的 panic 路径
-// 【测试流程】Addresses 为空切片；recover 校验 InitError 服务名为 etcd
-func TestInitEtcd_空Endpoints创建客户端失败时Panic(t *testing.T) {
+// 【功能点】验证 endpoints 为空时返回配置错误
+// 【测试流程】Endpoints=[]；断言 ErrEtcdConfig
+func TestInitEtcd_空Endpoints返回Error(t *testing.T) {
 	snap := saveInitializeGlobals()
 	defer restoreInitializeGlobals(t, snap)
 
+	app.Etcd = nil
+	app.BaseConfig = config.BaseConfig{
+		Etcd: &config.EtcdInfo{Endpoints: []string{}},
+	}
+
+	err := InitEtcd()
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrEtcdConfig)
+	assert.Nil(t, app.Etcd)
+}
+
+// TestInitEtcd_负数Timeout返回Error
+//
+// 【功能点】dial.timeout 为负时校验失败
+// 【测试流程】Timeout=-1；断言 ErrEtcdConfig
+func TestInitEtcd_负数Timeout返回Error(t *testing.T) {
+	snap := saveInitializeGlobals()
+	defer restoreInitializeGlobals(t, snap)
+
+	neg := -1
+	app.Etcd = nil
 	app.BaseConfig = config.BaseConfig{
 		Etcd: &config.EtcdInfo{
-			Addresses: []string{},
+			Endpoints: []string{"http://127.0.0.1:2379"},
+			Dial:      &config.EtcdDialConfig{Timeout: &neg},
 		},
 	}
 
-	defer func() {
-		r := recover()
-		require.NotNil(t, r)
-		err, ok := r.(*exception.InitError)
-		require.True(t, ok)
-		assert.Equal(t, "etcd", err.Service)
-	}()
+	err := InitEtcd()
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrEtcdConfig)
+}
 
-	InitEtcd()
+// TestInitEtcd_TLS非法CA路径返回Error
+//
+// 【功能点】tls.enabled 且 caFile 不存在时返回错误
+// 【测试流程】启用 TLS 指向不存在的 CA 文件
+func TestInitEtcd_TLS非法CA路径返回Error(t *testing.T) {
+	snap := saveInitializeGlobals()
+	defer restoreInitializeGlobals(t, snap)
+
+	app.Etcd = nil
+	app.BaseConfig = config.BaseConfig{
+		Etcd: &config.EtcdInfo{
+			Endpoints: []string{"http://127.0.0.1:2379"},
+			TLS: &config.EtcdTLSConfig{
+				Enabled: true,
+				CAFile:  "definitely-missing-ca-file-for-test.pem",
+			},
+		},
+	}
+
+	err := InitEtcd()
+	require.Error(t, err)
+}
+
+// TestInitEtcd_非法HealthStrategy不返回配置错误 strategy 非法时 warn 并继续
+//
+// 【功能点】health.strategy=first 不再返回 ErrEtcdConfig（回退 any）
+// 【测试流程】strategy=first → InitEtcd 不以配置错误失败
+func TestInitEtcd_非法HealthStrategy不返回配置错误(t *testing.T) {
+	snap := saveInitializeGlobals()
+	defer restoreInitializeGlobals(t, snap)
+
+	app.Etcd = nil
+	app.BaseConfig = config.BaseConfig{
+		Etcd: &config.EtcdInfo{
+			Endpoints: []string{"http://127.0.0.1:1"},
+			Health:    &config.EtcdHealthConfig{Strategy: "first"},
+		},
+	}
+
+	err := InitEtcd()
+	if err != nil {
+		assert.NotErrorIs(t, err, ErrEtcdConfig)
+	}
 }
 
 // TestInitElasticsearch_缺失配置时Panic
@@ -955,7 +1012,7 @@ func TestInitRedisClient_启用Redis链路追踪时单机客户端成功(t *test
 	})
 	require.NoError(t, err)
 	require.NotNil(t, cli)
-	defer cli.Close()
+	defer func() { _ = cli.Close() }()
 
 	pong, err := cli.Ping(context.Background()).Result()
 	require.NoError(t, err)
