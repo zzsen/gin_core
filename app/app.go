@@ -26,7 +26,7 @@ var (
 	DBResolver *gorm.DB
 	// ES Elasticsearch 类型化客户端实例
 	ES *elasticsearch.TypedClient
-	// Etcd Etcd 客户端实例，用于服务发现或分布式配置
+	// Etcd Etcd 客户端实例（clientv3），供业务或 distlock.NewEtcdLocker 使用；框架未内置服务发现 / 配置中心
 	Etcd *clientv3.Client
 	// DBList 多数据库连接池，按别名索引。并发访问需通过 GetDbByName 方法
 	DBList map[string]*gorm.DB

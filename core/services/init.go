@@ -6,8 +6,8 @@
 //   - RedisService: Redis缓存服务（优先级10，依赖logger）
 //   - MySQLService: MySQL数据库服务（优先级10，依赖logger）
 //   - ElasticsearchService: Elasticsearch搜索服务（优先级20，依赖logger）
+//   - EtcdService: Etcd 客户端服务（优先级20，依赖logger；连接/健康检查，非配置中心）
 //   - RabbitMQService: RabbitMQ消息队列服务（优先级30，依赖logger）
-//   - EtcdService: Etcd配置中心服务（优先级20，依赖logger）
 //   - ScheduleService: 定时任务服务（优先级100，依赖logger）
 //
 // 使用示例：
