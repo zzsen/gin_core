@@ -10,7 +10,8 @@ gin_core 框架提供了强大、灵活且生产就绪的配置管理系统，�
 3. **配置安全加密** - 内置 AES 加密，保护敏感配置信息
 4. **自定义配置扩展** - 基于 BaseConfig 灵活扩展项目特定配置
 5. **外部配置支持** - 支持配置文件与代码分离部署
-6. **热加载机制** - 支持配置变更的动态生效（结合 Etcd）
+
+> 说明：当前配置来自本地 `conf/*.yml`（及环境变量覆盖），**不支持**基于 Etcd 的配置热加载。Etcd 客户端详见 [§5.12](#512-etcd-客户端-etcd) 与 [etcd.md](./etcd.md)。
 
 ---
 
@@ -201,7 +202,7 @@ system:
   useEs: true          # 是否启用Elasticsearch搜索引擎功能
   useRabbitMQ: true    # 是否启用RabbitMQ消息队列功能
   useSchedule: true    # 是否启用定时任务调度功能
-  useEtcd: false       # 是否启用Etcd配置中心功能
+  useEtcd: false       # 是否启用 Etcd 客户端（连接初始化、健康检查）
 ```
 
 ### 5.2 HTTP服务配置 (service)
@@ -425,17 +426,37 @@ es:                               # Elasticsearch配置
   password: "Kingsoft@5688+&."   # ES密码，生产环境建议加密
 ```
 
-### 5.12 配置中心 (etcd)
+### 5.12 Etcd 客户端 (etcd)
 
-Etcd配置中心配置：
+
+启用 `system.useEtcd: true` 后，框架初始化 Etcd v3 客户端到 `app.Etcd`（含 ready `Status`、可选 namespace）。
+
+| 能力 | 说明 |
+|------|------|
+| 客户端连接 | 分层配置 + TLS / KeepAlive；`InitEtcd() error` |
+| required | 默认 `false` 降级；生产建议 `true` |
+| 健康检查 | `health.strategy`: `any` \| `all`，见 [健康检查](./healthcheck.md) |
+| 分布式锁 | `distlock.NewEtcdLocker(app.Etcd, ...)`，见 [分布式锁](./distlock.md) |
+
+**尚未内置**：服务注册 / 发现、配置热更新。
 
 ```yaml
-etcd:                             # Etcd配置中心配置
-  addresses:                      # Etcd集群地址列表
-    - "http://esHost:9200"        # Etcd节点地址
-  username: "elastic"             # Etcd用户名
-  password: "esPassword"          # Etcd密码
-  timeout: 5                      # 连接超时时间，单位：秒
+etcd:
+  endpoints:
+    - "http://127.0.0.1:2379"
+  username: ""
+  password: ""
+  required: false
+  keyPrefix: ""
+  dial:
+    timeout: 5
+    keepAliveTime: 30
+    keepAliveTimeout: 10
+    autoSyncInterval: 0
+  tls:
+    enabled: false
+  health:
+    strategy: any
 ```
 
 ### 5.13 缓存配置 (redis)
@@ -498,7 +519,7 @@ type BaseConfig struct {
     RateLimit    RateLimitConfig  `yaml:"rateLimit"`    // 限流配置
     CORS         CORSConfig       `yaml:"cors"`         // CORS 跨域配置
     Db           *DbInfo          `yaml:"db"`           // 单数据库配置
-    Etcd         *EtcdInfo        `yaml:"etcd"`         // Etcd 配置
+    Etcd         *EtcdInfo        `yaml:"etcd"`         // Etcd 客户端连接配置
     DbList       []DbInfo         `yaml:"dbList"`       // 多数据库列表配置
     DbResolvers  DbResolvers      `yaml:"dbResolvers"`  // 读写分离配置
     Redis        *RedisInfo       `yaml:"redis"`        // 单 Redis 配置

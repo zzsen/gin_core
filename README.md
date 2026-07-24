@@ -11,14 +11,15 @@
 | **缓存** | Redis | 连接池、多实例、集群模式 |
 | **消息队列** | RabbitMQ | 生产者 / 消费者、死信队列、发布确认、批量发送 |
 | **搜索引擎** | Elasticsearch | Typed Client 集成 |
-| **配置中心** | Etcd | 服务发现、分布式配置 |
-| **日志** | Logrus | 结构化日志、可配置 Text/JSON Formatter、按级别分文件、自动切割、敏感信息脱敏 |
+| **分布式协调** | Etcd | 分层配置、TLS、namespace、健康检查；配合 `distlock` 做分布式锁（服务发现 / 配置中心尚未内置）。详见 [etcd.md](./doc/etcd.md) |
+| **日志** | Logrus | 结构化日志、Text/JSON Formatter、多输出（file / stdout / remote）、Loki 远程投递（异步批量 + 重试）、按级别分文件、自动切割、敏感信息脱敏、WithContext 关联字段 |
 | **监控** | Prometheus | HTTP 指标采集、连接池指标、自定义 Collector |
 | **链路追踪** | OpenTelemetry | DB / Redis / HTTP 自动埋点、W3C Trace Context |
 | **限流** | 令牌桶 | 内存 / Redis 存储、按 IP / 用户 / 全局、路径规则匹配 |
 | **熔断** | 熔断器 | 自动熔断与恢复、半开探测 |
 | **安全** | 加密配置 | AES 加密敏感配置、环境变量注入 |
-| **中间件** | 八大内置中间件 | 异常处理、请求日志、超时控制、CORS 跨域等 |
+| **中间件** | 八大内置中间件 | 异常处理、请求日志、超时控制、限流、CORS 跨域、OTel / TraceId 等 |
+| **可观测** | pprof | 非生产环境自动启动性能分析（`service.pprofPort`） |
 | **工具** | 常用工具包 | HTTP 客户端、邮件发送、AES / RSA 加解密、分布式锁 |
 
 ## 安装
@@ -91,6 +92,7 @@ system:
   useEs: false
   useRabbitMQ: false
   useSchedule: false
+  useEtcd: false
 
 service:
   ip: "0.0.0.0"
@@ -99,6 +101,13 @@ service:
     - "exceptionHandler"
     - "traceIdHandler"
     - "traceLogHandler"
+
+# 可选：日志多输出 / Loki，详见 doc/logger.md
+# log:
+#   format: "json"
+#   outputs:
+#     - type: file
+#     - type: stdout
 ```
 
 ### 4. 运行
@@ -124,17 +133,22 @@ main()
        → loadConfig()                # 加载配置文件
        → AppBeforeInit 钩子          # 应用初始化前钩子
        → initMiddleware()            # 注册中间件
-       → initService()               # 初始化服务（DB、Redis 等）
+       → initService()               # 初始化服务（DB、Redis、Logger 等）
        → AppAfterInit 钩子           # 应用初始化后钩子
-       → initEngine()                # 创建 Gin 引擎、注册路由
-       → server.ListenAndServe()     # 启动 HTTP 服务
-       → AppOnReady 钩子             # 服务就绪钩子
+       → metrics.StartCollector()    # Prometheus 采集器（metrics.enabled 时）
+       → pprof ListenAndServe()      # 非生产环境启动 pprof（可选端口）
+       → net.Listen()                # 先绑定端口
+       → AppOnReady 钩子             # 端口就绪后触发（独立 goroutine）
+       → server.Serve(listener)      # 阻塞服务请求
+
+失败路径（BeforeInit / AfterInit 出错）：
+  → AppOnInitFailed 钩子 → panic
 
 优雅关闭：
   SIGINT/SIGTERM
     → AppBeforeShutdown 钩子         # 应用关闭前钩子
-    → lifecycle.CloseServices()      # 关闭服务连接
-    → server.Shutdown(timeout)       # 优雅关闭 HTTP（超时可配置）
+    → lifecycle.CloseServices()      # 关闭依赖（含远程日志 Flush/Close）
+    → server.Shutdown(timeout)       # 优雅关闭 HTTP（shutdownTimeout，默认 5s）
     → AppAfterShutdown 钩子          # 应用关闭后钩子
 ```
 
@@ -149,28 +163,33 @@ main()
 | `core.AddSchedule(schedule)` | 注册定时任务 |
 | `core.RegisterMiddleware(name, fn)` | 注册自定义中间件 |
 | `core.RegisterService(svc)` | 注册自定义服务 |
+| `core.RegisterServiceHook(name, hook)` | 注册服务级生命周期钩子 |
 | `core.RegisterAppHook(hook)` | 注册应用级生命周期钩子（完整配置） |
 | `core.OnBeforeInit(fn)` | 注册应用初始化前钩子 |
 | `core.OnAfterInit(fn)` | 注册应用初始化后钩子 |
-| `core.OnReady(fn)` | 注册服务就绪钩子 |
+| `core.OnReady(fn)` | 注册服务就绪钩子（端口绑定成功后） |
 | `core.OnBeforeShutdown(fn)` | 注册应用关闭前钩子 |
 | `core.OnAfterShutdown(fn)` | 注册应用关闭后钩子 |
 | `core.Start()` | 启动服务器 |
 
 | 全局变量 (app 包) | 说明 |
 |-----|------|
+| `app.Env` | 当前运行环境（dev / test / prod 等） |
+| `app.Config` | 用户自定义配置指针 |
+| `app.BaseConfig` | 框架基础配置（解析后） |
+| `app.Logger` | 全局 logrus 实例 |
 | `app.DB` | 默认 MySQL 连接 |
 | `app.DBResolver` | 读写分离 MySQL 连接 |
 | `app.GetDbByName(name)` | 按别名获取数据库连接 |
 | `app.Redis` | 默认 Redis 连接 |
 | `app.GetRedisByName(name)` | 按别名获取 Redis 连接 |
 | `app.ES` | Elasticsearch 客户端 |
-| `app.Etcd` | Etcd 客户端 |
+| `app.Etcd` | Etcd 客户端（`clientv3.Client`，供业务或 `distlock.NewEtcdLocker` 使用） |
 | `app.SendRabbitMqMsg(...)` | 发送 MQ 消息 |
 | `app.SendRabbitMqMsgWithConfirm(...)` | 发送 MQ 消息（带发布确认） |
 | `app.SendRabbitMqMsgBatch(...)` | 批量发送 MQ 消息 |
 | `app.SendRabbitMqMsgBatchWithContext(...)` | 批量发送 MQ 消息（带 Context） |
-| `app.BaseConfig` | 框架基础配置 |
+| `app.GetPoolStats()` / `app.CheckPoolHealth()` | 连接池统计与健康状态 |
 
 ## 内置中间件
 
@@ -189,14 +208,17 @@ main()
 
 ## 内置健康检查
 
-框架自动注册以下端点，无需额外配置：
+框架自动注册以下端点，无需额外配置（若配置了 `service.routePrefix`，路径会带此前缀，如 `/api/v1/healthy`）：
 
 | 端点 | 说明 |
 |------|------|
 | `GET /healthy` | 存活检查（Liveness） |
 | `GET /healthy/ready` | 就绪检查（Readiness），检查所有依赖服务 |
 | `GET /healthy/stats` | 连接池统计信息 |
-| `GET /metrics` | Prometheus 指标端点（需启用 `metrics.enabled`） |
+| `GET /healthy/log-level` | 查询当前日志级别 |
+| `PUT /healthy/log-level` | 动态调整日志级别（body: `{"level":"info"}`） |
+| `GET /metrics` | Prometheus 指标端点（需启用 `metrics.enabled`，路径可配） |
+| `GET /debug/pprof/` | pprof 性能分析（非生产环境，独立端口 `pprofPort`） |
 
 ## 文档
 
@@ -208,12 +230,14 @@ main()
 | [运行参数](./doc/args.md) | 命令行参数说明（`--env`、`--config`、`--cipherKey`） |
 | [运行环境](./doc/env.md) | 环境变量配置 |
 | [配置](./doc/config.md) | 配置文件说明（多环境、加密、环境变量替换） |
+| [异常处理](./doc/exception.md) | 统一异常与错误响应 |
+| [参数校验](./doc/validation.md) | 请求参数校验 |
 
 ### 核心功能
 
 | 文档 | 说明 |
 |------|------|
-| [日志](./doc/logger.md) | 日志系统配置和使用 |
+| [日志](./doc/logger.md) | 日志系统（多输出、Loki 远程投递、Formatter、脱敏等） |
 | [中间件](./doc/middleware.md) | 内置中间件和自定义中间件 |
 | [路由](./doc/router.md) | 路由配置和分组 |
 | [控制器](./doc/controller.md) | 控制器编写规范 |
@@ -221,6 +245,8 @@ main()
 | [服务注册](./doc/service_register.md) | 服务注册和依赖管理 |
 | [生命周期钩子](./doc/lifecycle_hooks.md) | 应用级 / 服务级生命周期钩子 |
 | [定时任务](./doc/schedule.md) | 定时任务配置 |
+| [健康检查](./doc/healthcheck.md) | 存活 / 就绪 / 连接池统计端点 |
+| [Etcd](./doc/etcd.md) | Etcd 客户端基建、namespace、健康检查 |
 
 ### 高级功能
 
@@ -231,7 +257,15 @@ main()
 | [限流](./doc/ratelimit.md) | API 限流配置和使用 |
 | [熔断器](./doc/circuitbreaker.md) | 服务熔断保护 |
 | [死信队列](./doc/dead_letter_queue.md) | RabbitMQ 死信队列 |
-| [分布式锁](./doc/distlock.md) | Redis 分布式锁 |
+| [分布式锁](./doc/distlock.md) | Redis / Etcd 分布式锁 |
+
+### 工具与安全
+
+| 文档 | 说明 |
+|------|------|
+| [HTTP 客户端](./doc/http_client.md) | 内置 HTTP 客户端封装 |
+| [邮件发送](./doc/email.md) | 邮件发送工具 |
+| [加解密](./doc/encrypt.md) | AES / RSA 加解密 |
 
 ## 许可证
 

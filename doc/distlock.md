@@ -574,6 +574,28 @@ locker := distlock.NewRedisLocker(app.Redis,
 
 除 Redis 实现外，框架还提供基于 Etcd 的分布式锁实现，基于 Raft 共识协议保证强一致性。
 
+框架内置客户端时，优先使用已初始化的 [`app.Etcd`](../app/app.go)（见 [Etcd 客户端](./etcd.md)），无需自行 `clientv3.New`：
+
+```go
+locker, err := distlock.NewEtcdLocker(app.Etcd,
+    distlock.WithKeyPrefix("myapp:lock:"),
+)
+```
+
+### 与全局 `etcd.keyPrefix` 的关系
+
+存在两层前缀，**会叠加**，不要混为一谈：
+
+| 前缀来源 | 配置 / API | 作用 |
+|----------|------------|------|
+| 全局 Namespace | yaml `etcd.keyPrefix` | `InitEtcd` 对 `app.Etcd` 的 KV / Watcher / Lease 做 `clientv3/namespace` 包装；探活 Status **不包装** |
+| 锁 Option | `distlock.WithKeyPrefix(...)` | 仅作用于锁 key 的业务前缀（默认常见为 `distlock:`） |
+
+**实际落库路径**：`etcd.keyPrefix` + `WithKeyPrefix` + 业务 lock name。  
+例如全局 `keyPrefix: "/prod/"` 且 `WithKeyPrefix("distlock:")`、锁名 `order` → Etcd 上约为 `/prod/distlock:order`（以 namespace 包装语义为准）。
+
+若 `required: false` 且连接失败，`app.Etcd` 可能为 `nil`，此时不要创建 `EtcdLocker`。
+
 ### 特性对比
 
 | 特性 | Redis | Etcd |
@@ -590,23 +612,18 @@ import (
     "context"
     "time"
 
-    clientv3 "go.etcd.io/etcd/client/v3"
+    "github.com/zzsen/gin_core/app"
     "github.com/zzsen/gin_core/distlock"
 )
 
-// 创建 Etcd 客户端
-client, _ := clientv3.New(clientv3.Config{
-    Endpoints:   []string{"localhost:2379"},
-    DialTimeout: 5 * time.Second,
-})
-
-// 创建 Etcd 分布式锁客户端
-locker, err := distlock.NewEtcdLocker(client,
+// 使用框架已初始化的 app.Etcd（system.useEtcd: true）
+locker, err := distlock.NewEtcdLocker(app.Etcd,
     distlock.WithKeyPrefix("myapp:lock:"),
     distlock.WithDefaultTTL(30*time.Second),
 )
 if err != nil {
-    panic(err)
+    // 处理错误（含 app.Etcd == nil）
+    return
 }
 defer locker.Close()
 
