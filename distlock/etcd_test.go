@@ -42,7 +42,7 @@ func getEtcdClient(t *testing.T) *clientv3.Client {
 		DialTimeout: 5 * time.Second,
 	})
 	require.NoError(t, err)
-	t.Cleanup(func() { client.Close() })
+	t.Cleanup(func() { _ = client.Close() })
 	return client
 }
 
@@ -62,7 +62,7 @@ func TestEtcdLocker_New(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	assert.NotNil(t, locker.session)
 	assert.Equal(t, "test:lock:", locker.config.KeyPrefix)
@@ -81,7 +81,7 @@ func TestEtcdLocker_TryLock(t *testing.T) {
 
 	locker, err := NewEtcdLocker(client, WithKeyPrefix("test:trylock:"))
 	require.NoError(t, err)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 
@@ -114,11 +114,11 @@ func TestEtcdLocker_TryLock_AlreadyHeld(t *testing.T) {
 
 	locker1, err := NewEtcdLocker(client, WithKeyPrefix("test:compete:"))
 	require.NoError(t, err)
-	defer locker1.Close()
+	defer func() { _ = locker1.Close() }()
 
 	locker2, err := NewEtcdLocker(client, WithKeyPrefix("test:compete:"))
 	require.NoError(t, err)
-	defer locker2.Close()
+	defer func() { _ = locker2.Close() }()
 
 	ctx := context.Background()
 
@@ -148,11 +148,11 @@ func TestEtcdLocker_Lock_Blocking(t *testing.T) {
 
 	locker1, err := NewEtcdLocker(client, WithKeyPrefix("test:block:"))
 	require.NoError(t, err)
-	defer locker1.Close()
+	defer func() { _ = locker1.Close() }()
 
 	locker2, err := NewEtcdLocker(client, WithKeyPrefix("test:block:"))
 	require.NoError(t, err)
-	defer locker2.Close()
+	defer func() { _ = locker2.Close() }()
 
 	ctx := context.Background()
 
@@ -181,11 +181,11 @@ func TestEtcdLocker_LockWithRetry(t *testing.T) {
 
 	locker1, err := NewEtcdLocker(client, WithKeyPrefix("test:retry:"))
 	require.NoError(t, err)
-	defer locker1.Close()
+	defer func() { _ = locker1.Close() }()
 
 	locker2, err := NewEtcdLocker(client, WithKeyPrefix("test:retry:"))
 	require.NoError(t, err)
-	defer locker2.Close()
+	defer func() { _ = locker2.Close() }()
 
 	ctx := context.Background()
 
@@ -214,7 +214,7 @@ func TestEtcdLocker_TTL(t *testing.T) {
 		WithDefaultTTL(15*time.Second),
 	)
 	require.NoError(t, err)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "ttl-key")
@@ -251,7 +251,7 @@ func TestEtcdLocker_Stats(t *testing.T) {
 
 	locker, err := NewEtcdLocker(client, WithKeyPrefix("test:stats:"))
 	require.NoError(t, err)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "stats-key")

@@ -416,10 +416,10 @@ func (m *MessageQueue) InitChannelForProducer() error {
 // Close 关闭 AMQP 连接和通道，释放资源
 func (m *MessageQueue) Close() {
 	if m.Conn != nil && !m.Conn.IsClosed() {
-		m.Conn.Close()
+		_ = m.Conn.Close()
 	}
 	if m.Channel != nil && !m.Channel.IsClosed() {
-		m.Channel.Close()
+		_ = m.Channel.Close()
 	}
 }
 

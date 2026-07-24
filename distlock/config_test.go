@@ -179,7 +179,7 @@ func TestNewRedisLocker_AppliesOptionChain(t *testing.T) {
 		WithRetryCount(12),
 		WithRetryDelay(33*time.Millisecond),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	stats := locker.Stats()
 	assert.Equal(t, "redis", stats["type"])
@@ -267,7 +267,7 @@ func TestTryLock_ContextCancelled_ErrWrapped(t *testing.T) {
 	defer mr.Close()
 
 	locker := NewRedisLocker(client, WithWatchdog(false))
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -306,7 +306,7 @@ func TestRedisLock_TTL_AfterUnlock_ErrLockNotHeld(t *testing.T) {
 	defer mr.Close()
 
 	locker := NewRedisLocker(client, WithWatchdog(false))
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "ttl-after-unlock")
@@ -328,7 +328,7 @@ func TestRedisLock_TTL_NoExpiry_ReturnsZeroDuration(t *testing.T) {
 	defer mr.Close()
 
 	locker := NewRedisLocker(client, WithWatchdog(false))
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "persist-key")
@@ -354,7 +354,7 @@ func TestRedisLock_Extend_AfterUnlock_ErrLockNotHeld(t *testing.T) {
 	defer mr.Close()
 
 	locker := NewRedisLocker(client, WithWatchdog(false))
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "extend-after-unlock")
@@ -377,7 +377,7 @@ func TestRedisLock_Extend_ContextCancelled_ErrWrapped(t *testing.T) {
 	defer mr.Close()
 
 	locker := NewRedisLocker(client, WithWatchdog(false))
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "extend-cancel")
@@ -404,7 +404,7 @@ func TestRedisLock_Unlock_ContextCancelled_ErrWrapped(t *testing.T) {
 	defer mr.Close()
 
 	locker := NewRedisLocker(client, WithWatchdog(false))
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	lock, err := locker.TryLock(context.Background(), "unlock-cancel")
 	assert.NoError(t, err)
@@ -441,7 +441,7 @@ func TestWatchdog_OnWatchdogError_KeyDeleted(t *testing.T) {
 			}
 		}),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "watchdog-err")
@@ -469,7 +469,7 @@ func TestTryLock_ReentrantSameToken_RefreshTTL(t *testing.T) {
 		WithWatchdog(false),
 		WithDefaultTTL(800*time.Millisecond),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "reentrant")
@@ -586,7 +586,7 @@ func TestEmbeddedEtcd_TryLock_Unlock_TTL_Extend(t *testing.T) {
 		}),
 	)
 	assert.NoError(t, err)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "resource")
@@ -616,11 +616,11 @@ func TestEmbeddedEtcd_TryLock_AlreadyHeld(t *testing.T) {
 
 	a, err := NewEtcdLocker(cli, WithKeyPrefix("emb:held:"))
 	assert.NoError(t, err)
-	defer a.Close()
+	defer func() { _ = a.Close() }()
 
 	b, err := NewEtcdLocker(cli, WithKeyPrefix("emb:held:"))
 	assert.NoError(t, err)
-	defer b.Close()
+	defer func() { _ = b.Close() }()
 
 	ctx := context.Background()
 	l1, err := a.TryLock(ctx, "x")
@@ -643,7 +643,7 @@ func TestEmbeddedEtcd_Lock_ContextCanceled_Blocking(t *testing.T) {
 
 	locker, err := NewEtcdLocker(cli, WithKeyPrefix("emb:lcancel:"))
 	assert.NoError(t, err)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -665,11 +665,11 @@ func TestEmbeddedEtcd_LockWithRetry_AcquireFailed(t *testing.T) {
 
 	locker1, err := NewEtcdLocker(cli, WithKeyPrefix("emb:retryfail:"))
 	assert.NoError(t, err)
-	defer locker1.Close()
+	defer func() { _ = locker1.Close() }()
 
 	locker2, err := NewEtcdLocker(cli, WithKeyPrefix("emb:retryfail:"))
 	assert.NoError(t, err)
-	defer locker2.Close()
+	defer func() { _ = locker2.Close() }()
 
 	ctx := context.Background()
 	l1, err := locker1.TryLock(ctx, "busy")
@@ -694,11 +694,11 @@ func TestEmbeddedEtcd_LockWithRetry_ContextDeadline(t *testing.T) {
 
 	locker1, err := NewEtcdLocker(cli, WithKeyPrefix("emb:rwdl:"))
 	assert.NoError(t, err)
-	defer locker1.Close()
+	defer func() { _ = locker1.Close() }()
 
 	locker2, err := NewEtcdLocker(cli, WithKeyPrefix("emb:rwdl:"))
 	assert.NoError(t, err)
-	defer locker2.Close()
+	defer func() { _ = locker2.Close() }()
 
 	ctx := context.Background()
 	l1, err := locker1.TryLock(ctx, "block-retry")
@@ -779,7 +779,7 @@ func TestEmbeddedEtcd_Stats_ActiveLocks(t *testing.T) {
 		WithDefaultTTL(20*time.Second),
 	)
 	assert.NoError(t, err)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "st")

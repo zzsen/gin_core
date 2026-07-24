@@ -80,7 +80,7 @@ func TestTryLock_Success(t *testing.T) {
 	defer mr.Close()
 
 	locker := NewRedisLocker(client, WithWatchdog(false))
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	lock, err := locker.TryLock(ctx, "test-key")
@@ -118,7 +118,7 @@ func TestTryLock_AlreadyHeld(t *testing.T) {
 	defer mr.Close()
 
 	locker := NewRedisLocker(client, WithWatchdog(false))
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 
@@ -162,7 +162,7 @@ func TestLock_BlockingAcquire(t *testing.T) {
 		WithRetryCount(10),
 		WithRetryDelay(50*time.Millisecond),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 
@@ -213,7 +213,7 @@ func TestLock_Timeout(t *testing.T) {
 		WithRetryCount(5),
 		WithRetryDelay(20*time.Millisecond),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 
@@ -251,7 +251,7 @@ func TestLock_ContextCancel(t *testing.T) {
 		WithRetryCount(100),
 		WithRetryDelay(50*time.Millisecond),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	// 第一个客户端获取锁
 	ctx := context.Background()
@@ -290,7 +290,7 @@ func TestUnlock_NotHeld(t *testing.T) {
 	defer mr.Close()
 
 	locker := NewRedisLocker(client, WithWatchdog(false))
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 
@@ -336,7 +336,7 @@ func TestExtend(t *testing.T) {
 		WithWatchdog(false),
 		WithDefaultTTL(1*time.Second),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 
@@ -406,7 +406,7 @@ func TestWatchdog(t *testing.T) {
 		WithWatchdog(true),
 		WithWatchdogInterval(100*time.Millisecond),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 
@@ -460,7 +460,7 @@ func TestConcurrentLock(t *testing.T) {
 		WithRetryCount(50),
 		WithRetryDelay(10*time.Millisecond),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 	var counter int64
@@ -538,7 +538,7 @@ func TestCallbacks(t *testing.T) {
 			releasedCalled = true
 		}),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	ctx := context.Background()
 
@@ -604,7 +604,7 @@ func TestStats(t *testing.T) {
 		WithDefaultTTL(1*time.Minute),
 		WithWatchdog(false),
 	)
-	defer locker.Close()
+	defer func() { _ = locker.Close() }()
 
 	stats := locker.Stats()
 
@@ -647,7 +647,7 @@ func TestClientClosed(t *testing.T) {
 	defer mr.Close()
 
 	locker := NewRedisLocker(client, WithWatchdog(false))
-	locker.Close()
+	_ = locker.Close()
 
 	ctx := context.Background()
 	_, err := locker.TryLock(ctx, "test")

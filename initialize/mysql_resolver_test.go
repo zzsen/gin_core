@@ -87,7 +87,7 @@ func ensureTestDatabases(t *testing.T) {
 	if err != nil {
 		t.Skipf("跳过集成测试：无法创建 MySQL 连接：%v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if err = db.Ping(); err != nil {
 		t.Skipf("跳过集成测试：MySQL 不可达（%s:%d）：%v", src.Host, src.Port, err)
 	}
