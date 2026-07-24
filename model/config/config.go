@@ -13,7 +13,7 @@ type BaseConfig struct {
 	RateLimit    RateLimitConfig  `yaml:"rateLimit"`    // 限流配置，用于控制API请求速率
 	CORS         CORSConfig       `yaml:"cors"`         // CORS 跨域配置
 	Db           *DbInfo          `yaml:"db"`           // 单数据库配置，指向单个数据库实例
-	Etcd         *EtcdInfo        `yaml:"etcd"`         // Etcd配置，用于服务发现和配置管理
+	Etcd         *EtcdInfo        `yaml:"etcd"`         // Etcd 客户端连接配置（非配置中心）
 	DbList       []DbInfo         `yaml:"dbList"`       // 多数据库列表配置，支持分库分表
 	DbResolvers  DbResolvers      `yaml:"dbResolvers"`  // 数据库解析器配置，支持读写分离
 	Redis        *RedisInfo       `yaml:"redis"`        // 单Redis配置，指向单个Redis实例

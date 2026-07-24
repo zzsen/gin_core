@@ -9,7 +9,7 @@ type SystemInfo struct {
 	UseRedis    bool `yaml:"useRedis"`    // 是否启用Redis缓存服务，控制Redis相关功能的可用性
 	UseMysql    bool `yaml:"useMysql"`    // 是否启用MySQL数据库服务，控制数据库相关功能的可用性
 	UseEs       bool `yaml:"useEs"`       // 是否启用Elasticsearch搜索引擎，控制搜索相关功能的可用性
-	UseEtcd     bool `yaml:"useEtcd"`     // 是否启用Etcd分布式键值存储，控制服务发现和配置管理功能
+	UseEtcd     bool `yaml:"useEtcd"`     // 是否启用 Etcd 客户端（连接初始化与健康检查；分布式锁见 distlock）
 	UseRabbitMQ bool `yaml:"useRabbitMQ"` // 是否启用RabbitMQ消息队列，控制异步消息处理功能
 	UseSchedule bool `yaml:"useSchedule"` // 是否启用定时任务功能，控制定时任务调度器的可用性
 }

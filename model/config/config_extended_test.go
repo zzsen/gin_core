@@ -25,6 +25,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 // stubAcknowledger 用于在无真实 Channel 时验证 Ack/Nack 调用路径
@@ -402,21 +403,56 @@ func TestMetricsConfig_TracingConfig_RedisInfo_边界赋值(t *testing.T) {
 	assert.Equal(t, 32, r.PoolSize)
 }
 
+// TestEtcdInfo_分层字段与Required默认 YAML 反序列化分层配置
+//
+// 【功能点】EtcdInfo 分层字段、Required 默认 false、HealthStrategy 默认 any
+// 【测试流程】
+// 1. Unmarshal 含 endpoints/dial/tls/health/keyPrefix 的 YAML
+// 2. 断言字段与 IsRequired/HealthStrategy 默认语义
+func TestEtcdInfo_分层字段与Required默认(t *testing.T) {
+	yml := `
+endpoints:
+  - "http://127.0.0.1:2379"
+username: ""
+password: ""
+keyPrefix: "/app/"
+dial:
+  timeout: 5
+  keepAliveTime: 30
+  keepAliveTimeout: 10
+  autoSyncInterval: 0
+tls:
+  enabled: false
+health:
+  strategy: any
+`
+	var e EtcdInfo
+	require.NoError(t, yaml.Unmarshal([]byte(yml), &e))
+	assert.Equal(t, []string{"http://127.0.0.1:2379"}, e.Endpoints)
+	require.NotNil(t, e.Dial)
+	assert.Equal(t, 5, *e.Dial.Timeout)
+	assert.False(t, e.IsRequired())
+	assert.Equal(t, "any", e.HealthStrategy())
+	assert.Equal(t, "/app/", e.KeyPrefix)
+}
+
 // TestEtcdInfo_EsInfo_SmtpInfo_字段赋值
 //
-// 【功能点】EtcdInfo、EsInfo、SmtpInfo 各字段赋值与零值边界（空切片、空字符串、nil 指针）
+// 【功能点】EtcdInfo、EsInfo、SmtpInfo 各字段赋值与零值边界
 // 【测试流程】
 // 1. 分别为三类配置赋值典型字段并断言
-// 2. Etcd Timeout 为 nil 时字段为零值
+// 2. Etcd Dial 为 nil 时 Health/Required 走默认
 func TestEtcdInfo_EsInfo_SmtpInfo_字段赋值(t *testing.T) {
 	e := EtcdInfo{
-		Addresses: []string{"etcd1:2379"},
+		Endpoints: []string{"etcd1:2379"},
 		Username:  "etcd-user",
 		Password:  "etcd-pass",
-		Timeout:   nil,
+		Dial:      nil,
 	}
-	assert.Equal(t, []string{"etcd1:2379"}, e.Addresses)
-	assert.Nil(t, e.Timeout)
+	assert.Equal(t, []string{"etcd1:2379"}, e.Endpoints)
+	assert.Nil(t, e.Dial)
+	assert.False(t, e.IsRequired())
+	assert.Equal(t, "any", e.HealthStrategy())
 
 	es := EsInfo{
 		Addresses: []string{"http://es:9200"},
