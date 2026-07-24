@@ -36,12 +36,15 @@ const DefaultDBSlowThreshold = 200
 // 访问地址：http://localhost:6060/debug/pprof/
 const DefaultPprofPort = 6060
 
-// 服务发现相关常量
-// DefaultEtcdTimeout 默认Etcd连接超时时间（秒）
-// Etcd客户端连接的默认超时时间
-// 用于服务发现、配置中心等场景
-// 如果网络环境较差，可适当增加此值
+// DefaultEtcdTimeout 默认 Etcd 连接超时时间（秒）
+// 用于 clientv3 拨号超时；网络较差时可适当增大
 const DefaultEtcdTimeout = 5
+
+// DefaultEtcdKeepAliveTime 默认 DialKeepAliveTime（秒）
+const DefaultEtcdKeepAliveTime = 30
+
+// DefaultEtcdKeepAliveTimeout 默认 DialKeepAliveTimeout（秒）
+const DefaultEtcdKeepAliveTimeout = 10
 
 // Redis 连接池相关常量
 
