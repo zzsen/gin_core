@@ -9,7 +9,7 @@ system: # 系统功能开关配置
   useEs: true # 是否启用Elasticsearch搜索引擎功能
   useRabbitMQ: true # 是否启用RabbitMQ消息队列功能
   useSchedule: true # 是否启用定时任务调度功能
-  useEtcd: false # 是否启用Etcd配置中心功能
+  useEtcd: false # 是否启用 Etcd 客户端（连接初始化、健康检查；分布式锁见 distlock）
 
 # ==================== HTTP服务配置 ====================
 service: # HTTP服务器相关配置
@@ -225,13 +225,28 @@ es: # Elasticsearch配置
   username: "elastic" # ES用户名
   password: "Kingsoft@5688+&." # ES密码，生产环境建议加密
 
-# ==================== 配置中心 ====================
-etcd: # Etcd配置中心配置
-  addresses: # Etcd集群地址列表
-    - "http://esHost:9200" # Etcd节点地址
-  username: "elastic" # Etcd用户名
-  password: "esPassword" # Etcd密码
-  timeout: 5 # 连接超时时间，单位：秒
+# ==================== Etcd ====================
+# 启用 system.useEtcd 后初始化 clientv3 客户端到 app.Etcd；框架未内置服务发现 / 配置热更新
+etcd:
+  endpoints:
+    - "http://127.0.0.1:2379"
+  username: ""
+  password: ""
+  required: false # 连接失败是否阻断启动；生产建议 true
+  keyPrefix: "" # 非空时 KV/Watcher/Lease 带此前缀
+  dial:
+    timeout: 5 # 秒
+    keepAliveTime: 30
+    keepAliveTimeout: 10
+    autoSyncInterval: 0 # 0 表示关闭
+  tls:
+    enabled: false
+    # caFile: ""
+    # certFile: ""
+    # keyFile: ""
+    # insecureSkipVerify: false
+  health:
+    strategy: any # any | all
 
 # ==================== 缓存配置 ====================
 # 单Redis配置（主Redis实例）
