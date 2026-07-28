@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/zzsen/gin_core/app"
+	"github.com/zzsen/gin_core/discovery"
 	"github.com/zzsen/gin_core/initialize"
 	"github.com/zzsen/gin_core/logger"
 	"github.com/zzsen/gin_core/model/config"
@@ -39,6 +40,9 @@ func (s *EtcdService) Init(ctx context.Context) error {
 	if app.BaseConfig.Etcd == nil {
 		return fmt.Errorf("未找到有效的Etcd配置")
 	}
+
+	// 挂载 discovery 生命周期钩子（幂等；enabled=false 时 Ready 空操作）
+	discovery.InstallHooks()
 
 	err := initialize.InitEtcd()
 	if err == nil {
