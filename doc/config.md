@@ -429,7 +429,7 @@ es:                               # Elasticsearch配置
 ### 5.12 Etcd 客户端 (etcd)
 
 
-启用 `system.useEtcd: true` 后，框架初始化 Etcd v3 客户端到 `app.Etcd`（含 ready `Status`、可选 namespace）。
+启用 `system.useEtcd: true` 后，框架初始化 Etcd v3 客户端到 `app.Etcd`（含 ready `Status`、可选 namespace）。服务发现为 **opt-in**（`discovery.enabled`，默认 false），详见 [etcd.md](./etcd.md)。
 
 | 能力 | 说明 |
 |------|------|
@@ -437,8 +437,9 @@ es:                               # Elasticsearch配置
 | required | 默认 `false` 降级；生产建议 `true` |
 | 健康检查 | `health.strategy`: `any` \| `all`，见 [健康检查](./healthcheck.md) |
 | 分布式锁 | `distlock.NewEtcdLocker(app.Etcd, ...)`，见 [分布式锁](./distlock.md) |
+| 服务发现 | `discovery.enabled`；注册 / Watch / Pick / `HTTPPicker` |
 
-**尚未内置**：服务注册 / 发现、配置热更新。
+**尚未内置**：配置热更新、健康摘除注册。
 
 ```yaml
 etcd:
@@ -457,6 +458,13 @@ etcd:
     enabled: false
   health:
     strategy: any
+  discovery:
+    enabled: false
+    register: true
+    serviceName: ""
+    env: ""
+    prefix: "services/"
+    ttlSeconds: 30
 ```
 
 ### 5.13 缓存配置 (redis)
