@@ -247,6 +247,19 @@ etcd:
     # insecureSkipVerify: false
   health:
     strategy: any # any | all
+  # 服务注册/发现（默认关闭；需 useEtcd: true 且客户端可用）
+  discovery:
+    enabled: false
+    register: true # enabled 时是否自动注册本实例
+    serviceName: "" # enabled+register 时必填
+    env: "" # 空则实现侧回退框架环境名
+    prefix: "services/" # 叠在 keyPrefix 之上
+    ttlSeconds: 30
+    instanceID: "" # 空则 {hostname}-{port}
+    weight: 1
+    # advertiseIP: ""
+    # advertisePort: 0
+    # meta: {}
 
 # ==================== 缓存配置 ====================
 # 单Redis配置（主Redis实例）

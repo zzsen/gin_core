@@ -436,6 +436,33 @@ health:
 	assert.Equal(t, "/app/", e.KeyPrefix)
 }
 
+// TestEtcdDiscoveryConfig_默认与字段 YAML 反序列化 discovery 配置
+//
+// 【功能点】EtcdInfo.Discovery 字段、EffectivePrefix 默认、IsRegister 默认 true
+// 【测试流程】
+// 1. Unmarshal 含 discovery 的 etcd YAML（嵌在 BaseConfig）
+// 2. 断言 Enabled / ServiceName / EffectivePrefix / IsRegister
+func TestEtcdDiscoveryConfig_默认与字段(t *testing.T) {
+	const yml = `
+etcd:
+  endpoints: ["http://127.0.0.1:2379"]
+  discovery:
+    enabled: true
+    serviceName: "user"
+    prefix: "services/"
+    ttlSeconds: 30
+`
+	var cfg BaseConfig
+	require.NoError(t, yaml.Unmarshal([]byte(yml), &cfg))
+	require.NotNil(t, cfg.Etcd)
+	require.NotNil(t, cfg.Etcd.Discovery)
+	assert.True(t, cfg.Etcd.Discovery.Enabled)
+	assert.Equal(t, "user", cfg.Etcd.Discovery.ServiceName)
+	assert.Equal(t, "services/", cfg.Etcd.Discovery.EffectivePrefix())
+	assert.True(t, cfg.Etcd.Discovery.IsRegister())
+	assert.Equal(t, 30, cfg.Etcd.Discovery.TTLSeconds)
+}
+
 // TestEtcdInfo_EsInfo_SmtpInfo_字段赋值
 //
 // 【功能点】EtcdInfo、EsInfo、SmtpInfo 各字段赋值与零值边界
