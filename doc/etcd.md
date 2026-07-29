@@ -15,8 +15,12 @@
 | 分布式锁 | ✅ | `distlock.NewEtcdLocker(app.Etcd, …)`，见 [分布式锁](./distlock.md) |
 | 服务注册 / 发现 | ✅ | opt-in：`etcd.discovery.enabled`；包 `discovery/` |
 | HTTP 按服务名调用 | ✅ | `discovery.HTTPPicker.Do`（不改 `http_client`） |
+| KeepAlive 重建 | ✅ | `discovery.keepalive.rebuild`（默认 true）；断流退避重建 Lease |
+| 健康两阶段摘除 | ✅ | `discovery.health.unlink`（默认 false）；对接 `/healthy/ready`：先 `weight=0` 再注销 |
+| Pick 策略 | ✅ | `round_robin` / `random`（等权）+ `weighted_random`；跳过 `weight<=0` |
+| Discovery 指标 | ✅ | `discovery_keepalive_rebuild_total` / `discovery_health_*`（Prometheus） |
 | 配置中心 / 热更新 | ❌ | 未内置；本地仍用 `conf/*.yml` |
-| 健康摘除注册 | ❌ | 本波未做 |
+| Subscribe / 空列表等待 / 快照降级 | ❌ | 未做 |
 
 ## 启用客户端
 
@@ -58,6 +62,14 @@ etcd:
     instanceID: ""            # 空则 {hostname}-{port}
     weight: 1
     # advertiseIP / advertisePort 默认取 service.ip / service.port
+    keepalive:
+      rebuild: true           # KeepAlive 断流后重建
+      maxBackoffSeconds: 30
+    health:
+      unlink: false           # true 时启用 ready 两阶段摘除
+      intervalSeconds: 5
+      failThreshold: 3
+      successThreshold: 2
 ```
 
 | 行为 | 说明 |
@@ -66,7 +78,9 @@ etcd:
 | 注销时机 | [`AppBeforeShutdown`](../core/lifecycle/interface.go) |
 | 注册失败 | **仅 warn**，不阻断进程 |
 | Key | `{prefix}{env}/{serviceName}/{instanceID}`，再叠 `etcd.keyPrefix` namespace |
-| Lease | 独立于 `distlock` Session |
+| Lease | 独立于 `distlock` Session；可按 `keepalive.rebuild` 重建 |
+| 健康摘除 | `health.unlink=true` 时周期性调用与 `/healthy/ready` 同源的就绪聚合；失败达阈值先 `weight=0`，再 `Deregister` |
+| Pick | `round_robin` / `random` 等权；`weighted_random` 按 weight；均跳过 `weight<=0` |
 
 ### 最小调用示例
 
@@ -90,7 +104,7 @@ func example(ctx context.Context) error {
 
     // 查询 / 负载均衡
     _ = res.GetInstances("user-svc")
-    inst, err := res.Pick("user-svc", "round_robin") // 或 "random"
+    inst, err := res.Pick("user-svc", "round_robin") // 或 "random" / "weighted_random"
     if err != nil {
         return err
     }

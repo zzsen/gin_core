@@ -437,9 +437,9 @@ es:                               # Elasticsearch配置
 | required | 默认 `false` 降级；生产建议 `true` |
 | 健康检查 | `health.strategy`: `any` \| `all`，见 [健康检查](./healthcheck.md) |
 | 分布式锁 | `distlock.NewEtcdLocker(app.Etcd, ...)`，见 [分布式锁](./distlock.md) |
-| 服务发现 | `discovery.enabled`；注册 / Watch / Pick / `HTTPPicker` |
+| 服务发现 | `discovery.enabled`；注册 / Watch / Pick / `HTTPPicker`；可选 KeepAlive 重建与 ready 两阶段摘除 |
 
-**尚未内置**：配置热更新、健康摘除注册。
+**尚未内置**：配置热更新、Subscribe、空列表阻塞等待。
 
 ```yaml
 etcd:
@@ -465,6 +465,14 @@ etcd:
     env: ""
     prefix: "services/"
     ttlSeconds: 30
+    keepalive:
+      rebuild: true
+      maxBackoffSeconds: 30
+    health:
+      unlink: false
+      intervalSeconds: 5
+      failThreshold: 3
+      successThreshold: 2
 ```
 
 ### 5.13 缓存配置 (redis)

@@ -273,7 +273,7 @@ fmt.Println(state) // 输出: ready
 | `redis` | 10 | logger | Redis 缓存 |
 | `mysql` | 10 | logger | MySQL 数据库 |
 | `elasticsearch` | 20 | logger | Elasticsearch 搜索 |
-| `etcd` | 20 | logger | Etcd 客户端（连接 / 健康检查；Init 时挂载 discovery 生命周期钩子；分布式锁见 distlock；服务发现见 [etcd.md](./etcd.md)） |
+| `etcd` | 20 | logger | Etcd 客户端（连接 / 健康检查；Init 时挂载 discovery 注册/注销钩子；可选 `health.unlink` 对接 `/healthy/ready` 两阶段摘除；分布式锁见 distlock；详见 [etcd.md](./etcd.md)） |
 | `rabbitmq` | 30 | logger | RabbitMQ 消息队列 |
 | `schedule` | 100 | logger | 定时任务 |
 
