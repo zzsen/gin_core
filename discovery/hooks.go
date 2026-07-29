@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	hooksOnce sync.Once
-	activeReg *Registry
-	regMu     sync.Mutex
+	hooksOnce      sync.Once
+	activeReg      *Registry
+	activeUnlinker *HealthUnlinker
+	regMu          sync.Mutex
 )
 
 // ShouldRegister 判断是否应自动注册本实例
@@ -93,9 +94,12 @@ func onReadyRegister(ctx context.Context) error {
 		return nil
 	}
 
-	// 步骤 5：保存活跃 Registry
+	// 步骤 5：保存活跃 Registry；可选启动健康摘除
 	regMu.Lock()
 	activeReg = reg
+	if cfg.HealthUnlink() {
+		activeUnlinker = StartHealthUnlink(reg, cfg, DefaultReadyProbe)
+	}
 	regMu.Unlock()
 	logger.Info("[discovery] registered service=%s instance=%s", self.ServiceName, self.InstanceID)
 	return nil
@@ -108,11 +112,17 @@ func onReadyRegister(ctx context.Context) error {
 //  1. 取出并清空 activeReg
 //  2. 调用 Deregister
 func onShutdownDeregister(ctx context.Context) error {
-	// 步骤 1：取出活跃注册器
+	// 步骤 1：停止健康循环并取出 Registry
 	regMu.Lock()
+	ul := activeUnlinker
+	activeUnlinker = nil
 	reg := activeReg
 	activeReg = nil
 	regMu.Unlock()
+
+	if ul != nil {
+		ul.Stop()
+	}
 	if reg == nil {
 		return nil
 	}

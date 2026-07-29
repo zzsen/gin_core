@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -225,22 +226,23 @@ func (r *Resolver) GetInstances(service string) []Instance {
 
 // Pick 按策略从本地缓存选择一个实例
 //
-// 【功能】负载选取；空列表立即返回 ErrNoInstances（不阻塞）
+// 【功能】负载选取；过滤 weight<=0；空列表立即 ErrNoInstances
 // 【流程】
 //  1. 默认策略 round_robin
-//  2. GetInstances；空则 ErrNoInstances
-//  3. round_robin：原子计数取模；random：随机下标；其它：ErrUnsupportedStrategy
+//  2. GetInstances 并过滤非正权重
+//  3. round_robin / random：等权；weighted_random：按 weight 比例；其它：ErrUnsupportedStrategy
 func (r *Resolver) Pick(service, strategy string) (Instance, error) {
 	// 步骤 1：默认策略
 	if strategy == "" {
 		strategy = "round_robin"
 	}
 
-	// 步骤 2：取快照
-	list := r.GetInstances(service)
+	// 步骤 2：取快照、过滤非正权重，并按 instanceID 排序保证 RR 稳定
+	list := filterPositiveWeight(r.GetInstances(service))
 	if len(list) == 0 {
 		return Instance{}, ErrNoInstances
 	}
+	sort.Slice(list, func(i, j int) bool { return list[i].InstanceID < list[j].InstanceID })
 
 	// 步骤 3：按策略选取
 	switch strategy {
@@ -250,7 +252,39 @@ func (r *Resolver) Pick(service, strategy string) (Instance, error) {
 		return list[int((n-1)%uint64(len(list)))], nil
 	case "random":
 		return list[rand.Intn(len(list))], nil
+	case "weighted_random":
+		return pickWeightedRandom(list), nil
 	default:
 		return Instance{}, fmt.Errorf("%w: %s", ErrUnsupportedStrategy, strategy)
 	}
+}
+
+// filterPositiveWeight 去掉 weight<=0 的实例
+func filterPositiveWeight(in []Instance) []Instance {
+	out := make([]Instance, 0, len(in))
+	for _, inst := range in {
+		if inst.Weight > 0 {
+			out = append(out, inst)
+		}
+	}
+	return out
+}
+
+// pickWeightedRandom 按正 weight 比例随机选取
+func pickWeightedRandom(list []Instance) Instance {
+	total := 0
+	for _, inst := range list {
+		total += inst.Weight
+	}
+	if total <= 0 {
+		return list[0]
+	}
+	x := rand.Intn(total)
+	for _, inst := range list {
+		x -= inst.Weight
+		if x < 0 {
+			return inst
+		}
+	}
+	return list[len(list)-1]
 }
