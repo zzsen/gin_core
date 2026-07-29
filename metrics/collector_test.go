@@ -164,7 +164,7 @@ func TestCollectRedisStats_WithRedisClient(t *testing.T) {
 	client := goredis.NewClient(&goredis.Options{
 		Addr: "127.0.0.1:16379",
 	})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	app.Redis = client
 	assert.NotPanics(t, func() {
