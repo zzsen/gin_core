@@ -463,6 +463,49 @@ etcd:
 	assert.Equal(t, 30, cfg.Etcd.Discovery.TTLSeconds)
 }
 
+// TestEtcdDiscoveryConfig_KeepaliveHealth 反序列化增强配置与默认语义
+//
+// 【功能点】keepalive.rebuild 默认 true；health.unlink 默认 false；阈值/间隔默认
+// 【测试流程】
+// 1. Unmarshal 含 keepalive/health 的 YAML
+// 2. 断言字段值与 KeepaliveRebuild / HealthUnlink / FailThreshold 等辅助方法
+func TestEtcdDiscoveryConfig_KeepaliveHealth(t *testing.T) {
+	const yml = `
+etcd:
+  endpoints: ["http://127.0.0.1:2379"]
+  discovery:
+    enabled: true
+    serviceName: "user"
+    keepalive:
+      rebuild: false
+      maxBackoffSeconds: 15
+    health:
+      unlink: true
+      intervalSeconds: 3
+      failThreshold: 5
+      successThreshold: 2
+`
+	var cfg BaseConfig
+	require.NoError(t, yaml.Unmarshal([]byte(yml), &cfg))
+	d := cfg.Etcd.Discovery
+	require.NotNil(t, d.Keepalive)
+	require.NotNil(t, d.Health)
+	assert.False(t, d.KeepaliveRebuild())
+	assert.Equal(t, 15, d.KeepaliveMaxBackoffSeconds())
+	assert.True(t, d.HealthUnlink())
+	assert.Equal(t, 3, d.HealthIntervalSeconds())
+	assert.Equal(t, 5, d.HealthFailThreshold())
+	assert.Equal(t, 2, d.HealthSuccessThreshold())
+
+	empty := &EtcdDiscoveryConfig{Enabled: true}
+	assert.True(t, empty.KeepaliveRebuild())
+	assert.Equal(t, 30, empty.KeepaliveMaxBackoffSeconds())
+	assert.False(t, empty.HealthUnlink())
+	assert.Equal(t, 5, empty.HealthIntervalSeconds())
+	assert.Equal(t, 3, empty.HealthFailThreshold())
+	assert.Equal(t, 2, empty.HealthSuccessThreshold())
+}
+
 // TestEtcdInfo_EsInfo_SmtpInfo_字段赋值
 //
 // 【功能点】EtcdInfo、EsInfo、SmtpInfo 各字段赋值与零值边界

@@ -260,6 +260,14 @@ etcd:
     # advertiseIP: ""
     # advertisePort: 0
     # meta: {}
+    # keepalive:
+    #   rebuild: true # KeepAlive 断流后重建 Lease
+    #   maxBackoffSeconds: 30
+    # health:
+    #   unlink: false # true 时对接 /healthy/ready 两阶段摘除
+    #   intervalSeconds: 5
+    #   failThreshold: 3
+    #   successThreshold: 2
 
 # ==================== 缓存配置 ====================
 # 单Redis配置（主Redis实例）

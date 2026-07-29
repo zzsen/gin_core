@@ -17,17 +17,33 @@ type EtcdInfo struct {
 
 // EtcdDiscoveryConfig Etcd 服务发现配置（opt-in）
 type EtcdDiscoveryConfig struct {
-	Enabled       bool              `yaml:"enabled"`       // 总开关，默认 false
-	Register      *bool             `yaml:"register"`      // enabled 时是否自动注册本实例；nil 表示 true
-	ServiceName   string            `yaml:"serviceName"`   // 服务名（enabled+register 时必填）
-	Env           string            `yaml:"env"`           // 环境段；空则实现侧回退
-	Prefix        string            `yaml:"prefix"`        // Key 前缀，叠在 etcd.keyPrefix 之上；默认 services/
-	TTLSeconds    int               `yaml:"ttlSeconds"`    // Lease TTL（秒）
-	InstanceID    string            `yaml:"instanceID"`    // 空则 {hostname}-{port}
-	Weight        int               `yaml:"weight"`        // 负载权重，默认 1
-	Meta          map[string]string `yaml:"meta"`          // 可选元数据
-	AdvertiseIP   string            `yaml:"advertiseIP"`   // 空则取 service.ip
-	AdvertisePort int               `yaml:"advertisePort"` // 0 则取 service.port
+	Enabled       bool                          `yaml:"enabled"`       // 总开关，默认 false
+	Register      *bool                         `yaml:"register"`      // enabled 时是否自动注册本实例；nil 表示 true
+	ServiceName   string                        `yaml:"serviceName"`   // 服务名（enabled+register 时必填）
+	Env           string                        `yaml:"env"`           // 环境段；空则实现侧回退
+	Prefix        string                        `yaml:"prefix"`        // Key 前缀，叠在 etcd.keyPrefix 之上；默认 services/
+	TTLSeconds    int                           `yaml:"ttlSeconds"`    // Lease TTL（秒）
+	InstanceID    string                        `yaml:"instanceID"`    // 空则 {hostname}-{port}
+	Weight        int                           `yaml:"weight"`        // 负载权重，默认 1
+	Meta          map[string]string             `yaml:"meta"`          // 可选元数据
+	AdvertiseIP   string                        `yaml:"advertiseIP"`   // 空则取 service.ip
+	AdvertisePort int                           `yaml:"advertisePort"` // 0 则取 service.port
+	Keepalive     *EtcdDiscoveryKeepaliveConfig `yaml:"keepalive"`     // KeepAlive 重建
+	Health        *EtcdDiscoveryHealthConfig    `yaml:"health"`        // 就绪联动摘除（默认关闭）
+}
+
+// EtcdDiscoveryKeepaliveConfig 注册租约续约与重建
+type EtcdDiscoveryKeepaliveConfig struct {
+	Rebuild           *bool `yaml:"rebuild"`           // 断流后是否重建；nil 表示 true
+	MaxBackoffSeconds int   `yaml:"maxBackoffSeconds"` // 退避上限（秒）；<=0 默认 30
+}
+
+// EtcdDiscoveryHealthConfig 基于 ready 的两阶段健康摘除
+type EtcdDiscoveryHealthConfig struct {
+	Unlink           bool `yaml:"unlink"`           // 是否启用；默认 false
+	IntervalSeconds  int  `yaml:"intervalSeconds"`  // 探测间隔；<=0 默认 5
+	FailThreshold    int  `yaml:"failThreshold"`    // 连续失败进入/维持降级；<=0 默认 3
+	SuccessThreshold int  `yaml:"successThreshold"` // 连续成功恢复；<=0 默认 2
 }
 
 // IsRegister 是否自动注册；Register 为 nil 时默认 true
@@ -47,6 +63,54 @@ func (d *EtcdDiscoveryConfig) EffectivePrefix() string {
 		return "services/"
 	}
 	return d.Prefix
+}
+
+// KeepaliveRebuild KeepAlive 断流后是否重建；nil/未配置默认 true
+func (d *EtcdDiscoveryConfig) KeepaliveRebuild() bool {
+	if d == nil || d.Keepalive == nil || d.Keepalive.Rebuild == nil {
+		return true
+	}
+	return *d.Keepalive.Rebuild
+}
+
+// KeepaliveMaxBackoffSeconds 重建退避上限（秒）
+func (d *EtcdDiscoveryConfig) KeepaliveMaxBackoffSeconds() int {
+	if d == nil || d.Keepalive == nil || d.Keepalive.MaxBackoffSeconds <= 0 {
+		return 30
+	}
+	return d.Keepalive.MaxBackoffSeconds
+}
+
+// HealthUnlink 是否启用 ready 联动摘除；默认 false
+func (d *EtcdDiscoveryConfig) HealthUnlink() bool {
+	if d == nil || d.Health == nil {
+		return false
+	}
+	return d.Health.Unlink
+}
+
+// HealthIntervalSeconds 健康探测间隔（秒）
+func (d *EtcdDiscoveryConfig) HealthIntervalSeconds() int {
+	if d == nil || d.Health == nil || d.Health.IntervalSeconds <= 0 {
+		return 5
+	}
+	return d.Health.IntervalSeconds
+}
+
+// HealthFailThreshold 连续失败阈值
+func (d *EtcdDiscoveryConfig) HealthFailThreshold() int {
+	if d == nil || d.Health == nil || d.Health.FailThreshold <= 0 {
+		return 3
+	}
+	return d.Health.FailThreshold
+}
+
+// HealthSuccessThreshold 连续成功恢复阈值
+func (d *EtcdDiscoveryConfig) HealthSuccessThreshold() int {
+	if d == nil || d.Health == nil || d.Health.SuccessThreshold <= 0 {
+		return 2
+	}
+	return d.Health.SuccessThreshold
 }
 
 // EtcdDialConfig Etcd 拨号相关配置（时间单位：秒）
