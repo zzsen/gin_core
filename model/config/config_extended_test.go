@@ -506,6 +506,45 @@ etcd:
 	assert.Equal(t, 2, empty.HealthSuccessThreshold())
 }
 
+// TestEtcdConfigCenter_YAML 反序列化 configCenter 与默认辅助方法
+//
+// 【功能点】EtcdInfo.ConfigCenter、Enabled/Prefix/Required/DebounceMs/Watch/Whitelist
+// 【测试流程】
+// 1. Unmarshal 含 configCenter 的 YAML
+// 2. 断言辅助方法；空配置默认 enabled=false、debounce=300、watch=true、默认 prefix
+func TestEtcdConfigCenter_YAML(t *testing.T) {
+	const yml = `
+etcd:
+  endpoints: ["http://127.0.0.1:2379"]
+  configCenter:
+    enabled: true
+    prefix: "config/app.yml"
+    required: false
+    debounceMs: 300
+    whitelist:
+      - "log.level"
+      - "rateLimit.*"
+`
+	var cfg BaseConfig
+	require.NoError(t, yaml.Unmarshal([]byte(yml), &cfg))
+	require.NotNil(t, cfg.Etcd)
+	require.NotNil(t, cfg.Etcd.ConfigCenter)
+	assert.True(t, cfg.Etcd.ConfigCenterEnabled())
+	assert.Equal(t, "config/app.yml", cfg.Etcd.ConfigCenterPrefix())
+	assert.False(t, cfg.Etcd.ConfigCenterRequired())
+	assert.Equal(t, 300, cfg.Etcd.ConfigCenterDebounceMs())
+	assert.True(t, cfg.Etcd.ConfigCenterWatch())
+	assert.Equal(t, []string{"log.level", "rateLimit.*"}, cfg.Etcd.ConfigCenterWhitelist())
+
+	empty := &EtcdInfo{}
+	assert.False(t, empty.ConfigCenterEnabled())
+	assert.Equal(t, "config/app.yml", empty.ConfigCenterPrefix())
+	assert.False(t, empty.ConfigCenterRequired())
+	assert.Equal(t, 300, empty.ConfigCenterDebounceMs())
+	assert.True(t, empty.ConfigCenterWatch())
+	assert.Equal(t, []string{"log.level", "rateLimit.*"}, empty.ConfigCenterWhitelist())
+}
+
 // TestEtcdInfo_EsInfo_SmtpInfo_字段赋值
 //
 // 【功能点】EtcdInfo、EsInfo、SmtpInfo 各字段赋值与零值边界

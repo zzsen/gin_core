@@ -268,6 +268,16 @@ etcd:
     #   intervalSeconds: 5
     #   failThreshold: 3
     #   successThreshold: 2
+  # 配置中心 overlay / 白名单热更（默认关闭；需 useEtcd: true 且客户端可用）
+  configCenter:
+    enabled: false
+    prefix: "config/app.yml" # Etcd key，整包 YAML
+    required: false # Get/解析失败是否阻断启动
+    debounceMs: 300 # Watch 防抖
+    # watch: true # enabled 时默认 true
+    # whitelist: # 空则默认 log.level + rateLimit.*
+    #   - "log.level"
+    #   - "rateLimit.*"
 
 # ==================== 缓存配置 ====================
 # 单Redis配置（主Redis实例）

@@ -1,18 +1,38 @@
 // Package config 提供应用程序的配置结构定义
-// 本文件定义 Etcd 客户端分层配置（非配置中心）
+// 本文件定义 Etcd 客户端分层配置（含可选配置中心开关；连接语义仍属客户端基建）
 package config
+
+// 默认配置中心 key 与白名单
+const (
+	DefaultConfigCenterPrefix     = "config/app.yml"
+	defaultConfigCenterDebounceMs = 300
+)
+
+// defaultConfigCenterWhitelist 热更默认白名单
+var defaultConfigCenterWhitelist = []string{"log.level", "rateLimit.*"}
 
 // EtcdInfo Etcd 客户端配置信息（分层结构）
 type EtcdInfo struct {
-	Endpoints []string             `yaml:"endpoints"` // Etcd 集群节点地址列表
-	Username  string               `yaml:"username"`  // 访问用户名
-	Password  string               `yaml:"password"`  // 访问密码（勿写入日志）
-	Required  *bool                `yaml:"required"`  // 连接失败是否阻断启动；nil/false 表示降级
-	KeyPrefix string               `yaml:"keyPrefix"` // 非空时对 KV/Watcher/Lease 做 namespace 包装
-	Dial      *EtcdDialConfig      `yaml:"dial"`      // 拨号与保活（秒）
-	TLS       *EtcdTLSConfig       `yaml:"tls"`       // TLS 配置
-	Health    *EtcdHealthConfig    `yaml:"health"`    // 健康检查策略
-	Discovery *EtcdDiscoveryConfig `yaml:"discovery"` // 可选服务注册/发现（默认关闭）
+	Endpoints    []string                `yaml:"endpoints"`    // Etcd 集群节点地址列表
+	Username     string                  `yaml:"username"`     // 访问用户名
+	Password     string                  `yaml:"password"`     // 访问密码（勿写入日志）
+	Required     *bool                   `yaml:"required"`     // 连接失败是否阻断启动；nil/false 表示降级
+	KeyPrefix    string                  `yaml:"keyPrefix"`    // 非空时对 KV/Watcher/Lease 做 namespace 包装
+	Dial         *EtcdDialConfig         `yaml:"dial"`         // 拨号与保活（秒）
+	TLS          *EtcdTLSConfig          `yaml:"tls"`          // TLS 配置
+	Health       *EtcdHealthConfig       `yaml:"health"`       // 健康检查策略
+	Discovery    *EtcdDiscoveryConfig    `yaml:"discovery"`    // 可选服务注册/发现（默认关闭）
+	ConfigCenter *EtcdConfigCenterConfig `yaml:"configCenter"` // 可选配置中心 overlay/热更（默认关闭）
+}
+
+// EtcdConfigCenterConfig Etcd 配置中心（opt-in overlay + Watch）
+type EtcdConfigCenterConfig struct {
+	Enabled    bool     `yaml:"enabled"`    // 总开关，默认 false
+	Prefix     string   `yaml:"prefix"`     // Etcd key（整包 YAML）；空则默认 config/app.yml
+	Required   *bool    `yaml:"required"`   // Get/解析失败是否阻断；nil/false 表示 warn 跳过
+	DebounceMs int      `yaml:"debounceMs"` // Watch 防抖毫秒；<=0 默认 300
+	Watch      *bool    `yaml:"watch"`      // 是否 Watch；nil 表示 enabled 时默认 true
+	Whitelist  []string `yaml:"whitelist"`  // 热更白名单；空则用内置默认
 }
 
 // EtcdDiscoveryConfig Etcd 服务发现配置（opt-in）
@@ -150,4 +170,56 @@ func (e *EtcdInfo) HealthStrategy() string {
 		return "any"
 	}
 	return e.Health.Strategy
+}
+
+// ConfigCenterEnabled 是否启用配置中心；未配置默认 false
+func (e *EtcdInfo) ConfigCenterEnabled() bool {
+	if e == nil || e.ConfigCenter == nil {
+		return false
+	}
+	return e.ConfigCenter.Enabled
+}
+
+// ConfigCenterPrefix 返回 overlay key；空则默认 config/app.yml
+func (e *EtcdInfo) ConfigCenterPrefix() string {
+	if e == nil || e.ConfigCenter == nil || e.ConfigCenter.Prefix == "" {
+		return DefaultConfigCenterPrefix
+	}
+	return e.ConfigCenter.Prefix
+}
+
+// ConfigCenterRequired overlay 失败是否阻断启动；nil/false 默认不阻断
+func (e *EtcdInfo) ConfigCenterRequired() bool {
+	if e == nil || e.ConfigCenter == nil || e.ConfigCenter.Required == nil {
+		return false
+	}
+	return *e.ConfigCenter.Required
+}
+
+// ConfigCenterDebounceMs Watch 防抖毫秒；<=0 默认 300
+func (e *EtcdInfo) ConfigCenterDebounceMs() int {
+	if e == nil || e.ConfigCenter == nil || e.ConfigCenter.DebounceMs <= 0 {
+		return defaultConfigCenterDebounceMs
+	}
+	return e.ConfigCenter.DebounceMs
+}
+
+// ConfigCenterWatch 是否启动 Watch；nil 时默认 true（即便未 enabled，查询语义为「若启用则 Watch」）
+func (e *EtcdInfo) ConfigCenterWatch() bool {
+	if e == nil || e.ConfigCenter == nil || e.ConfigCenter.Watch == nil {
+		return true
+	}
+	return *e.ConfigCenter.Watch
+}
+
+// ConfigCenterWhitelist 热更白名单；空则返回内置默认副本
+func (e *EtcdInfo) ConfigCenterWhitelist() []string {
+	if e == nil || e.ConfigCenter == nil || len(e.ConfigCenter.Whitelist) == 0 {
+		out := make([]string, len(defaultConfigCenterWhitelist))
+		copy(out, defaultConfigCenterWhitelist)
+		return out
+	}
+	out := make([]string, len(e.ConfigCenter.Whitelist))
+	copy(out, e.ConfigCenter.Whitelist)
+	return out
 }
