@@ -270,11 +270,12 @@ fmt.Println(state) // 输出: ready
 |----------|--------|------|------|
 | `logger` | 0 | 无 | 日志服务 |
 | `tracing` | 5 | logger | OpenTelemetry 链路追踪 |
-| `redis` | 10 | logger | Redis 缓存 |
-| `mysql` | 10 | logger | MySQL 数据库 |
-| `elasticsearch` | 20 | logger | Elasticsearch 搜索 |
+| `redis` | 10 | logger, configcenter | Redis 缓存（`configcenter` 仅在启用时参与拓扑） |
+| `mysql` | 10 | logger, configcenter | MySQL 数据库（同上） |
+| `elasticsearch` | 20 | logger, configcenter | Elasticsearch 搜索（同上） |
 | `etcd` | 20 | logger | Etcd 客户端（连接 / 健康检查；Init 时挂载 discovery 注册/注销钩子；可选 `health.unlink` 对接 `/healthy/ready` 两阶段摘除；分布式锁见 distlock；详见 [etcd.md](./etcd.md)） |
-| `rabbitmq` | 30 | logger | RabbitMQ 消息队列 |
+| `configcenter` | 25 | etcd | Etcd 配置中心（opt-in：`etcd.configCenter.enabled`；启动 overlay + 白名单 Watch；未启用时不参与拓扑） |
+| `rabbitmq` | 30 | logger, configcenter | RabbitMQ 消息队列（`configcenter` 仅在启用时参与拓扑） |
 | `schedule` | 100 | logger | 定时任务 |
 
 ## 初始化流程

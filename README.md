@@ -11,7 +11,7 @@
 | **缓存** | Redis | 连接池、多实例、集群模式 |
 | **消息队列** | RabbitMQ | 生产者 / 消费者、死信队列、发布确认、批量发送 |
 | **搜索引擎** | Elasticsearch | Typed Client 集成 |
-| **分布式协调** | Etcd | 分层配置、TLS、namespace、健康检查；可选服务注册/发现与 `HTTPPicker`；`distlock` 分布式锁（配置中心尚未内置）。详见 [etcd.md](./doc/etcd.md) |
+| **分布式协调** | Etcd | 分层配置、TLS、namespace、健康检查；可选服务注册/发现与 `HTTPPicker`；`distlock` 分布式锁；可选配置中心（`configCenter` overlay + 白名单热更）。详见 [etcd.md](./doc/etcd.md) |
 | **日志** | Logrus | 结构化日志、Text/JSON Formatter、多输出（file / stdout / remote）、Loki 远程投递（异步批量 + 重试）、按级别分文件、自动切割、敏感信息脱敏、WithContext 关联字段 |
 | **监控** | Prometheus | HTTP 指标采集、连接池指标、自定义 Collector |
 | **链路追踪** | OpenTelemetry | DB / Redis / HTTP 自动埋点、W3C Trace Context |
@@ -246,7 +246,7 @@ main()
 | [生命周期钩子](./doc/lifecycle_hooks.md) | 应用级 / 服务级生命周期钩子 |
 | [定时任务](./doc/schedule.md) | 定时任务配置 |
 | [健康检查](./doc/healthcheck.md) | 存活 / 就绪 / 连接池统计端点 |
-| [Etcd](./doc/etcd.md) | Etcd 客户端、可选服务发现、HTTPPicker |
+| [Etcd](./doc/etcd.md) | Etcd 客户端、可选服务发现 / HTTPPicker、可选配置中心（`configcenter`） |
 
 ### 高级功能
 

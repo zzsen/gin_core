@@ -75,7 +75,23 @@ gin_core
 │       ├── rabbitmq_service.go             #     ├ RabbitMQ服务
 │       ├── rabbitmq_service_test.go        #     ├ (测试) RabbitMQ服务
 │       ├── etcd_service.go                 #     ├ Etcd服务
+│       ├── configcenter_service.go         #     ├ Etcd配置中心服务（overlay + Watch）
+│       ├── configcenter_service_test.go    #     ├ (测试) 配置中心服务与依赖拓扑
 │       └── schedule_service.go             #     └ 定时任务服务
+├── configcenter                            # Etcd 配置中心（opt-in）
+│   ├── load.go                             #   ├ 启动 LoadOverlay
+│   ├── merge.go                            #   ├ 合并策略（etcd > file，保护 bootstrap）
+│   ├── decode.go                           #   ├ YAML 解码与 ENV/CIPHER
+│   ├── apply.go                            #   ├ 白名单热更应用（log.level / rateLimit.*）
+│   ├── watch.go                            #   ├ Watch + 防抖
+│   ├── load_test.go                        #   ├ (测试) LoadOverlay
+│   ├── merge_test.go                       #   ├ (测试) 合并
+│   ├── decode_test.go                      #   ├ (测试) 解码
+│   ├── apply_test.go                       #   ├ (测试) 白名单应用
+│   ├── watch_test.go                       #   ├ (测试) Watch
+│   ├── watch_more_test.go                  #   ├ (测试) Watch 补充
+│   ├── load_more_test.go                   #   ├ (测试) Load 补充
+│   └── watch_embed_test.go                 #   └ (测试) Watch embed
 ├── exception                               # 异常
 │   ├── auth_failed.go                      #   ├ 授权失败
 │   ├── common_error.go                     #   ├ 常规错误
@@ -92,7 +108,7 @@ gin_core
 │   ├── mq_integration_test.go              #   ├ (集成测试) 消息队列，需要 RabbitMQ 连接
 │   └── pool_stats.go                       #   └ 连接池统计和健康检查
 ├── metrics                                 # Prometheus 指标监控
-│   ├── metrics.go                          #   ├ 指标定义（HTTP、连接池指标）
+│   ├── metrics.go                          #   ├ 指标定义（HTTP、连接池、config_reload 等）
 │   └── collector.go                        #   └ 指标收集器
 ├── tracing                                 # OpenTelemetry 链路追踪
 │   ├── tracing.go                          #   ├ 追踪核心初始化
@@ -181,6 +197,7 @@ gin_core
 │   ├── service_register.md                 #   ├ 服务注册文档
 │   ├── lifecycle_hooks.md                  #   ├ 生命周期钩子文档
 │   ├── structure.md                        #   ├ 目录结构文档
+│   ├── etcd.md                             #   ├ Etcd / 服务发现 / 配置中心
 │   └── tracing.md                          #   └ 链路追踪文档
 ├── docs                                    # Swagger 文档（自动生成）
 │   ├── docs.go                             #   ├ Swagger 文档代码

@@ -11,7 +11,7 @@ gin_core 框架提供了强大、灵活且生产就绪的配置管理系统，�
 4. **自定义配置扩展** - 基于 BaseConfig 灵活扩展项目特定配置
 5. **外部配置支持** - 支持配置文件与代码分离部署
 
-> 说明：当前配置来自本地 `conf/*.yml`（及环境变量覆盖），**不支持**基于 Etcd 的配置热加载。Etcd 客户端详见 [§5.12](#512-etcd-客户端-etcd) 与 [etcd.md](./etcd.md)。
+> 说明：配置主路径仍为本地 `conf/*.yml`（及环境变量 / `CIPHER()`）。可选 Etcd 配置中心（`etcd.configCenter.enabled`）支持启动 overlay 与白名单热更，详见 [etcd.md](./etcd.md) 与 [§5.12](#512-etcd-客户端-etcd)。
 
 ---
 
@@ -438,8 +438,9 @@ es:                               # Elasticsearch配置
 | 健康检查 | `health.strategy`: `any` \| `all`，见 [健康检查](./healthcheck.md) |
 | 分布式锁 | `distlock.NewEtcdLocker(app.Etcd, ...)`，见 [分布式锁](./distlock.md) |
 | 服务发现 | `discovery.enabled`；注册 / Watch / Pick / `HTTPPicker`；可选 KeepAlive 重建与 ready 两阶段摘除 |
+| 配置中心 | `configCenter.enabled`；lifecycle 服务 `configcenter`（依赖 `etcd`，在 `mysql`/`redis` 等之前）；启动 overlay（etcd > file）+ Watch 白名单热更（`log.level` / `rateLimit.*`） |
 
-**尚未内置**：配置热更新、Subscribe、空列表阻塞等待。
+**尚未内置**：全量配置热更、Subscribe、空列表阻塞等待、多 key 路径拆分。行为细节与调用链见 [etcd.md · 配置中心](./etcd.md#启用配置中心opt-in)。
 
 ```yaml
 etcd:
@@ -473,7 +474,35 @@ etcd:
       intervalSeconds: 5
       failThreshold: 3
       successThreshold: 2
+  configCenter:
+    enabled: false              # 默认关闭；true 时启用 overlay + 可选 Watch
+    prefix: "config/app.yml"    # Etcd key（整包 YAML）；空则同默认
+    required: false             # Get/解析失败是否阻断启动；省略同 false
+    debounceMs: 300             # Watch 防抖毫秒；<=0 回退 300
+    watch: true                 # enabled 且省略时默认 true；false=仅启动 overlay
+    # whitelist:                # 省略或空 → ["log.level","rateLimit.*"]
+    #   - "log.level"
+    #   - "rateLimit.*"
 ```
+
+#### `etcd.configCenter` 字段说明
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enabled` | bool | `false` | 配置中心总开关。关闭时不读 Etcd overlay、不 Watch |
+| `prefix` | string | `"config/app.yml"` | overlay 使用的 Etcd **key**（整包 YAML 文档）。受 `etcd.keyPrefix` namespace 影响 |
+| `required` | bool | `false` | 启动 overlay 失败是否阻断进程。`false`：warn 跳过；`true`：返回 error |
+| `debounceMs` | int | `300` | Watch 事件防抖（毫秒）。`<=0` 时按 `300` 处理 |
+| `watch` | bool | `true`（`enabled=true` 且省略时） | 是否在启动合并后启动热更 Watch。`false`：只做一次启动 overlay |
+| `whitelist` | string[] | `["log.level", "rateLimit.*"]` | 运行期允许热更的字段。省略/空数组用内置默认；非空则**覆盖**默认列表 |
+
+**白名单语义（热更）**：
+
+- `log.level`：同步 `log.loggers[].level` 并调用 `logger.SetLevel`
+- `rateLimit` / `rateLimit.*`：整体替换 `rateLimit` 配置块
+- 监听端口、DB DSN 等冷字段：运行期忽略；若需在启动时生效，依赖启动 overlay（etcd > file）
+
+**与 `etcd.required` 的区别**：外层 `etcd.required` 控制**客户端连接**失败是否阻断；`configCenter.required` 仅控制 **overlay Get/解析** 失败策略。二者相互独立。
 
 ### 5.13 缓存配置 (redis)
 
