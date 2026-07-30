@@ -29,8 +29,8 @@ func (s *RabbitMQService) Name() string { return "rabbitmq" }
 // Priority 返回初始化优先级
 func (s *RabbitMQService) Priority() int { return 30 }
 
-// Dependencies 返回依赖
-func (s *RabbitMQService) Dependencies() []string { return []string{"logger"} }
+// Dependencies 返回依赖（configcenter 仅在启用时参与拓扑）
+func (s *RabbitMQService) Dependencies() []string { return []string{"logger", "configcenter"} }
 
 // ShouldInit 根据配置判断是否需要初始化
 func (s *RabbitMQService) ShouldInit(cfg *config.BaseConfig) bool {

@@ -18,8 +18,8 @@ func (s *MySQLService) Name() string { return "mysql" }
 // Priority 返回初始化优先级
 func (s *MySQLService) Priority() int { return 10 }
 
-// Dependencies 返回依赖
-func (s *MySQLService) Dependencies() []string { return []string{"logger"} }
+// Dependencies 返回依赖（configcenter 仅在启用时参与拓扑）
+func (s *MySQLService) Dependencies() []string { return []string{"logger", "configcenter"} }
 
 // ShouldInit 根据配置判断是否需要初始化
 func (s *MySQLService) ShouldInit(cfg *config.BaseConfig) bool {

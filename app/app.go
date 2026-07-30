@@ -20,13 +20,15 @@ import (
 var (
 	// Env 当前运行环境标识（如 dev、test、prod），由配置文件或环境变量决定
 	Env string
+	// CipherKey 配置 CIPHER() 解密密钥（来自 -cipherKey）；供本地配置与 configcenter overlay 共用
+	CipherKey string
 	// DB 主数据库连接实例（单库模式）
 	DB *gorm.DB
 	// DBResolver 数据库读写分离解析器实例，通过 gorm 的 DBResolver 插件实现读写分离
 	DBResolver *gorm.DB
 	// ES Elasticsearch 类型化客户端实例
 	ES *elasticsearch.TypedClient
-	// Etcd Etcd 客户端实例（clientv3），供业务或 distlock.NewEtcdLocker 使用；框架未内置服务发现 / 配置中心
+	// Etcd Etcd 客户端实例（clientv3），供业务或 distlock / discovery / configcenter 使用
 	Etcd *clientv3.Client
 	// DBList 多数据库连接池，按别名索引。并发访问需通过 GetDbByName 方法
 	DBList map[string]*gorm.DB

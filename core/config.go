@@ -104,8 +104,9 @@ func loadConfig(conf any) {
 			os.Exit(1)
 		}
 	}
-	// 将确定的环境保存到全局变量
+	// 将确定的环境与解密密钥保存到全局变量
 	app.Env = cmdArgs.Env
+	app.CipherKey = cmdArgs.CipherKey
 }
 
 // getEnvFromFile 从env文件中获取环境变量

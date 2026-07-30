@@ -50,12 +50,13 @@ func TestBuiltinServicesMetadata_Table(t *testing.T) {
 	}{
 		{"LoggerService", &LoggerService{}, "logger", 0, nil},
 		{"TracingService", &TracingService{}, "tracing", 5, []string{"logger"}},
-		{"RedisService", &RedisService{}, "redis", 10, []string{"logger"}},
-		{"MySQLService", &MySQLService{}, "mysql", 10, []string{"logger"}},
-		{"ElasticsearchService", &ElasticsearchService{}, "elasticsearch", 20, []string{"logger"}},
+		{"RedisService", &RedisService{}, "redis", 10, []string{"logger", "configcenter"}},
+		{"MySQLService", &MySQLService{}, "mysql", 10, []string{"logger", "configcenter"}},
+		{"ElasticsearchService", &ElasticsearchService{}, "elasticsearch", 20, []string{"logger", "configcenter"}},
 		{"EtcdService", &EtcdService{}, "etcd", 20, []string{"logger"}},
+		{"ConfigCenterService", &ConfigCenterService{}, "configcenter", 25, []string{"etcd"}},
 		{"ScheduleService", NewScheduleService(nil), "schedule", 100, []string{"logger"}},
-		{"RabbitMQService", NewRabbitMQService(nil, nil), "rabbitmq", 30, []string{"logger"}},
+		{"RabbitMQService", NewRabbitMQService(nil, nil), "rabbitmq", 30, []string{"logger", "configcenter"}},
 	}
 
 	for _, tt := range tests {

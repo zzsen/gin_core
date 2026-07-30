@@ -19,7 +19,7 @@ func (s *ElasticsearchService) Name() string { return "elasticsearch" }
 func (s *ElasticsearchService) Priority() int { return 20 }
 
 // Dependencies 返回依赖
-func (s *ElasticsearchService) Dependencies() []string { return []string{"logger"} }
+func (s *ElasticsearchService) Dependencies() []string { return []string{"logger", "configcenter"} }
 
 // ShouldInit 根据配置判断是否需要初始化
 func (s *ElasticsearchService) ShouldInit(cfg *config.BaseConfig) bool {

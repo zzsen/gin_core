@@ -174,18 +174,18 @@ func TestRabbitMQService_Priority(t *testing.T) {
 // TestRabbitMQService_Dependencies 测试获取服务依赖
 //
 // 【功能点】验证 Dependencies() 方法返回正确的依赖列表
-// 【测试流程】调用 Dependencies() 并验证返回 ["logger"]
+// 【测试流程】调用 Dependencies() 并验证返回 ["logger","configcenter"]
 func TestRabbitMQService_Dependencies(t *testing.T) {
 	service := NewRabbitMQService(nil, nil)
 
 	deps := service.Dependencies()
 
-	if len(deps) != 1 {
-		t.Errorf("Dependencies() 长度应为 1，实际为 %d", len(deps))
+	if len(deps) != 2 {
+		t.Errorf("Dependencies() 长度应为 2，实际为 %d", len(deps))
 	}
 
-	if deps[0] != "logger" {
-		t.Errorf("Dependencies()[0] = %v, want 'logger'", deps[0])
+	if deps[0] != "logger" || deps[1] != "configcenter" {
+		t.Errorf("Dependencies() = %v, want [logger configcenter]", deps)
 	}
 }
 

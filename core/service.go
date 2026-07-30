@@ -130,6 +130,9 @@ func registerBuiltinServices() {
 	// 注册Etcd服务
 	_ = RegisterService(&services.EtcdService{})
 
+	// 注册配置中心服务（依赖 etcd；未启用时 ShouldInit=false）
+	_ = RegisterService(&services.ConfigCenterService{})
+
 	// 注册定时任务服务
 	_ = RegisterService(services.NewScheduleService(lifecycle.GetScheduleList()))
 }

@@ -20,7 +20,7 @@ func (s *RedisService) Name() string { return "redis" }
 func (s *RedisService) Priority() int { return 10 }
 
 // Dependencies 返回依赖
-func (s *RedisService) Dependencies() []string { return []string{"logger"} }
+func (s *RedisService) Dependencies() []string { return []string{"logger", "configcenter"} }
 
 // ShouldInit 根据配置判断是否需要初始化
 func (s *RedisService) ShouldInit(cfg *config.BaseConfig) bool {

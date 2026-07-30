@@ -86,7 +86,7 @@ func TestRedisService_Priority(t *testing.T) {
 }
 
 func TestRedisService_Dependencies(t *testing.T) {
-	assert.Equal(t, []string{"logger"}, (&RedisService{}).Dependencies())
+	assert.Equal(t, []string{"logger", "configcenter"}, (&RedisService{}).Dependencies())
 }
 
 func TestRedisService_ShouldInit(t *testing.T) {
@@ -107,7 +107,7 @@ func TestMySQLService_Priority(t *testing.T) {
 }
 
 func TestMySQLService_Dependencies(t *testing.T) {
-	assert.Equal(t, []string{"logger"}, (&MySQLService{}).Dependencies())
+	assert.Equal(t, []string{"logger", "configcenter"}, (&MySQLService{}).Dependencies())
 }
 
 func TestMySQLService_ShouldInit(t *testing.T) {
@@ -128,7 +128,7 @@ func TestElasticsearchService_Priority(t *testing.T) {
 }
 
 func TestElasticsearchService_Dependencies(t *testing.T) {
-	assert.Equal(t, []string{"logger"}, (&ElasticsearchService{}).Dependencies())
+	assert.Equal(t, []string{"logger", "configcenter"}, (&ElasticsearchService{}).Dependencies())
 }
 
 func TestElasticsearchService_ShouldInit(t *testing.T) {
