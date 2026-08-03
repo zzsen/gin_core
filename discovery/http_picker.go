@@ -93,3 +93,32 @@ func (h *HTTPPicker) Do(ctx context.Context, service, method, path string, body 
 	// 步骤 5：发送
 	return h.client.Do(req)
 }
+
+// DoWait 等待可用实例后再发起 HTTP（空列表可阻塞至 ctx 结束）
+//
+// picker 须实现 WaitPicker；否则返回明确错误。Do 语义不变（立即失败）。
+func (h *HTTPPicker) DoWait(ctx context.Context, service, method, path string, body io.Reader, header http.Header) (*http.Response, error) {
+	if h == nil || h.picker == nil {
+		return nil, fmt.Errorf("discovery: HTTPPicker not configured")
+	}
+	wp, ok := h.picker.(WaitPicker)
+	if !ok {
+		return nil, fmt.Errorf("discovery: picker does not support PickWait")
+	}
+	inst, err := wp.PickWait(ctx, service, h.strategy)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	url := fmt.Sprintf("http://%s:%d%s", inst.IP, inst.Port, path)
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		return nil, err
+	}
+	if header != nil {
+		req.Header = header.Clone()
+	}
+	return h.client.Do(req)
+}

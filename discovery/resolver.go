@@ -24,6 +24,17 @@ type InstancePicker interface {
 	Pick(service, strategy string) (Instance, error)
 }
 
+// WaitPicker 支持空列表等待的 Pick（供 HTTPPicker.DoWait）
+type WaitPicker interface {
+	InstancePicker
+	PickWait(ctx context.Context, service, strategy string) (Instance, error)
+}
+
+type subscriber struct {
+	ch     chan []Instance
+	closed bool
+}
+
 // Resolver Watch 服务前缀并维护本地缓存。
 type Resolver struct {
 	cli    *clientv3.Client
@@ -32,6 +43,9 @@ type Resolver struct {
 
 	mu        sync.RWMutex
 	byService map[string]map[string]Instance // service -> instanceID -> Instance
+	subs      map[string]map[*subscriber]struct{}
+	waiters   map[string][]chan struct{}
+	stopped   bool
 
 	rrCounters sync.Map // service -> *uint64
 	cancel     context.CancelFunc
@@ -51,6 +65,8 @@ func NewResolver(cli *clientv3.Client, prefix, env string) *Resolver {
 		prefix:    prefix,
 		env:       env,
 		byService: make(map[string]map[string]Instance),
+		subs:      make(map[string]map[*subscriber]struct{}),
+		waiters:   make(map[string][]chan struct{}),
 	}
 }
 
@@ -98,12 +114,36 @@ func (r *Resolver) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop 取消 Watch 并等待 watchLoop 退出
+// Stop 取消 Watch、唤醒 waiter、关闭订阅并等待 watchLoop 退出
 func (r *Resolver) Stop() {
 	if r.cancel != nil {
 		r.cancel()
 	}
 	r.wg.Wait()
+
+	r.mu.Lock()
+	r.stopped = true
+	// 唤醒全部 waiter
+	for svc, list := range r.waiters {
+		for _, ch := range list {
+			select {
+			case ch <- struct{}{}:
+			default:
+			}
+		}
+		delete(r.waiters, svc)
+	}
+	// 关闭全部订阅
+	for svc, m := range r.subs {
+		for sub := range m {
+			if !sub.closed {
+				sub.closed = true
+				close(sub.ch)
+			}
+		}
+		delete(r.subs, svc)
+	}
+	r.mu.Unlock()
 }
 
 // watchLoop 消费 Etcd Watch 事件并更新本地缓存
@@ -112,46 +152,49 @@ func (r *Resolver) Stop() {
 // 【流程】
 //  1. 建立从指定 revision 起的前缀 Watch
 //  2. 逐批处理事件：Put → applyPut；Delete → applyDelete
-//  3. Watch 报错则退出循环
+//  3. 解锁后 notify 变更服务
+//  4. Watch 报错则退出循环
 func (r *Resolver) watchLoop(ctx context.Context, prefix string, rev int64) {
 	// 步骤 1：建立 Watch
 	wch := r.cli.Watch(ctx, prefix, clientv3.WithPrefix(), clientv3.WithRev(rev))
 
 	for wresp := range wch {
-		// 步骤 3：出错则结束（由外层 Stop/重启策略决定是否重建）
 		if wresp.Err() != nil {
 			return
 		}
 
+		changed := make(map[string]struct{})
 		// 步骤 2：批量应用本批事件
 		r.mu.Lock()
 		for _, ev := range wresp.Events {
 			key := string(ev.Kv.Key)
+			svc, _, ok := parseServiceInstance(r.watchPrefix(), key)
 			switch ev.Type {
 			case clientv3.EventTypePut:
 				r.applyPutLocked(key, ev.Kv.Value)
 			case clientv3.EventTypeDelete:
 				r.applyDeleteLocked(key)
 			}
+			if ok {
+				changed[svc] = struct{}{}
+			}
 		}
 		r.mu.Unlock()
+
+		// 步骤 3：通知订阅者与 waiter
+		for svc := range changed {
+			r.notifyService(svc)
+		}
 	}
 }
 
 // applyPutLocked 将 Put 事件写入缓存（调用方必须已持有 r.mu 写锁）
-//
-// 【流程】
-//  1. 从 Key 解析 service / instanceID
-//  2. 反序列化 Instance；补全 ServiceName / InstanceID
-//  3. 写入 byService[service][instanceID]
 func (r *Resolver) applyPutLocked(key string, val []byte) {
-	// 步骤 1：解析 Key
 	svc, id, ok := parseServiceInstance(r.watchPrefix(), key)
 	if !ok {
 		return
 	}
 
-	// 步骤 2：反序列化并补全字段
 	inst, err := UnmarshalInstance(val)
 	if err != nil {
 		return
@@ -163,7 +206,6 @@ func (r *Resolver) applyPutLocked(key string, val []byte) {
 		inst.InstanceID = id
 	}
 
-	// 步骤 3：写入缓存
 	m := r.byService[svc]
 	if m == nil {
 		m = make(map[string]Instance)
@@ -173,18 +215,12 @@ func (r *Resolver) applyPutLocked(key string, val []byte) {
 }
 
 // applyDeleteLocked 将 Delete 事件从缓存移除（调用方必须已持有 r.mu 写锁）
-//
-// 【流程】
-//  1. 从 Key 解析 service / instanceID
-//  2. 删除实例；若该服务无实例则删除服务桶
 func (r *Resolver) applyDeleteLocked(key string) {
-	// 步骤 1：解析 Key
 	svc, id, ok := parseServiceInstance(r.watchPrefix(), key)
 	if !ok {
 		return
 	}
 
-	// 步骤 2：删除并清理空桶
 	if m := r.byService[svc]; m != nil {
 		delete(m, id)
 		if len(m) == 0 {
@@ -194,9 +230,6 @@ func (r *Resolver) applyDeleteLocked(key string) {
 }
 
 // parseServiceInstance 从完整 Key 解析 serviceName 与 instanceID
-//
-// Key 约定：{watchPrefix}{service}/{instanceID}
-// 若路径段不足 2 段或前缀不匹配则 ok=false。
 func parseServiceInstance(watchPrefix, key string) (service, instanceID string, ok bool) {
 	if !strings.HasPrefix(key, watchPrefix) {
 		return "", "", false
@@ -209,10 +242,8 @@ func parseServiceInstance(watchPrefix, key string) (service, instanceID string, 
 	return parts[0], parts[len(parts)-1], true
 }
 
-// GetInstances 返回某服务全部实例的副本快照（只读锁）
-func (r *Resolver) GetInstances(service string) []Instance {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+// snapshotLocked 返回服务实例副本（调用方持锁）
+func (r *Resolver) snapshotLocked(service string) []Instance {
 	m := r.byService[service]
 	if len(m) == 0 {
 		return nil
@@ -224,27 +255,27 @@ func (r *Resolver) GetInstances(service string) []Instance {
 	return out
 }
 
+// GetInstances 返回某服务全部实例的副本快照（只读锁）
+func (r *Resolver) GetInstances(service string) []Instance {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.snapshotLocked(service)
+}
+
 // Pick 按策略从本地缓存选择一个实例
 //
 // 【功能】负载选取；过滤 weight<=0；空列表立即 ErrNoInstances
-// 【流程】
-//  1. 默认策略 round_robin
-//  2. GetInstances 并过滤非正权重
-//  3. round_robin / random：等权；weighted_random：按 weight 比例；其它：ErrUnsupportedStrategy
 func (r *Resolver) Pick(service, strategy string) (Instance, error) {
-	// 步骤 1：默认策略
 	if strategy == "" {
 		strategy = "round_robin"
 	}
 
-	// 步骤 2：取快照、过滤非正权重，并按 instanceID 排序保证 RR 稳定
 	list := filterPositiveWeight(r.GetInstances(service))
 	if len(list) == 0 {
 		return Instance{}, ErrNoInstances
 	}
 	sort.Slice(list, func(i, j int) bool { return list[i].InstanceID < list[j].InstanceID })
 
-	// 步骤 3：按策略选取
 	switch strategy {
 	case "round_robin":
 		v, _ := r.rrCounters.LoadOrStore(service, new(uint64))
@@ -257,6 +288,193 @@ func (r *Resolver) Pick(service, strategy string) (Instance, error) {
 	default:
 		return Instance{}, fmt.Errorf("%w: %s", ErrUnsupportedStrategy, strategy)
 	}
+}
+
+// Subscribe 订阅服务实例集快照变更（buffer=1，丢旧保新）
+//
+// 【流程】
+//  1. 注册订阅 channel
+//  2. 若已有实例则尝试推送当前快照
+//  3. 返回 channel 与 cancel（cancel/Stop 关闭 channel）
+func (r *Resolver) Subscribe(service string) (<-chan []Instance, func()) {
+	sub := &subscriber{ch: make(chan []Instance, 1)}
+	r.mu.Lock()
+	if r.stopped {
+		r.mu.Unlock()
+		close(sub.ch)
+		return sub.ch, func() {}
+	}
+	if r.subs[service] == nil {
+		r.subs[service] = make(map[*subscriber]struct{})
+	}
+	r.subs[service][sub] = struct{}{}
+	snap := r.snapshotLocked(service)
+	r.mu.Unlock()
+
+	if len(snap) > 0 {
+		pushSnapshot(sub, snap)
+	}
+
+	var once sync.Once
+	cancel := func() {
+		once.Do(func() {
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			if m := r.subs[service]; m != nil {
+				delete(m, sub)
+				if len(m) == 0 {
+					delete(r.subs, service)
+				}
+			}
+			if !sub.closed {
+				sub.closed = true
+				close(sub.ch)
+			}
+		})
+	}
+	return sub.ch, cancel
+}
+
+// GetWait 等待至少 1 个正权重实例后返回快照副本
+//
+// 【流程】
+//  1. 检查 stopped / 正权重列表
+//  2. 空则挂起 waiter，直至 notify / ctx 取消 / Stop
+//  3. 超时包装为 ErrWaitTimeout
+func (r *Resolver) GetWait(ctx context.Context, service string) ([]Instance, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	for {
+		r.mu.Lock()
+		if r.stopped {
+			r.mu.Unlock()
+			return nil, ErrResolverStopped
+		}
+		list := filterPositiveWeight(r.snapshotLocked(service))
+		if len(list) > 0 {
+			out := append([]Instance(nil), list...)
+			r.mu.Unlock()
+			return out, nil
+		}
+		ch := make(chan struct{}, 1)
+		r.waiters[service] = append(r.waiters[service], ch)
+		r.mu.Unlock()
+
+		select {
+		case <-ctx.Done():
+			r.removeWaiter(service, ch)
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return nil, fmt.Errorf("%w: %w", ErrWaitTimeout, ctx.Err())
+			}
+			return nil, ctx.Err()
+		case <-ch:
+			// 重新检查
+		}
+	}
+}
+
+// PickWait 等待可用实例后按策略 Pick
+func (r *Resolver) PickWait(ctx context.Context, service, strategy string) (Instance, error) {
+	if _, err := r.GetWait(ctx, service); err != nil {
+		return Instance{}, err
+	}
+	return r.Pick(service, strategy)
+}
+
+// notifyService 向订阅者推送快照并唤醒 waiter（写锁外调用）
+func (r *Resolver) notifyService(service string) {
+	r.mu.Lock()
+	if r.stopped {
+		r.mu.Unlock()
+		return
+	}
+	snap := r.snapshotLocked(service)
+	var subs []*subscriber
+	for sub := range r.subs[service] {
+		subs = append(subs, sub)
+	}
+	waiters := append([]chan struct{}(nil), r.waiters[service]...)
+	r.waiters[service] = nil
+	r.mu.Unlock()
+
+	for _, sub := range subs {
+		pushSnapshot(sub, snap)
+	}
+	for _, ch := range waiters {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func pushSnapshot(sub *subscriber, snap []Instance) {
+	if sub == nil {
+		return
+	}
+	// 与 cancel/Stop 关闭 channel 竞态时吞 panic
+	defer func() { _ = recover() }()
+	if sub.closed {
+		return
+	}
+	cp := append([]Instance(nil), snap...)
+	select {
+	case sub.ch <- cp:
+		return
+	default:
+	}
+	// 丢旧保新
+	select {
+	case <-sub.ch:
+	default:
+	}
+	select {
+	case sub.ch <- cp:
+	default:
+	}
+}
+
+func (r *Resolver) removeWaiter(service string, target chan struct{}) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	list := r.waiters[service]
+	out := list[:0]
+	for _, ch := range list {
+		if ch != target {
+			out = append(out, ch)
+		}
+	}
+	if len(out) == 0 {
+		delete(r.waiters, service)
+	} else {
+		r.waiters[service] = out
+	}
+}
+
+// putInstanceForTest 测试辅助：写入缓存并 notify（同包单测用）
+func (r *Resolver) putInstanceForTest(inst Instance) {
+	if inst.ServiceName == "" || inst.InstanceID == "" {
+		return
+	}
+	key := r.watchPrefix() + inst.ServiceName + "/" + inst.InstanceID
+	val, err := inst.MarshalValue()
+	if err != nil {
+		return
+	}
+	r.mu.Lock()
+	r.applyPutLocked(key, val)
+	r.mu.Unlock()
+	r.notifyService(inst.ServiceName)
+}
+
+// deleteInstanceForTest 测试辅助：从缓存删除并 notify
+func (r *Resolver) deleteInstanceForTest(service, instanceID string) {
+	key := r.watchPrefix() + service + "/" + instanceID
+	r.mu.Lock()
+	r.applyDeleteLocked(key)
+	r.mu.Unlock()
+	r.notifyService(service)
 }
 
 // filterPositiveWeight 去掉 weight<=0 的实例
