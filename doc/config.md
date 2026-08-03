@@ -437,10 +437,10 @@ es:                               # Elasticsearch配置
 | required | 默认 `false` 降级；生产建议 `true` |
 | 健康检查 | `health.strategy`: `any` \| `all`，见 [健康检查](./healthcheck.md) |
 | 分布式锁 | `distlock.NewEtcdLocker(app.Etcd, ...)`，见 [分布式锁](./distlock.md) |
-| 服务发现 | `discovery.enabled`；注册 / Watch / Pick / `HTTPPicker`；可选 KeepAlive 重建与 ready 两阶段摘除 |
+| 服务发现 | `discovery.enabled`；注册 / Watch / Pick / `HTTPPicker`；`Subscribe` / `PickWait` / `DoWait`；可选 KeepAlive 重建与 ready 两阶段摘除；`waitTimeoutSeconds`（默认 0） |
 | 配置中心 | `configCenter.enabled`；lifecycle 服务 `configcenter`（依赖 `etcd`，在 `mysql`/`redis` 等之前）；启动 overlay（etcd > file）+ Watch 白名单热更（`log.level` / `rateLimit.*`） |
 
-**尚未内置**：全量配置热更、Subscribe、空列表阻塞等待、多 key 路径拆分。行为细节与调用链见 [etcd.md · 配置中心](./etcd.md#启用配置中心opt-in)。
+**尚未内置（配置中心）**：全量配置热更、多 key 路径拆分。发现侧快照落盘降级未做。详见 [etcd.md](./etcd.md)。
 
 ```yaml
 etcd:
@@ -474,6 +474,7 @@ etcd:
       intervalSeconds: 5
       failThreshold: 3
       successThreshold: 2
+    waitTimeoutSeconds: 0       # >0 时 ContextWithDiscoveryWaitTimeout 可套超时；Pick/Do 仍立即失败
   configCenter:
     enabled: false              # 默认关闭；true 时启用 overlay + 可选 Watch
     prefix: "config/app.yml"    # Etcd key（整包 YAML）；空则同默认

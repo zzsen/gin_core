@@ -18,9 +18,11 @@
 | KeepAlive 重建 | ✅ | `discovery.keepalive.rebuild`（默认 true）；断流退避重建 Lease |
 | 健康两阶段摘除 | ✅ | `discovery.health.unlink`（默认 false）；对接 `/healthy/ready`：先 `weight=0` 再注销 |
 | Pick 策略 | ✅ | `round_robin` / `random`（等权）+ `weighted_random`；跳过 `weight<=0` |
+| Subscribe 快照推送 | ✅ | `Resolver.Subscribe`；buffer=1 丢旧保新；`cancel`/`Stop` 清理 |
+| 空列表等待 | ✅ | `GetWait` / `PickWait` / `HTTPPicker.DoWait`（`context` 可取消/超时）；`Pick`/`Do` 仍立即失败 |
 | Discovery 指标 | ✅ | `discovery_keepalive_rebuild_total` / `discovery_health_*`（Prometheus） |
 | 配置中心 overlay / 白名单热更 | ✅ | opt-in：`etcd.configCenter.enabled`；包 `configcenter/`；默认关闭 |
-| Subscribe / 空列表等待 / 快照降级 | ❌ | 未做 |
+| 缓存快照落盘降级 | ❌ | 未做 |
 
 ## 启用客户端
 
@@ -70,6 +72,7 @@ etcd:
       intervalSeconds: 5
       failThreshold: 3
       successThreshold: 2
+    waitTimeoutSeconds: 0     # >0 时 config.ContextWithDiscoveryWaitTimeout 可套超时；不改变 Pick/Do
 ```
 
 | 行为 | 说明 |
@@ -80,7 +83,21 @@ etcd:
 | Key | `{prefix}{env}/{serviceName}/{instanceID}`，再叠 `etcd.keyPrefix` namespace |
 | Lease | 独立于 `distlock` Session；可按 `keepalive.rebuild` 重建 |
 | 健康摘除 | `health.unlink=true` 时周期性调用与 `/healthy/ready` 同源的就绪聚合；失败达阈值先 `weight=0`，再 `Deregister` |
-| Pick | `round_robin` / `random` 等权；`weighted_random` 按 weight；均跳过 `weight<=0` |
+| Pick / Do | 空列表 **立即** `ErrNoInstances`（不阻塞） |
+| Subscribe | `Resolver.Subscribe(service)` → `<-chan []Instance` + cancel；buffer=1 丢旧保新 |
+| Wait | `GetWait` / `PickWait` / `HTTPPicker.DoWait`：等正权重实例；超时可 `errors.Is(err, ErrWaitTimeout)` |
+
+### Subscribe / Wait 调用要点
+
+```go
+ch, cancel := res.Subscribe("user-svc")
+defer cancel()
+
+ctx, cancelWait := context.WithTimeout(context.Background(), 3*time.Second)
+defer cancelWait()
+inst, err := res.PickWait(ctx, "user-svc", "round_robin")
+// 或：picker.DoWait(ctx, "user-svc", http.MethodGet, "/ping", nil, nil)
+```
 
 ## 启用配置中心（opt-in）
 
