@@ -268,6 +268,7 @@ etcd:
     #   intervalSeconds: 5
     #   failThreshold: 3
     #   successThreshold: 2
+    # waitTimeoutSeconds: 0 # >0 时 ContextWithDiscoveryWaitTimeout 可套超时；不改变 Pick/Do 默认立即失败
   # 配置中心 overlay / 白名单热更（默认关闭；需 useEtcd: true 且客户端可用）
   configCenter:
     enabled: false

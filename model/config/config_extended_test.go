@@ -506,6 +506,37 @@ etcd:
 	assert.Equal(t, 2, empty.HealthSuccessThreshold())
 }
 
+// TestEtcdDiscoveryConfig_WaitTimeoutSeconds waitTimeoutSeconds 与 helper
+//
+// 【功能点】默认 0；YAML 反序列化；ContextWithDiscoveryWaitTimeout
+// 【测试流程】
+// 1. 空配置 WaitTimeoutSecondsOrZero=0，helper 不额外超时
+// 2. YAML waitTimeoutSeconds: 5
+func TestEtcdDiscoveryConfig_WaitTimeoutSeconds(t *testing.T) {
+	empty := &EtcdDiscoveryConfig{}
+	assert.Equal(t, 0, empty.WaitTimeoutSecondsOrZero())
+	ctx, cancel := ContextWithDiscoveryWaitTimeout(context.Background(), empty)
+	cancel()
+	_, hasDeadline := ctx.Deadline()
+	assert.False(t, hasDeadline)
+
+	const yml = `
+etcd:
+  endpoints: ["http://127.0.0.1:2379"]
+  discovery:
+    enabled: true
+    waitTimeoutSeconds: 5
+`
+	var cfg BaseConfig
+	require.NoError(t, yaml.Unmarshal([]byte(yml), &cfg))
+	require.NotNil(t, cfg.Etcd.Discovery)
+	assert.Equal(t, 5, cfg.Etcd.Discovery.WaitTimeoutSecondsOrZero())
+	ctx2, cancel2 := ContextWithDiscoveryWaitTimeout(context.Background(), cfg.Etcd.Discovery)
+	defer cancel2()
+	_, hasDeadline = ctx2.Deadline()
+	assert.True(t, hasDeadline)
+}
+
 // TestEtcdConfigCenter_YAML 反序列化 configCenter 与默认辅助方法
 //
 // 【功能点】EtcdInfo.ConfigCenter、Enabled/Prefix/Required/DebounceMs/Watch/Whitelist

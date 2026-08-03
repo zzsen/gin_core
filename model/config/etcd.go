@@ -2,6 +2,11 @@
 // 本文件定义 Etcd 客户端分层配置（含可选配置中心开关；连接语义仍属客户端基建）
 package config
 
+import (
+	"context"
+	"time"
+)
+
 // 默认配置中心 key 与白名单
 const (
 	DefaultConfigCenterPrefix     = "config/app.yml"
@@ -48,8 +53,9 @@ type EtcdDiscoveryConfig struct {
 	Meta          map[string]string             `yaml:"meta"`          // 可选元数据
 	AdvertiseIP   string                        `yaml:"advertiseIP"`   // 空则取 service.ip
 	AdvertisePort int                           `yaml:"advertisePort"` // 0 则取 service.port
-	Keepalive     *EtcdDiscoveryKeepaliveConfig `yaml:"keepalive"`     // KeepAlive 重建
-	Health        *EtcdDiscoveryHealthConfig    `yaml:"health"`        // 就绪联动摘除（默认关闭）
+	Keepalive           *EtcdDiscoveryKeepaliveConfig `yaml:"keepalive"`           // KeepAlive 重建
+	Health              *EtcdDiscoveryHealthConfig    `yaml:"health"`              // 就绪联动摘除（默认关闭）
+	WaitTimeoutSeconds  int                           `yaml:"waitTimeoutSeconds"`  // Wait API 建议超时（秒）；0=不自动套超时
 }
 
 // EtcdDiscoveryKeepaliveConfig 注册租约续约与重建
@@ -131,6 +137,29 @@ func (d *EtcdDiscoveryConfig) HealthSuccessThreshold() int {
 		return 2
 	}
 	return d.Health.SuccessThreshold
+}
+
+// WaitTimeoutSecondsOrZero 返回 waitTimeoutSeconds；未配置或负数视为 0
+func (d *EtcdDiscoveryConfig) WaitTimeoutSecondsOrZero() int {
+	if d == nil || d.WaitTimeoutSeconds <= 0 {
+		return 0
+	}
+	return d.WaitTimeoutSeconds
+}
+
+// ContextWithDiscoveryWaitTimeout 当 waitTimeoutSeconds>0 时返回带超时的子 context；否则返回 parent 与 noop cancel。
+func ContextWithDiscoveryWaitTimeout(parent context.Context, d *EtcdDiscoveryConfig) (context.Context, context.CancelFunc) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	sec := 0
+	if d != nil {
+		sec = d.WaitTimeoutSecondsOrZero()
+	}
+	if sec <= 0 {
+		return parent, func() {}
+	}
+	return context.WithTimeout(parent, time.Duration(sec)*time.Second)
 }
 
 // EtcdDialConfig Etcd 拨号相关配置（时间单位：秒）
